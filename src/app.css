@@ -1,0 +1,41 @@
+/* :root {
+  --color-primary: #00d2d3;
+  --color-primary-hover: #01a3a4;
+  --color-text: #ffffff;
+  --color-text-sub: rgba(255, 255, 255, 0.8);
+  --bg-dark: #222f3e;
+  --bg-cool: #c7ecee;
+  
+  --font-main: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+} */
+
+:root {
+    --color-primary: #ff6699; /* Teal/Cyan */
+    --color-primary-hover: #ffacc8;
+    --color-text: #ffffff;
+    --color-text-sub: rgba(255, 255, 255, 0.8);
+    --bg-dark: #222f3e;
+    --bg-cool: #e5eeff;
+    --font-main: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-dark);
+  color: var(--color-text);
+  overflow: hidden; /* Prevent scrollbars from background animation */
+  width: 100vw;
+  height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+}
