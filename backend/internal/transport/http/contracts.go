@@ -7,6 +7,7 @@ import (
 	initdto "github.com/open-console/console-platform/internal/app/initcenter/dto"
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
 	announcementmodel "github.com/open-console/console-platform/internal/modules/announcements/model"
+	communitymodel "github.com/open-console/console-platform/internal/modules/community/model"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iammodel "github.com/open-console/console-platform/internal/modules/iam/model"
 	iamservice "github.com/open-console/console-platform/internal/modules/iam/service"
@@ -260,6 +261,7 @@ func mainHTTPContracts() []RouteContract {
 		platformPermissionRoute("iam.notification-outbox.retry", http.MethodPost, appconstants.APIPath("iam", "notification-outbox", ":outboxId", "retry"), "IAM 通知", "手动重试 IAM 通知投递任务", "notification:retry", nil, jsonType[iamservice.NotificationOutboxView](), pathID("outboxId")),
 	}
 	contracts = append(contracts, announcementRouteContracts()...)
+	contracts = append(contracts, communityRouteContracts()...)
 	contracts = append(contracts, systemRouteContracts()...)
 	return contracts
 }
@@ -332,6 +334,24 @@ func announcementListParams() []RouteParam {
 
 func publicAnnouncementListParams() []RouteParam {
 	return []RouteParam{queryParam("keyword", "string"), queryInt("page"), queryInt("pageSize"), queryDateTime("startCreatedAt"), queryDateTime("endCreatedAt")}
+}
+
+func communityRouteContracts() []RouteContract {
+	return []RouteContract{
+		publicRoute("community.status", http.MethodGet, appconstants.APIPath("public", "community", "status"), "Community", "查询社区公开 API 状态", nil, jsonType[communitymodel.APIStatus]()),
+		publicRoute("community.home", http.MethodGet, appconstants.APIPath("public", "community", "home"), "Community", "查询社区首页聚合数据", nil, jsonType[communitymodel.HomePayload]()),
+		publicRoute("community.categories", http.MethodGet, appconstants.APIPath("public", "community", "categories"), "Community", "查询社区分类树", nil, jsonType[[]communitymodel.CategoryTreeNode]()),
+		publicRoute("community.videos.list", http.MethodGet, appconstants.APIPath("public", "community", "videos"), "Community", "查询社区视频列表", nil, jsonType[communitymodel.PageResult[communitymodel.VideoSummary]](), communityVideoListParams()...),
+		publicRoute("community.videos.get", http.MethodGet, appconstants.APIPath("public", "community", "videos", ":idOrSlug"), "Community", "查询社区视频详情", nil, jsonType[communitymodel.VideoDetail](), pathString("idOrSlug")),
+		publicRoute("community.videos.danmaku", http.MethodGet, appconstants.APIPath("public", "community", "videos", ":idOrSlug", "danmaku"), "Community", "查询社区视频弹幕", nil, jsonType[communitymodel.VideoDanmakuPayload](), pathString("idOrSlug")),
+		publicRoute("community.search", http.MethodGet, appconstants.APIPath("public", "community", "search"), "Community", "搜索社区视频、创作者和分类", nil, jsonType[communitymodel.SearchPayload](), queryParam("q", "string"), queryInt("limit")),
+		publicRoute("community.creators.get", http.MethodGet, appconstants.APIPath("public", "community", "users", ":handle"), "Community", "查询社区创作者资料", nil, jsonType[communitymodel.CreatorProfile](), pathString("handle")),
+		publicRoute("community.feed.following", http.MethodGet, appconstants.APIPath("public", "community", "feed", "following"), "Community", "查询社区关注推荐预览", nil, jsonType[communitymodel.FollowingFeedPayload]()),
+	}
+}
+
+func communityVideoListParams() []RouteParam {
+	return []RouteParam{queryParam("category", "string"), queryParam("cursor", "string"), queryInt("limit")}
 }
 
 func systemRouteContracts() []RouteContract {

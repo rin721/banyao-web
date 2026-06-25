@@ -1,5 +1,6 @@
 import type {
   AoiApiErrorPayload,
+  ApiResultEnvelope,
   ApiStatus,
   CategoryTreeNode,
   CreatorProfile,
@@ -25,14 +26,14 @@ export function useAoiApi() {
 
   async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     try {
-      const response = await $fetch<T>(endpoint, {
+      const response = await $fetch<unknown>(endpoint, {
         baseURL: baseURL.value,
         query: options.query
       })
 
-      return response as T
+      return unwrapApiResponse<T>(response, endpoint)
     } catch (error) {
-      const apiError = toAoiApiError(error, endpoint)
+      const apiError = isAoiApiErrorPayload(error) ? error : toAoiApiError(error, endpoint)
 
       telemetry.recordError(apiError)
       throw apiError
@@ -116,23 +117,70 @@ export function useAoiApi() {
   }
 }
 
+function unwrapApiResponse<T>(response: unknown, endpoint: string): T {
+  if (!isApiResultEnvelope<T>(response)) {
+    return response as T
+  }
+
+  if (response.code !== 0) {
+    throw {
+      code: String(response.code),
+      endpoint,
+      message: response.message || response.messageKey || "请求暂时失败，请稍后重试。",
+      requestId: response.traceId || `aoi-local-${Date.now()}`,
+      statusCode: 200
+    } satisfies AoiApiErrorPayload
+  }
+
+  return response.data as T
+}
+
 function toAoiApiError(error: unknown, endpoint: string): AoiApiErrorPayload {
   const fetchError = error as {
-    data?: ErrorResponse
+    data?: ErrorResponse | ApiResultEnvelope<unknown>
     message?: string
     status?: number
     statusCode?: number
     statusMessage?: string
   }
-  const responseError = fetchError.data?.error
+  const responseError = isErrorResponse(fetchError.data) ? fetchError.data.error : null
+  const resultError = isApiResultEnvelope(fetchError.data) ? fetchError.data : null
   const statusCode = fetchError.statusCode || fetchError.status || 500
-  const code = responseError?.code || fetchError.statusMessage || "AOI_API_ERROR"
+  const code = responseError?.code || (resultError ? String(resultError.code) : null) || fetchError.statusMessage || "AOI_API_ERROR"
 
   return {
     code,
     endpoint,
-    message: responseError?.message || fetchError.message || "请求暂时失败，请稍后重试。",
-    requestId: responseError?.requestId || `aoi-local-${Date.now()}`,
+    message: responseError?.message || resultError?.message || fetchError.message || "请求暂时失败，请稍后重试。",
+    requestId: responseError?.requestId || resultError?.traceId || `aoi-local-${Date.now()}`,
     statusCode
   }
+}
+
+function isApiResultEnvelope<T = unknown>(value: unknown): value is ApiResultEnvelope<T> {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "code" in value &&
+    "messageKey" in value &&
+    "serverTime" in value
+  )
+}
+
+function isErrorResponse(value: unknown): value is ErrorResponse {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "error" in value
+  )
+}
+
+function isAoiApiErrorPayload(value: unknown): value is AoiApiErrorPayload {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "endpoint" in value &&
+    "statusCode" in value &&
+    "requestId" in value
+  )
 }

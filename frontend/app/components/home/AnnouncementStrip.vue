@@ -28,10 +28,10 @@ defineProps<{
   gap: 10px;
   align-items: start;
   border: 1px solid var(--aoi-border);
+  border-left: 3px solid var(--aoi-accent-60);
   border-radius: var(--aoi-radius-sm);
-  background: var(--aoi-surface);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--aoi-shadow-sm);
-  backdrop-filter: blur(16px);
   margin: 2px 0 18px;
   padding: 14px 16px;
 }
@@ -42,7 +42,7 @@ defineProps<{
   height: 26px;
   place-items: center;
   border-radius: var(--aoi-radius-sm);
-  background: var(--aoi-accent-10);
+  background: color-mix(in srgb, var(--aoi-accent-60) 12%, white);
   color: var(--aoi-accent-60);
 }
 

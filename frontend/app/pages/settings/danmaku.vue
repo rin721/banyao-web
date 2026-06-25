@@ -183,7 +183,7 @@ function setSettingDerivationStrength(key: string, value: number) {
       v-if="settings.hydrated"
       icon="activity"
       title="本地弹幕状态"
-      description="这里显示当前浏览器里保存的本地发送弹幕，不包含 mock API 初始弹幕。"
+      description="这里显示当前浏览器里保存的本地发送弹幕，不包含社区 API 初始弹幕。"
     >
       <AoiStatGrid :items="danmakuStats" />
     </SettingsPanel>

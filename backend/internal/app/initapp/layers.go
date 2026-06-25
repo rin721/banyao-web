@@ -11,6 +11,8 @@ import (
 	"github.com/open-console/console-platform/internal/config"
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
 	announcementservice "github.com/open-console/console-platform/internal/modules/announcements/service"
+	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
+	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iamrepository "github.com/open-console/console-platform/internal/modules/iam/repository"
 	iamservice "github.com/open-console/console-platform/internal/modules/iam/service"
@@ -54,6 +56,7 @@ type Infrastructure struct {
 // Modules 汇总当前应用启用的业务模块。
 type Modules struct {
 	Announcements AnnouncementsModule
+	Community     CommunityModule
 	IAM           IAMModule
 	System        SystemModule
 }
@@ -73,6 +76,12 @@ type IAMModule struct {
 type AnnouncementsModule struct {
 	Service announcementservice.Service
 	Handler *announcementhandler.Handler
+}
+
+// CommunityModule 保存视频社区业务模块的服务和 HTTP 处理器。
+type CommunityModule struct {
+	Service communityservice.Service
+	Handler *communityhandler.Handler
 }
 
 // SystemModule 保存系统管理模块的服务和 HTTP 处理器。

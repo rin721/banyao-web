@@ -104,7 +104,7 @@ function category(slug: string) {
 export const mockAnnouncement: Announcement = {
   id: "ann-alpha",
   title: "公告",
-  body: "Aoi 正在进行第一版视觉与前端架构设计。欢迎未来接入 Discord、公告、创作者投稿和 Go 后端 API。",
+  body: "Aoi 正在进行 KIRAKIRA 风格视觉与社区 API 接入。欢迎继续打磨创作者投稿、互动和通知能力。",
   href: null,
   severity: "info",
   startsAt: "2026-06-03T00:00:00.000Z",
@@ -167,8 +167,8 @@ export const mockVideos: VideoSummary[] = [
   {
     id: "video-go-api",
     slug: "go-api-ready",
-    title: "Go API Ready：前端 mock 数据如何平滑切换后端",
-    description: "DTO、runtime config 与后端预留。",
+    title: "Community API Ready：前端数据如何平滑切换后端",
+    description: "DTO、runtime config 与后端社区接口接入。",
     thumbnailUrl: "gradient:go-api",
     durationSeconds: 496,
     viewCount: 1800,
@@ -233,7 +233,7 @@ const creatorMeta: Record<string, {
   joinedAt: string
 }> = {
   "aoi-backend": {
-    bio: "记录 Aoi 前端与未来 Go API 的契约、数据流和工程化取舍。",
+    bio: "记录 Aoi 前端与后端社区 API 的契约、数据流和工程化取舍。",
     followerCount: 1480,
     joinedAt: "2026-05-08T00:00:00.000Z"
   },
@@ -313,7 +313,7 @@ export function getMockFollowingFeed(): FollowingFeedPayload {
       items: creators.flatMap((creator) => creator.latest.items).slice(0, 6),
       nextCursor: null
     },
-    message: "当前 mock 环境未接入认证；这里展示推荐关注的创作者预览。"
+    message: "当前社区读接口未接入认证；这里展示推荐关注的创作者预览。"
   }
 }
 
@@ -450,7 +450,7 @@ const mockDanmakuSamples: Array<{
   { body: "节奏刚好", offset: 17 },
   { body: "底部固定弹幕", mode: "bottom", offset: 20, color: "#ffb4d8" },
   { body: "Aoi wrapper 化很舒服", offset: 23 },
-  { body: "这里可以接未来后端", offset: 27 },
+  { body: "这里已经可以接后端社区 API", offset: 27 },
   { body: "移动端也要稳", offset: 31 }
 ]
 

@@ -73,12 +73,12 @@ function onError() {
 
 function gradientForSource(source?: string | null) {
   const gradients = [
-    "linear-gradient(135deg, #6de5e5, #5b8def 48%, #f2709c)",
-    "linear-gradient(135deg, #f7b955, #d9f7cc 48%, #65d5e4)",
-    "linear-gradient(135deg, #7a68f0, #22b8cf 48%, #151c33)",
-    "linear-gradient(135deg, #c9f3f7, #8fc7ff 45%, #f7d3df)",
-    "linear-gradient(135deg, #17262b, #216d7d 48%, #f2709c)",
-    "linear-gradient(135deg, #fff6fb, #f2709c 45%, #22b8cf)"
+    "linear-gradient(135deg, #fff7fa, #f06e8e 48%, #212121)",
+    "linear-gradient(135deg, #ffffff, #f7b955 46%, #3f7de8)",
+    "linear-gradient(135deg, #212121, #f06e8e 48%, #ffffff)",
+    "linear-gradient(135deg, #fff4f7, #f7a8ba 45%, #3f7de8)",
+    "linear-gradient(135deg, #ffffff, #212121 48%, #f06e8e)",
+    "linear-gradient(135deg, #fffdfd, #f06e8e 45%, #f7b955)"
   ]
 
   if (!source) {

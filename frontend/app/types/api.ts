@@ -1,6 +1,7 @@
 export type {
   AoiApiErrorPayload,
   Announcement,
+  ApiResultEnvelope,
   ApiStatus,
   Category,
   CategoryTreeNode,

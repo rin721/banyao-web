@@ -19,6 +19,8 @@ import (
 	"github.com/open-console/console-platform/internal/middleware"
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
 	announcementservice "github.com/open-console/console-platform/internal/modules/announcements/service"
+	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
+	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iammodel "github.com/open-console/console-platform/internal/modules/iam/model"
 	iamservice "github.com/open-console/console-platform/internal/modules/iam/service"
@@ -569,6 +571,8 @@ func TestGeneratedOpenAPIYAMLSyncsWithCommittedFile(t *testing.T) {
 		"/api/v1/auth/setup/initial-admin",
 		"/api/v1/auth/signup",
 		"/api/v1/auth/captcha",
+		"/api/v1/public/community/home",
+		"/api/v1/public/community/videos/{idOrSlug}",
 		"/api/v1/orgs/{orgId}",
 		"/api/v1/orgs/{orgId}/users/{userId}",
 		"/api/v1/orgs/{orgId}/invitations",
@@ -606,6 +610,7 @@ func TestRouteContractsCoverRegisteredAPIV1Routes(t *testing.T) {
 		Router:               router,
 		SetupHandler:         fakeSetupHandler{},
 		AnnouncementsHandler: announcementhandler.New(announcementservice.New(nil, nil, announcementservice.Config{}), nil),
+		CommunityHandler:     communityhandler.New(communityservice.New(nil, communityservice.Config{}), nil),
 		IAMHandler:           iamhandler.New(auth, nil),
 		IAMAuth:              auth,
 		IAMAuthz:             auth,

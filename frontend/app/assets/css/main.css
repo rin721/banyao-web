@@ -14,9 +14,10 @@ body {
   margin: 0;
   overflow-x: clip;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-50) 8%, transparent), transparent 34%),
-    linear-gradient(315deg, rgba(242, 112, 156, 0.08), transparent 28%),
+    linear-gradient(90deg, rgba(240, 110, 142, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(240, 110, 142, 0.075), transparent 260px),
     var(--aoi-bg);
+  background-size: 56px 56px, 100% 100%, auto;
   color: var(--aoi-text);
   font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   font-size: var(--aoi-base-font-size);

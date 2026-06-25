@@ -2,7 +2,7 @@
 
 Aoi Web 是一个 Nuxt 4 前端优先的视频社区应用。项目使用 Vue 3、TypeScript、Pinia、`@nuxtjs/i18n`、`@nuxt/icon`，并通过本地 Aoi wrapper 统一封装 Material Web 组件。
 
-当前应用以 Nuxt mock API 和浏览器本地状态为主，覆盖首页发现、分类浏览、搜索、关注动态、视频播放、用户页、历史/收藏、上传草稿和设置中心等前端体验；共享 DTO 与 mock fixture 会尽量贴近未来 Go 后端契约。
+当前应用以 Nuxt mock API、后端社区公开读接口和浏览器本地状态共同支撑体验，覆盖首页发现、分类浏览、搜索、关注动态、视频播放、用户页、历史/收藏、上传草稿和设置中心；共享 DTO 与 mock fixture 需贴近 `backend/internal/modules/community` 暴露的社区契约。
 
 ## 标星历史
 
@@ -138,8 +138,8 @@ Nuxt public runtime config 支持以下环境变量：
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `NUXT_PUBLIC_API_BASE_URL` | `/api/mock` | `useAoiApi()` 使用的 API 基础路径 |
-| `NUXT_PUBLIC_API_MOCK` | `true` | 设置为 `false` 时关闭 mock 标记 |
+| `NUXT_PUBLIC_API_BASE_URL` | `/api/v1/public/community` | 关闭 mock 后 `useAoiApi()` 使用的后端社区 API 基础路径；本地分端口联调可设为 `http://127.0.0.1:9999/api/v1/public/community` |
+| `NUXT_PUBLIC_API_MOCK` | `true` | 设置为 `false` 时使用 `NUXT_PUBLIC_API_BASE_URL` 并消费后端 `result` envelope |
 
 应用代码访问 API 时应统一通过 `useAoiApi()`，并保持与 `useAoiApiTelemetry()` 的错误诊断兼容。
 

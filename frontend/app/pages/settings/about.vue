@@ -69,7 +69,7 @@ onBeforeUnmount(() => {
   <div class="settings-page">
     <SettingsPageHeader
       title="关于"
-      description="Aoi 是一个前端优先的视频社区原型，保留未来 Go API 的契约方向。"
+      description="Aoi 是一个前端优先的视频社区，读侧可切换到后端社区 API，互动与投稿仍按本地体验边界演进。"
     />
 
     <SettingsPanel

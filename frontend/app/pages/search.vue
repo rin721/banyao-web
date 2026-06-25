@@ -104,14 +104,14 @@ useHead(() => ({
     <PageHeader
       icon="search"
       title="搜索"
-      description="搜索视频、创作者、标签或分类。当前结果来自 Nuxt mock API。"
+      description="搜索视频、创作者、标签或分类。结果来自当前社区数据源。"
     />
 
     <div v-aoi-reveal="'rise'" class="search-toolbar">
       <AoiTextField
         v-model="query"
         label="搜索关键词"
-        placeholder="例如：Aoi、设计、Go API"
+        placeholder="例如：动画、设计、移动端"
         appearance="outlined"
         @enter="submitSearch"
       />
@@ -122,14 +122,14 @@ useHead(() => ({
       v-if="!hasQuery"
       icon="sparkles"
       title="输入一个关键词开始探索"
-      description="试试搜索 Aoi、设计、移动端或 Go API。"
+      description="试试搜索动画、设计、移动端或音MAD。"
     />
 
     <PageState
       v-else-if="!pending && error"
       icon="circle-alert"
       title="搜索失败"
-      description="Mock API 返回异常，请重试。"
+      description="社区 API 返回异常，请重试。"
       action-icon="refresh-cw"
       action-label="重试"
       @action="refresh()"

@@ -14,6 +14,7 @@ import (
 
 	"github.com/open-console/console-platform/internal/middleware"
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
+	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	systemhandler "github.com/open-console/console-platform/internal/modules/system/handler"
 	systemmodel "github.com/open-console/console-platform/internal/modules/system/model"
@@ -35,6 +36,7 @@ type RouterDeps struct {
 	TraceIDGenerator     ports.IDGenerator
 	Middleware           middleware.MiddlewareConfig
 	AnnouncementsHandler *announcementhandler.Handler
+	CommunityHandler     *communityhandler.Handler
 	IAMHandler           *iamhandler.Handler
 	SystemHandler        *systemhandler.Handler
 	SetupHandler         SetupHandler
@@ -99,6 +101,9 @@ func NewRouter(deps RouterDeps) ports.HTTPRouter {
 	}
 	if deps.AnnouncementsHandler != nil {
 		registeredContracts = append(registeredContracts, registerAnnouncementRoutes(v1, deps)...)
+	}
+	if deps.CommunityHandler != nil {
+		registeredContracts = append(registeredContracts, registerCommunityRoutes(v1, deps)...)
 	}
 	if deps.SystemHandler != nil {
 		registeredContracts = append(registeredContracts, registerSystemRoutes(v1, deps)...)
@@ -281,6 +286,24 @@ func registerAnnouncementRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteCon
 	registerProtectedRouteSpecs(protected, appconstants.APIPath("announcements"), deps, specs)
 	registered = append(registered, routeContractsFromSpecs(specs)...)
 	return registered
+}
+
+func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContract {
+	public := v1.Group("/public/community")
+	public.Use(middleware.RateLimit(middleware.RateLimitConfig{Enabled: true, Limit: 240, Window: time.Minute}))
+	specs := []routeSpec{
+		routeSpecFor("community.status", deps.CommunityHandler.Status),
+		routeSpecFor("community.home", deps.CommunityHandler.Home),
+		routeSpecFor("community.categories", deps.CommunityHandler.Categories),
+		routeSpecFor("community.videos.list", deps.CommunityHandler.Videos),
+		routeSpecFor("community.videos.get", deps.CommunityHandler.VideoDetail),
+		routeSpecFor("community.videos.danmaku", deps.CommunityHandler.VideoDanmaku),
+		routeSpecFor("community.search", deps.CommunityHandler.Search),
+		routeSpecFor("community.creators.get", deps.CommunityHandler.Creator),
+		routeSpecFor("community.feed.following", deps.CommunityHandler.Following),
+	}
+	registerRouteSpecs(public, appconstants.APIPath("public", "community"), specs)
+	return routeContractsFromSpecs(specs)
 }
 
 func iamAuthMiddlewareConfig(deps RouterDeps) middleware.AuthConfig {

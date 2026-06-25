@@ -25,7 +25,7 @@
     "login": "Log in"
   },
   "home": {
-    "subtitle": "A clear, fast video community frontend for creators. This Nuxt 4 prototype uses mock data for the future Go API.",
+    "subtitle": "A light, cute video community for creators, ready to switch from Nuxt mock data to the backend community API.",
     "latest": "Latest",
     "gridView": "Grid view",
     "listView": "List view",

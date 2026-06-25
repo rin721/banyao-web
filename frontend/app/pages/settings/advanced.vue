@@ -20,7 +20,7 @@ const pendingAction = ref<{
 
 const activeBaseURL = computed(() => config.public.apiMock ? "/api/mock" : config.public.apiBaseURL)
 const dataSourceStats = computed(() => [
-  { label: "Mock API", value: config.public.apiMock ? "开启" : "关闭" },
+  { label: "Mock API", value: config.public.apiMock ? "开启" : "关闭，使用后端社区 API" },
   { label: "Base URL", value: activeBaseURL.value }
 ])
 const localStats = computed(() => ({
@@ -114,7 +114,7 @@ function cancelPendingAction() {
     <SettingsPanel
       icon="cloud"
       title="API 状态"
-      description="用于未来对接 Go API 前确认 mock 契约。"
+      description="确认当前 Nuxt mock 或后端社区 API 的可用端点。"
     >
       <template #actions>
         <AoiButton tone="accent"
@@ -141,7 +141,7 @@ function cancelPendingAction() {
       <template v-else-if="!apiStatusPending && apiStatus">
         <AoiStatGrid :items="apiStatusStats" />
 
-        <div v-if="apiStatus.endpoints.length" class="settings-endpoint-list" aria-label="已实现 mock endpoints">
+        <div v-if="apiStatus.endpoints.length" class="settings-endpoint-list" aria-label="已实现 API endpoints">
           <code v-for="endpoint in apiStatus.endpoints" :key="endpoint">{{ endpoint }}</code>
         </div>
       </template>
@@ -179,7 +179,7 @@ function cancelPendingAction() {
     <SettingsPanel
       icon="database"
       title="本地数据"
-      description="这些数据只写入当前浏览器，不会发送到 mock API。"
+      description="这些数据只写入当前浏览器，不会发送到社区 API。"
     >
       <div class="settings-data-panels">
         <SettingsDataActionCard

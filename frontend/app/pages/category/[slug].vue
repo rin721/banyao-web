@@ -46,7 +46,7 @@ function countFor(category: CategoryTreeNode) {
       v-if="!pending && error"
       icon="circle-alert"
       title="分类加载失败"
-      description="Mock API 返回异常，请重试。"
+      description="社区 API 返回异常，请重试。"
       action-icon="refresh-cw"
       action-label="重试"
       @action="refresh()"
@@ -100,7 +100,7 @@ function countFor(category: CategoryTreeNode) {
         v-if="data.videos.length === 0"
         icon="inbox"
         title="这个分类暂时没有内容"
-        description="稍后可以从真实 Go API 拉取更多内容。"
+        description="当前社区数据源还没有返回这个分类的视频。"
       />
       <AoiSection v-else :reveal="false">
         <VideoGrid :videos="data.videos" />

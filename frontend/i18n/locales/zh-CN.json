@@ -25,7 +25,7 @@
     "login": "登录"
   },
   "home": {
-    "subtitle": "清透、快速、面向创作者的视频社区前端。当前为 Nuxt 4 前端设计原型，使用 mock 数据预演未来 Go API。",
+    "subtitle": "一个清爽、可爱、面向创作者的视频社区，已准备从 Nuxt mock 切换到后端社区 API。",
     "latest": "最新",
     "gridView": "网格视图",
     "listView": "列表视图",

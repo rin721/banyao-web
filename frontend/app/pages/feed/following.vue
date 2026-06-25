@@ -15,14 +15,14 @@ useHead({
     <PageHeader
       icon="radio-tower"
       title="关注动态"
-      description="关注流会在接入登录和 Go 后端后展示你订阅的创作者更新；当前提供 mock 预览。"
+      description="关注流会在接入登录和用户关系接口后展示你订阅的创作者更新；当前提供社区推荐预览。"
     />
 
     <PageState
       v-if="!pending && error"
       icon="cloud-alert"
       title="关注流加载失败"
-      description="mock API 暂时没有返回关注流数据。"
+      description="社区 API 暂时没有返回关注流数据。"
       action-icon="refresh-cw"
       action-label="重试"
       @action="refresh()"
@@ -71,7 +71,7 @@ useHead({
       <AoiSection
         v-if="recommendedCreators.length"
         title="推荐创作者"
-        description="这些推荐来自 mock API，可直接关注到本地列表。"
+        description="这些推荐来自社区 API，可直接关注到本地列表。"
         title-id="following-creators-title"
       >
         <template #actions>

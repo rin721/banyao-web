@@ -13,6 +13,9 @@ import (
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
 	announcementrepository "github.com/open-console/console-platform/internal/modules/announcements/repository"
 	announcementservice "github.com/open-console/console-platform/internal/modules/announcements/service"
+	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
+	communityrepository "github.com/open-console/console-platform/internal/modules/community/repository"
+	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iaminfrastructure "github.com/open-console/console-platform/internal/modules/iam/infrastructure"
 	iammodel "github.com/open-console/console-platform/internal/modules/iam/model"
@@ -49,9 +52,11 @@ func NewModules(core Core, infra Infrastructure) (Modules, error) {
 	}
 
 	announcementsModule := NewAnnouncementsModule(core, infra)
+	communityModule := NewCommunityModule(core, infra)
 	systemModule := NewSystemModule(core, infra, iamModule)
 	return Modules{
 		Announcements: announcementsModule,
+		Community:     communityModule,
 		IAM:           iamModule,
 		System:        systemModule,
 	}, nil
@@ -236,6 +241,19 @@ func NewAnnouncementsModule(core Core, infra Infrastructure) AnnouncementsModule
 	return AnnouncementsModule{
 		Service: service,
 		Handler: announcementhandler.New(service, core.Logger),
+	}
+}
+
+// NewCommunityModule 装配视频社区公开读取模块。
+func NewCommunityModule(core Core, infra Infrastructure) CommunityModule {
+	var repo communityrepository.Repository
+	if infra.Database != nil {
+		repo = communityrepository.New(adapters.NewDatabase(infra.Database))
+	}
+	service := communityservice.New(repo, communityservice.Config{BasePath: "/api/v1/public/community"})
+	return CommunityModule{
+		Service: service,
+		Handler: communityhandler.New(service, core.Logger),
 	}
 }
 

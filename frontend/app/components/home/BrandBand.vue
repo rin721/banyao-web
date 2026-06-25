@@ -3,11 +3,16 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section v-aoi-reveal="'rise'" class="brand-band" aria-label="Aoi 品牌区域">
+  <section v-aoi-reveal="'rise'" class="brand-band" aria-labelledby="brand-band-title">
     <div class="brand-band__inner">
-      <div>
-        <h1 class="brand-band__title">{{ t("app.name") }}</h1>
+      <div class="brand-band__copy">
+        <p class="brand-band__eyebrow">Welcome</p>
+        <h1 id="brand-band-title" class="brand-band__title">{{ t("app.name") }}</h1>
         <p class="brand-band__subtitle">{{ t("home.subtitle") }}</p>
+      </div>
+      <div class="brand-band__motif" aria-hidden="true">
+        <span>+ + + +</span>
+        <span>+ + +</span>
       </div>
     </div>
   </section>
@@ -16,39 +21,31 @@ const { t } = useI18n()
 <style scoped>
 .brand-band {
   position: relative;
-  min-height: 150px;
-  border-bottom: 1px solid var(--aoi-border);
+  min-height: 172px;
   overflow: hidden;
-  background:
-    linear-gradient(110deg, transparent 0 49%, rgba(34, 184, 207, 0.16) 49% 58%, transparent 58%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.92), rgba(233, 251, 253, 0.78));
+  border-bottom: 1px solid var(--aoi-border);
+  background: rgba(255, 255, 255, 0.82);
 }
 
-.brand-band::before,
-.brand-band::after {
+.brand-band::before {
   position: absolute;
+  inset: 18px 5vw;
+  border: 1px solid color-mix(in srgb, var(--aoi-accent-60) 22%, var(--aoi-border));
+  border-radius: var(--aoi-radius-card);
   content: "";
   pointer-events: none;
 }
 
-.brand-band::before {
-  top: 28px;
-  right: -42px;
-  width: 190px;
-  height: 86px;
-  border: 2px solid rgba(242, 112, 156, 0.7);
-  border-radius: 50%;
-  transform: rotate(-16deg);
-}
-
 .brand-band::after {
-  right: 90px;
-  bottom: 22px;
-  width: 160px;
-  height: 3px;
-  background: linear-gradient(90deg, var(--aoi-accent-50), var(--aoi-sakura-50), transparent);
-  transform: rotate(-28deg);
-  transform-origin: right center;
+  position: absolute;
+  right: 5vw;
+  bottom: 17px;
+  left: 5vw;
+  height: 2px;
+  background: linear-gradient(90deg, var(--aoi-accent-60), transparent 22%, var(--aoi-secondary-50) 52%, transparent 78%, var(--aoi-sun-50));
+  content: "";
+  opacity: .72;
+  pointer-events: none;
 }
 
 .brand-band__inner {
@@ -57,28 +54,59 @@ const { t } = useI18n()
   display: flex;
   width: 100%;
   max-width: var(--aoi-content-max-width);
-  min-height: 150px;
+  min-height: 172px;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
   margin: 0 auto;
-  padding: 22px 5vw;
+  padding: 28px 5vw 34px;
+}
+
+.brand-band__copy {
+  min-width: 0;
+}
+
+.brand-band__eyebrow {
+  margin: 0 0 10px;
+  color: var(--aoi-accent-60);
+  font-family: Montserrat, Inter, "Noto Sans SC", system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .brand-band__title {
   margin: 0;
   color: var(--aoi-accent-60);
   font-family: Montserrat, Inter, "Noto Sans SC", system-ui, sans-serif;
-  font-size: 56px;
+  font-size: 64px;
   font-weight: 800;
   line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .brand-band__subtitle {
-  max-width: 560px;
+  max-width: 620px;
   margin: 12px 0 0;
   color: var(--aoi-text-muted);
   line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.brand-band__motif {
+  display: grid;
+  gap: 18px;
+  color: color-mix(in srgb, var(--aoi-text) 82%, var(--aoi-accent-60));
+  font-family: Montserrat, Inter, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.brand-band__motif span:nth-child(2) {
+  color: var(--aoi-accent-60);
 }
 
 @media (max-width: 900px) {
@@ -90,6 +118,38 @@ const { t } = useI18n()
 
 @media (max-width: 639px) {
   .brand-band {
+    min-height: 138px;
+  }
+
+  .brand-band::before {
+    inset: 12px;
+  }
+
+  .brand-band::after {
+    right: 12px;
+    left: 12px;
+  }
+
+  .brand-band__inner {
+    min-height: 138px;
+    padding: 20px 16px 26px;
+  }
+
+  .brand-band__eyebrow {
+    font-size: 12px;
+  }
+
+  .brand-band__title {
+    font-size: 36px;
+  }
+
+  .brand-band__subtitle {
+    max-width: 100%;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .brand-band__motif {
     display: none;
   }
 }

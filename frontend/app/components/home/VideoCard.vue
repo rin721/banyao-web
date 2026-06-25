@@ -9,6 +9,15 @@ const props = defineProps<{
 const settings = useAppSettingsStore()
 const detailPath = computed(() => `/video/${props.video.slug}`)
 const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undefined)
+const durationLabel = computed(() => formatDuration(props.video.durationSeconds))
+
+function formatDuration(totalSeconds: number) {
+  const safeSeconds = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0
+  const minutes = Math.floor(safeSeconds / 60).toString().padStart(2, "0")
+  const seconds = (safeSeconds % 60).toString().padStart(2, "0")
+
+  return `${minutes}:${seconds}`
+}
 </script>
 
 <template>
@@ -25,6 +34,7 @@ const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undef
           :src="video.thumbnailUrl"
           alt=""
         />
+        <span class="video-card__duration">{{ durationLabel }}</span>
       </AoiLink>
     </div>
 
@@ -37,6 +47,7 @@ const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undef
 .video-card {
   display: grid;
   min-width: 0;
+  border: 1px solid transparent;
   border-radius: var(--aoi-radius-card);
   color: var(--aoi-text);
   gap: 8px;
@@ -50,9 +61,10 @@ const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undef
 }
 
 .video-card:hover {
+  border-color: color-mix(in srgb, var(--aoi-accent-60) 32%, var(--aoi-border));
   background: var(--aoi-surface);
-  box-shadow: var(--aoi-shadow-md);
-  transform: translate3d(0, -6px, 0);
+  box-shadow: var(--aoi-shadow-sm);
+  transform: translate3d(0, -3px, 0);
 }
 
 .video-card:active {
@@ -66,6 +78,7 @@ const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undef
 
 .video-card__cover-link {
   display: block;
+  position: relative;
   border-radius: var(--aoi-radius-card);
 }
 
@@ -74,8 +87,9 @@ const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undef
   position: relative;
   aspect-ratio: 16 / 9;
   overflow: hidden;
+  border: 1px solid var(--aoi-border);
   border-radius: var(--aoi-radius-card);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
 }
 
 .video-card__cover::before,
@@ -101,6 +115,27 @@ const linkTarget = computed(() => settings.openVideosInNewTab ? "_blank" : undef
   border-radius: var(--aoi-radius-round);
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 12px 0 rgba(255, 255, 255, 0.42);
+}
+
+.video-card__duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 1;
+  display: inline-flex;
+  min-width: 48px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: var(--aoi-radius-xs);
+  background: rgba(33, 33, 33, 0.74);
+  color: #ffffff;
+  font-family: Inter, "Noto Sans SC", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .video-card__title {

@@ -13,6 +13,16 @@ export interface ApiStatus {
   endpoints: string[]
 }
 
+export interface ApiResultEnvelope<T> {
+  code: number
+  messageKey: string
+  message: string
+  messageArgs?: Record<string, unknown>
+  data?: T
+  traceId?: string
+  serverTime: number
+}
+
 export interface Category {
   id: string
   slug: string

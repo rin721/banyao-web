@@ -37,14 +37,14 @@ useHead({
     <PageHeader
       icon="layout-grid"
       title="分类"
-      description="按内容类型浏览 Aoi 社区的 mock feed。"
+      description="按内容类型浏览 Aoi 社区的视频内容。"
     />
 
     <PageState
       v-if="!pending && error"
       icon="circle-alert"
       title="分类加载失败"
-      description="Mock API 返回异常，请重试。"
+      description="社区 API 返回异常，请重试。"
       action-icon="refresh-cw"
       action-label="重试"
       @action="refresh()"

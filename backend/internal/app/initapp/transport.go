@@ -7,6 +7,7 @@ import (
 	"github.com/open-console/console-platform/internal/config"
 	"github.com/open-console/console-platform/internal/middleware"
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
+	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iamservice "github.com/open-console/console-platform/internal/modules/iam/service"
 	systemhandler "github.com/open-console/console-platform/internal/modules/system/handler"
@@ -39,6 +40,7 @@ func NewTransport(core Core, infra Infrastructure, modules Modules, setupHandler
 		core.IDGenerator,
 		corsConfig,
 		modules.Announcements.Handler,
+		modules.Community.Handler,
 		modules.IAM.Handler,
 		modules.System.Handler,
 		setupHandler,
@@ -127,6 +129,7 @@ func NewHTTPServer(
 	traceIDGenerator ports.IDGenerator,
 	corsConfig middleware.CORSConfig,
 	announcementsHandler *announcementhandler.Handler,
+	communityHandler *communityhandler.Handler,
 	iamHandler *iamhandler.Handler,
 	systemHandler *systemhandler.Handler,
 	setupHandler httptransport.SetupHandler,
@@ -148,6 +151,7 @@ func NewHTTPServer(
 		TraceIDGenerator:     traceIDGenerator,
 		Middleware:           middlewareCfg,
 		AnnouncementsHandler: announcementsHandler,
+		CommunityHandler:     communityHandler,
 		IAMHandler:           iamHandler,
 		SystemHandler:        systemHandler,
 		SetupHandler:         setupHandler,
