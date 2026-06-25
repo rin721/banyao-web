@@ -3,7 +3,9 @@ import type {
   ApiResultEnvelope,
   ApiStatus,
   CategoryTreeNode,
+  CreatorFollowState,
   CreateVideoCommentRequest,
+  CreatorFollowRequest,
   CreatorProfile,
   ErrorResponse,
   FollowingFeedPayload,
@@ -21,7 +23,7 @@ import { findCategoryInTree } from "~~/shared/utils/categories"
 
 type RequestOptions = {
   body?: unknown
-  method?: "GET" | "POST"
+  method?: "DELETE" | "GET" | "POST"
   query?: Record<string, unknown>
 }
 
@@ -116,8 +118,30 @@ export function useAoiApi() {
     return await request<CreatorProfile>(`/users/${encodeURIComponent(handle)}`)
   }
 
-  async function getFollowingFeed(): Promise<FollowingFeedPayload> {
-    return await request<FollowingFeedPayload>("/feed/following")
+  async function getCreatorFollowState(handle: string, clientId: string): Promise<CreatorFollowState> {
+    return await request<CreatorFollowState>(`/users/${encodeURIComponent(handle)}/follow-state`, {
+      query: { clientId }
+    })
+  }
+
+  async function followCreator(handle: string, body: CreatorFollowRequest): Promise<CreatorFollowState> {
+    return await request<CreatorFollowState>(`/users/${encodeURIComponent(handle)}/follow`, {
+      body,
+      method: "POST"
+    })
+  }
+
+  async function unfollowCreator(handle: string, clientId: string): Promise<CreatorFollowState> {
+    return await request<CreatorFollowState>(`/users/${encodeURIComponent(handle)}/follow`, {
+      method: "DELETE",
+      query: { clientId }
+    })
+  }
+
+  async function getFollowingFeed(clientId?: string): Promise<FollowingFeedPayload> {
+    return await request<FollowingFeedPayload>("/feed/following", {
+      query: clientId ? { clientId } : undefined
+    })
   }
 
   async function getCategory(slug: string): Promise<CategoryTreeNode | null> {
@@ -129,8 +153,10 @@ export function useAoiApi() {
   return {
     getApiStatus,
     getCategory,
+    getCreatorFollowState,
     getCreatorProfile,
     getFollowingFeed,
+    followCreator,
     getHomePayload,
     createVideoComment,
     getVideoDanmaku,
@@ -139,7 +165,8 @@ export function useAoiApi() {
     listCategories,
     listVideos,
     search,
-    searchVideos
+    searchVideos,
+    unfollowCreator
   }
 }
 

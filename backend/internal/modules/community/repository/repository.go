@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/open-console/console-platform/internal/modules/community/model"
 	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
@@ -94,6 +95,73 @@ func (r *repository) FindCreatorByHandle(ctx context.Context, handle string) (*m
 		return nil, err
 	}
 	return &creator, nil
+}
+
+func (r *repository) FindCreatorFollow(ctx context.Context, creatorID string, clientID string) (*model.CreatorFollow, error) {
+	var follow model.CreatorFollow
+	err := r.db.First(ctx, &follow, database.Where("creator_id = ? AND client_id = ?", creatorID, clientID), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &follow, nil
+}
+
+func (r *repository) ListCreatorFollows(ctx context.Context, clientID string, limit int) ([]model.CreatorFollow, error) {
+	opts := []database.QueryOption{
+		database.Where("client_id = ?", strings.TrimSpace(clientID)),
+		alive(),
+		database.Order("followed_at DESC, creator_id ASC"),
+	}
+	if limit > 0 {
+		opts = append(opts, database.Limit(limit))
+	}
+	var follows []model.CreatorFollow
+	err := r.db.Find(ctx, &follows, opts...)
+	return follows, err
+}
+
+func (r *repository) FollowCreator(ctx context.Context, follow model.CreatorFollow) error {
+	existing, err := r.findCreatorFollowAny(ctx, follow.CreatorID, follow.ClientID)
+	if err != nil && !errors.Is(err, communityservice.ErrNotFound) {
+		return err
+	}
+	if existing == nil {
+		if err := r.db.Create(ctx, &follow); err != nil {
+			return err
+		}
+		return r.incrementFollowerCount(ctx, follow.CreatorID, follow.UpdatedAt)
+	}
+	values := map[string]any{
+		"followed_at": follow.FollowedAt,
+		"updated_at":  follow.UpdatedAt,
+		"deleted_at":  nil,
+	}
+	if _, err := r.db.Update(ctx, &model.CreatorFollow{}, values, database.Where("creator_id = ? AND client_id = ?", follow.CreatorID, follow.ClientID), withDeleted()); err != nil {
+		return err
+	}
+	if existing.DeletedAt == nil {
+		return nil
+	}
+	return r.incrementFollowerCount(ctx, follow.CreatorID, follow.UpdatedAt)
+}
+
+func (r *repository) UnfollowCreator(ctx context.Context, creatorID string, clientID string, now time.Time) error {
+	existing, err := r.FindCreatorFollow(ctx, creatorID, clientID)
+	if err != nil {
+		if errors.Is(err, communityservice.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	values := map[string]any{
+		"updated_at": now,
+		"deleted_at": now,
+	}
+	if _, err := r.db.Update(ctx, &model.CreatorFollow{}, values, database.Where("creator_id = ? AND client_id = ?", existing.CreatorID, existing.ClientID)); err != nil {
+		return err
+	}
+	_, err = r.db.Exec(ctx, "UPDATE community_creators SET follower_count = CASE WHEN follower_count > 0 THEN follower_count - 1 ELSE 0 END, updated_at = ? WHERE id = ?", now, creatorID)
+	return err
 }
 
 func (r *repository) ListVideos(ctx context.Context, filter model.VideoFilter) ([]model.Video, error) {
@@ -251,8 +319,28 @@ func (r *repository) categorySelfAndChildren(ctx context.Context, slug string) (
 	return out, nil
 }
 
+func (r *repository) findCreatorFollowAny(ctx context.Context, creatorID string, clientID string) (*model.CreatorFollow, error) {
+	var follow model.CreatorFollow
+	err := r.db.First(ctx, &follow, database.Where("creator_id = ? AND client_id = ?", creatorID, clientID), withDeleted())
+	if err != nil {
+		return nil, err
+	}
+	return &follow, nil
+}
+
+func (r *repository) incrementFollowerCount(ctx context.Context, creatorID string, now time.Time) error {
+	_, err := r.db.Exec(ctx, "UPDATE community_creators SET follower_count = follower_count + 1, updated_at = ? WHERE id = ?", now, creatorID)
+	return err
+}
+
 func alive() database.QueryOption {
 	return database.Where("deleted_at IS NULL")
+}
+
+func withDeleted() database.QueryOption {
+	return func(q *database.Query) {
+		q.WithDeleted = true
+	}
 }
 
 func mapStorageError(err error) error {

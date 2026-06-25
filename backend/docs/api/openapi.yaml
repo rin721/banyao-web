@@ -5082,6 +5082,13 @@
   "/api/v1/public/community/feed/following":
     "get":
       "operationId": "community.feed.following"
+      "parameters":
+        -
+          "in": "query"
+          "name": "clientId"
+          "required": false
+          "schema":
+            "type": "string"
       "responses":
         "200":
           "content":
@@ -5095,6 +5102,8 @@
                     "properties":
                       "authenticated":
                         "type": "boolean"
+                      "clientId":
+                        "type": "string"
                       "creators":
                         "items":
                           "properties":
@@ -5131,6 +5140,9 @@
                                     "type": "string"
                                 "type": "object"
                               "type": "array"
+                            "followedAt":
+                              "format": "date-time"
+                              "type": "string"
                             "followerCount":
                               "format": "int64"
                               "type": "integer"
@@ -5205,6 +5217,9 @@
                               "type": "integer"
                           "type": "object"
                         "type": "array"
+                      "followingCount":
+                        "format": "int32"
+                        "type": "integer"
                       "latest":
                         "properties":
                           "items":
@@ -5316,7 +5331,7 @@
                 "$ref": "#/components/schemas/ErrorResult"
           "description": "Internal server error"
       "security": []
-      "summary": "查询社区关注推荐预览"
+      "summary": "查询社区关注动态"
       "tags":
         - "Community"
       "x-scope": "platform"
@@ -5585,6 +5600,9 @@
                                         "type": "string"
                                     "type": "object"
                                   "type": "array"
+                                "followedAt":
+                                  "format": "date-time"
+                                  "type": "string"
                                 "followerCount":
                                   "format": "int64"
                                   "type": "integer"
@@ -5912,6 +5930,9 @@
                               "type": "string"
                           "type": "object"
                         "type": "array"
+                      "followedAt":
+                        "format": "date-time"
+                        "type": "string"
                       "followerCount":
                         "format": "int64"
                         "type": "integer"
@@ -6031,6 +6052,281 @@
           "description": "Internal server error"
       "security": []
       "summary": "查询社区创作者资料"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+  "/api/v1/public/community/users/{handle}/follow":
+    "delete":
+      "operationId": "community.creators.unfollow"
+      "parameters":
+        -
+          "in": "path"
+          "name": "handle"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "clientId"
+          "required": false
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "creatorId":
+                        "type": "string"
+                      "followedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "followerCount":
+                        "format": "int64"
+                        "type": "integer"
+                      "following":
+                        "type": "boolean"
+                      "handle":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "取消关注社区创作者"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+    "post":
+      "operationId": "community.creators.follow"
+      "parameters":
+        -
+          "in": "path"
+          "name": "handle"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "clientId":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "creatorId":
+                        "type": "string"
+                      "followedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "followerCount":
+                        "format": "int64"
+                        "type": "integer"
+                      "following":
+                        "type": "boolean"
+                      "handle":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "关注社区创作者"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+  "/api/v1/public/community/users/{handle}/follow-state":
+    "get":
+      "operationId": "community.creators.follow-state"
+      "parameters":
+        -
+          "in": "path"
+          "name": "handle"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "clientId"
+          "required": false
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "creatorId":
+                        "type": "string"
+                      "followedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "followerCount":
+                        "format": "int64"
+                        "type": "integer"
+                      "following":
+                        "type": "boolean"
+                      "handle":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "查询社区创作者关注状态"
       "tags":
         - "Community"
       "x-scope": "platform"

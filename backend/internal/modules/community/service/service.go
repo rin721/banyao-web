@@ -25,27 +25,34 @@ type Service interface {
 	GetVideoDanmaku(context.Context, string) (model.VideoDanmakuPayload, error)
 	GetVideoComments(context.Context, string, model.VideoCommentFilter) (model.VideoCommentPayload, error)
 	GetVideoDetail(context.Context, string) (model.VideoDetail, error)
+	GetCreatorFollowState(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	ListCategories(context.Context) ([]model.CategoryTreeNode, error)
 	ListVideos(context.Context, model.VideoFilter) (model.PageResult[model.VideoSummary], error)
 	Search(context.Context, string, int) (model.SearchPayload, error)
-	FollowingFeed(context.Context) (model.FollowingFeedPayload, error)
+	FollowingFeed(context.Context, model.CreatorFollowRequest) (model.FollowingFeedPayload, error)
+	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
+	UnfollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	CreateVideoComment(context.Context, string, model.CreateVideoCommentRequest) (model.VideoComment, error)
 }
 
 // Repository 是社区服务需要的最小持久化端口。
 type Repository interface {
 	FindCreatorByHandle(context.Context, string) (*model.Creator, error)
+	FindCreatorFollow(context.Context, string, string) (*model.CreatorFollow, error)
 	FindVideoByIDOrSlug(context.Context, string) (*model.Video, error)
 	CountVideoComments(context.Context, string) (int, error)
 	CreateVideoComment(context.Context, model.VideoComment) error
+	FollowCreator(context.Context, model.CreatorFollow) error
 	ListCategories(context.Context) ([]model.Category, error)
 	ListCategorySlugs(context.Context, string) ([]string, error)
+	ListCreatorFollows(context.Context, string, int) ([]model.CreatorFollow, error)
 	ListVideoComments(context.Context, string, model.VideoCommentFilter) ([]model.VideoComment, error)
 	ListCreators(context.Context, int) ([]model.Creator, error)
 	ListDanmaku(context.Context, string) ([]model.VideoDanmakuItem, error)
 	ListSources(context.Context, string) ([]model.VideoSourceOption, error)
 	ListTags(context.Context, string) ([]string, error)
 	ListVideos(context.Context, model.VideoFilter) ([]model.Video, error)
+	UnfollowCreator(context.Context, string, string, time.Time) error
 }
 
 type Config struct {
@@ -88,6 +95,8 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/videos/:idOrSlug/danmaku",
 			"/search",
 			"/users/:handle",
+			"/users/:handle/follow-state",
+			"/users/:handle/follow",
 			"/feed/following",
 		},
 	}
@@ -278,6 +287,52 @@ func (s *service) GetCreatorProfile(ctx context.Context, handle string) (model.C
 	}, nil
 }
 
+func (s *service) GetCreatorFollowState(ctx context.Context, handle string, req model.CreatorFollowRequest) (model.CreatorFollowState, error) {
+	creator, clientID, err := s.creatorAndClient(ctx, handle, req)
+	if err != nil {
+		return model.CreatorFollowState{}, err
+	}
+	return s.creatorFollowState(ctx, *creator, clientID)
+}
+
+func (s *service) FollowCreator(ctx context.Context, handle string, req model.CreatorFollowRequest) (model.CreatorFollowState, error) {
+	creator, clientID, err := s.creatorAndClient(ctx, handle, req)
+	if err != nil {
+		return model.CreatorFollowState{}, err
+	}
+	now := s.now()
+	follow := model.CreatorFollow{
+		ClientID:   clientID,
+		CreatorID:  creator.ID,
+		FollowedAt: now,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	if err := s.repo.FollowCreator(ctx, follow); err != nil {
+		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	updated, err := s.repo.FindCreatorByHandle(ctx, creator.Handle)
+	if err != nil {
+		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	return s.creatorFollowState(ctx, *updated, clientID)
+}
+
+func (s *service) UnfollowCreator(ctx context.Context, handle string, req model.CreatorFollowRequest) (model.CreatorFollowState, error) {
+	creator, clientID, err := s.creatorAndClient(ctx, handle, req)
+	if err != nil {
+		return model.CreatorFollowState{}, err
+	}
+	if err := s.repo.UnfollowCreator(ctx, creator.ID, clientID, s.now()); err != nil {
+		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	updated, err := s.repo.FindCreatorByHandle(ctx, creator.Handle)
+	if err != nil {
+		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	return s.creatorFollowState(ctx, *updated, clientID)
+}
+
 func (s *service) Search(ctx context.Context, query string, limit int) (model.SearchPayload, error) {
 	query = strings.TrimSpace(query)
 	limit = normalizeLimit(limit, 24)
@@ -335,7 +390,26 @@ func (s *service) Search(ctx context.Context, query string, limit int) (model.Se
 	}, nil
 }
 
-func (s *service) FollowingFeed(ctx context.Context) (model.FollowingFeedPayload, error) {
+func (s *service) FollowingFeed(ctx context.Context, req model.CreatorFollowRequest) (model.FollowingFeedPayload, error) {
+	clientID := strings.TrimSpace(req.ClientID)
+	if clientID != "" {
+		normalizedClientID, err := normalizeFollowClientID(clientID)
+		if err != nil {
+			return model.FollowingFeedPayload{}, err
+		}
+		follows, err := s.repo.ListCreatorFollows(ctx, normalizedClientID, 24)
+		if err != nil {
+			return model.FollowingFeedPayload{}, mapStorageError(err)
+		}
+		if len(follows) > 0 {
+			return s.followingFeedForClient(ctx, normalizedClientID, follows)
+		}
+		return s.recommendedFollowingFeed(ctx, &normalizedClientID, "还没有关注任何创作者，先展示社区推荐。")
+	}
+	return s.recommendedFollowingFeed(ctx, nil, "当前公开接口未绑定登录态；这里展示后端社区模块返回的推荐关注预览。")
+}
+
+func (s *service) recommendedFollowingFeed(ctx context.Context, clientID *string, messageText string) (model.FollowingFeedPayload, error) {
 	creators, err := s.repo.ListCreators(ctx, 4)
 	if err != nil {
 		return model.FollowingFeedPayload{}, mapStorageError(err)
@@ -352,12 +426,60 @@ func (s *service) FollowingFeed(ctx context.Context) (model.FollowingFeedPayload
 	if err != nil {
 		return model.FollowingFeedPayload{}, err
 	}
-	message := "当前公开接口未绑定登录态；这里展示后端社区模块返回的推荐关注预览。"
+	message := messageText
 	return model.FollowingFeedPayload{
-		Authenticated: false,
-		Creators:      profiles,
-		Latest:        latest,
-		Message:       &message,
+		Authenticated:  false,
+		ClientID:       clientID,
+		Creators:       profiles,
+		FollowingCount: 0,
+		Latest:         latest,
+		Message:        &message,
+	}, nil
+}
+
+func (s *service) followingFeedForClient(ctx context.Context, clientID string, follows []model.CreatorFollow) (model.FollowingFeedPayload, error) {
+	creators, err := s.repo.ListCreators(ctx, 0)
+	if err != nil {
+		return model.FollowingFeedPayload{}, mapStorageError(err)
+	}
+	creatorByID := make(map[string]model.Creator, len(creators))
+	for _, creator := range creators {
+		creatorByID[creator.ID] = creator
+	}
+	profiles := make([]model.CreatorProfile, 0, len(follows))
+	followedIDs := make(map[string]struct{}, len(follows))
+	for _, follow := range follows {
+		creator, ok := creatorByID[follow.CreatorID]
+		if !ok {
+			continue
+		}
+		profile, err := s.GetCreatorProfile(ctx, creator.Handle)
+		if err != nil {
+			return model.FollowingFeedPayload{}, err
+		}
+		followedAt := follow.FollowedAt
+		profile.FollowedAt = &followedAt
+		profiles = append(profiles, profile)
+		followedIDs[creator.ID] = struct{}{}
+	}
+	latest, err := s.ListVideos(ctx, model.VideoFilter{Limit: 24})
+	if err != nil {
+		return model.FollowingFeedPayload{}, err
+	}
+	filtered := make([]model.VideoSummary, 0, len(latest.Items))
+	for _, video := range latest.Items {
+		if _, ok := followedIDs[video.Uploader.ID]; ok {
+			filtered = append(filtered, video)
+		}
+	}
+	message := "关注关系来自后端社区模块的匿名 clientId，接入登录后可迁移到用户关系。"
+	return model.FollowingFeedPayload{
+		Authenticated:  false,
+		ClientID:       &clientID,
+		Creators:       profiles,
+		FollowingCount: len(profiles),
+		Latest:         model.PageResult[model.VideoSummary]{Items: filtered},
+		Message:        &message,
 	}, nil
 }
 
@@ -530,6 +652,42 @@ func excludeVideo(videos []model.VideoSummary, id string, limit int) []model.Vid
 	return out
 }
 
+func (s *service) creatorAndClient(ctx context.Context, handle string, req model.CreatorFollowRequest) (*model.Creator, string, error) {
+	if s.repo == nil {
+		return nil, "", ErrStorageUnavailable
+	}
+	clientID, err := normalizeFollowClientID(req.ClientID)
+	if err != nil {
+		return nil, "", err
+	}
+	creator, err := s.repo.FindCreatorByHandle(ctx, strings.TrimSpace(handle))
+	if err != nil {
+		return nil, "", mapStorageError(err)
+	}
+	return creator, clientID, nil
+}
+
+func (s *service) creatorFollowState(ctx context.Context, creator model.Creator, clientID string) (model.CreatorFollowState, error) {
+	follow, err := s.repo.FindCreatorFollow(ctx, creator.ID, clientID)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	var followedAt *time.Time
+	following := follow != nil
+	if follow != nil {
+		value := follow.FollowedAt
+		followedAt = &value
+	}
+	return model.CreatorFollowState{
+		ClientID:      clientID,
+		CreatorID:     creator.ID,
+		Handle:        creator.Handle,
+		Following:     following,
+		FollowerCount: creator.FollowerCount,
+		FollowedAt:    followedAt,
+	}, nil
+}
+
 func normalizeVideoFilter(filter model.VideoFilter) model.VideoFilter {
 	filter.Category = strings.TrimSpace(filter.Category)
 	filter.Cursor = strings.TrimSpace(filter.Cursor)
@@ -561,6 +719,14 @@ func normalizeCommentBody(value string) string {
 		value = string([]rune(value)[:500])
 	}
 	return value
+}
+
+func normalizeFollowClientID(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" || len([]rune(value)) > 96 {
+		return "", ErrInvalidInput
+	}
+	return value, nil
 }
 
 func normalizeLimit(value int, fallback int) int {

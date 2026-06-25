@@ -35,6 +35,39 @@
     "childrenTitle": "Subcategories",
     "childrenDescription": "Browse a narrower branch. Parent categories aggregate everything below them."
   },
+  "creator": {
+    "follow": "Follow",
+    "following": "Following",
+    "unfollow": "Unfollow",
+    "followSyncing": "Syncing",
+    "followAria": "Follow {name}",
+    "unfollowAria": "Unfollow {name}",
+    "stats": {
+      "followers": "Followers",
+      "videos": "Videos",
+      "joined": "Joined"
+    }
+  },
+  "following": {
+    "title": "Following",
+    "description": "Anonymous clientId follows are written to the community backend, then used to show subscribed creators and new uploads.",
+    "errorTitle": "Following feed failed",
+    "errorDescription": "The community API did not return following data.",
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "emptyTitle": "No followed creators yet",
+    "emptyDescription": "Follow a creator and this page will load your subscriptions from the backend relationship table.",
+    "searchAction": "Search first",
+    "followedTitle": "Followed creators",
+    "followedDescription": "These relationships come from the Go community API anonymous follow table.",
+    "latestTitle": "Following updates",
+    "recommendedTitle": "Recommended creators",
+    "recommendedDescription": "When you have no follows yet, the community API shows recommended creators first.",
+    "recommendedLatestTitle": "Recommended updates",
+    "exploreMore": "Explore more",
+    "noContentTitle": "No following content",
+    "noContentDescription": "No following feed data was returned."
+  },
   "docs": {
     "eyebrow": "Aoi Docs",
     "title": "Project System and Component Library",

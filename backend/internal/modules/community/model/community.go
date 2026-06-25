@@ -37,6 +37,18 @@ type Creator struct {
 
 func (Creator) TableName() string { return "community_creators" }
 
+// CreatorFollow 保存匿名客户端对创作者的关注关系。
+type CreatorFollow struct {
+	ClientID   string     `gorm:"column:client_id;primaryKey;size:96" json:"clientId"`
+	CreatorID  string     `gorm:"column:creator_id;primaryKey;size:96" json:"creatorId"`
+	FollowedAt time.Time  `gorm:"column:followed_at;not null" json:"followedAt"`
+	CreatedAt  time.Time  `gorm:"column:created_at;not null" json:"-"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at;not null" json:"-"`
+	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CreatorFollow) TableName() string { return "community_creator_follows" }
+
 // Category 是社区内容分类的扁平持久化模型。
 type Category struct {
 	ID          string     `gorm:"column:id;primaryKey;size:96" json:"id"`
@@ -146,6 +158,19 @@ type CreateVideoCommentRequest struct {
 	Body       string `json:"body"`
 }
 
+type CreatorFollowRequest struct {
+	ClientID string `json:"clientId"`
+}
+
+type CreatorFollowState struct {
+	ClientID      string     `json:"clientId"`
+	CreatorID     string     `json:"creatorId"`
+	Handle        string     `json:"handle"`
+	Following     bool       `json:"following"`
+	FollowerCount int64      `json:"followerCount"`
+	FollowedAt    *time.Time `json:"followedAt"`
+}
+
 type Announcement struct {
 	ID       string     `json:"id"`
 	Title    string     `json:"title"`
@@ -188,6 +213,7 @@ type CreatorProfile struct {
 	UserSummary
 	Bio           *string                  `json:"bio"`
 	FollowerCount int64                    `json:"followerCount"`
+	FollowedAt    *time.Time               `json:"followedAt,omitempty"`
 	VideoCount    int                      `json:"videoCount"`
 	JoinedAt      time.Time                `json:"joinedAt"`
 	Categories    []Category               `json:"categories"`
@@ -201,10 +227,12 @@ type HomePayload struct {
 }
 
 type FollowingFeedPayload struct {
-	Authenticated bool                     `json:"authenticated"`
-	Message       *string                  `json:"message"`
-	Creators      []CreatorProfile         `json:"creators"`
-	Latest        PageResult[VideoSummary] `json:"latest"`
+	Authenticated  bool                     `json:"authenticated"`
+	ClientID       *string                  `json:"clientId,omitempty"`
+	FollowingCount int                      `json:"followingCount"`
+	Message        *string                  `json:"message"`
+	Creators       []CreatorProfile         `json:"creators"`
+	Latest         PageResult[VideoSummary] `json:"latest"`
 }
 
 type SearchPayload struct {

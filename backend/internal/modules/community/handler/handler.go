@@ -95,8 +95,33 @@ func (h *Handler) Creator(c ports.HTTPContext) {
 	writeOK(c, profile, err, h.writeError)
 }
 
+func (h *Handler) CreatorFollowState(c ports.HTTPContext) {
+	state, err := h.service.GetCreatorFollowState(c.RequestContext(), c.Param("handle"), model.CreatorFollowRequest{
+		ClientID: queryValue(c, "clientId"),
+	})
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) FollowCreator(c ports.HTTPContext) {
+	var req model.CreatorFollowRequest
+	if !bind(c, &req) {
+		return
+	}
+	state, err := h.service.FollowCreator(c.RequestContext(), c.Param("handle"), req)
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) UnfollowCreator(c ports.HTTPContext) {
+	state, err := h.service.UnfollowCreator(c.RequestContext(), c.Param("handle"), model.CreatorFollowRequest{
+		ClientID: queryValue(c, "clientId"),
+	})
+	writeOK(c, state, err, h.writeError)
+}
+
 func (h *Handler) Following(c ports.HTTPContext) {
-	payload, err := h.service.FollowingFeed(c.RequestContext())
+	payload, err := h.service.FollowingFeed(c.RequestContext(), model.CreatorFollowRequest{
+		ClientID: queryValue(c, "clientId"),
+	})
 	writeOK(c, payload, err, h.writeError)
 }
 

@@ -11,7 +11,10 @@ const props = withDefaults(defineProps<{
 })
 
 const following = useFollowingStore()
+const { t } = useI18n()
 const isFollowing = computed(() => following.isFollowing(props.creator.id))
+const isFollowPending = computed(() => following.isPending(props.creator.id))
+const followerCount = computed(() => following.followerCountFor(props.creator))
 
 function formatCount(value: number) {
   if (value >= 1000) {
@@ -19,6 +22,10 @@ function formatCount(value: number) {
   }
 
   return String(value)
+}
+
+async function toggleFollow() {
+  await following.toggleCreator(props.creator)
 }
 </script>
 
@@ -43,7 +50,7 @@ function formatCount(value: number) {
     <template #meta>
       <span>
         <AoiIcon name="users" :size="13" decorative />
-        {{ formatCount(creator.followerCount + (isFollowing ? 1 : 0)) }}
+        {{ formatCount(followerCount) }}
       </span>
       <span>
         <AoiIcon name="video" :size="13" decorative />
@@ -55,11 +62,12 @@ function formatCount(value: number) {
         variant="outlined"
         size="sm"
         :icon="isFollowing ? 'user-check' : 'user-plus'"
-        :aria-label="isFollowing ? `取消关注 ${creator.displayName}` : `关注 ${creator.displayName}`"
-        :disabled="!following.hydrated"
-        @click="following.toggleCreator(creator)"
+        :aria-label="isFollowing ? t('creator.unfollowAria', { name: creator.displayName }) : t('creator.followAria', { name: creator.displayName })"
+        :disabled="!following.hydrated || isFollowPending"
+        :loading="isFollowPending"
+        @click.prevent.stop="toggleFollow"
       >
-        {{ isFollowing ? "已关注" : "关注" }}
+        {{ isFollowPending ? t("creator.followSyncing") : isFollowing ? t("creator.following") : t("creator.follow") }}
       </AoiButton>
     </template>
   </AoiInfoCard>

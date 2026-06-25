@@ -35,6 +35,39 @@
     "childrenTitle": "サブカテゴリ",
     "childrenDescription": "より細かい分類で閲覧します。親カテゴリは配下の内容をまとめて表示します。"
   },
+  "creator": {
+    "follow": "フォロー",
+    "following": "フォロー中",
+    "unfollow": "フォロー解除",
+    "followSyncing": "同期中",
+    "followAria": "{name} をフォロー",
+    "unfollowAria": "{name} のフォローを解除",
+    "stats": {
+      "followers": "フォロワー",
+      "videos": "投稿",
+      "joined": "参加時期"
+    }
+  },
+  "following": {
+    "title": "フォロー更新",
+    "description": "匿名 clientId のフォロー関係をコミュニティバックエンドへ保存し、購読したクリエイターと最新投稿を表示します。",
+    "errorTitle": "フォロー更新の読み込みに失敗しました",
+    "errorDescription": "コミュニティ API からフォロー更新データが返りませんでした。",
+    "retry": "再試行",
+    "refresh": "更新",
+    "emptyTitle": "まだフォローしていません",
+    "emptyDescription": "クリエイターをフォローすると、バックエンドの関係テーブルから購読更新を読み込みます。",
+    "searchAction": "検索へ",
+    "followedTitle": "フォロー中のクリエイター",
+    "followedDescription": "これらの関係は Go コミュニティ API の匿名フォローテーブルから取得しています。",
+    "latestTitle": "フォロー更新",
+    "recommendedTitle": "おすすめクリエイター",
+    "recommendedDescription": "まだフォローがない場合は、コミュニティ API のおすすめを表示します。",
+    "recommendedLatestTitle": "おすすめ更新",
+    "exploreMore": "もっと探す",
+    "noContentTitle": "フォロー更新はありません",
+    "noContentDescription": "フォロー更新データを取得できませんでした。"
+  },
   "docs": {
     "eyebrow": "Aoi Docs",
     "title": "プロジェクトシステムとコンポーネントライブラリ",

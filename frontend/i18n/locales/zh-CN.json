@@ -35,6 +35,39 @@
     "childrenTitle": "子分类",
     "childrenDescription": "继续细分浏览，父级分类会聚合下方所有内容。"
   },
+  "creator": {
+    "follow": "关注",
+    "following": "已关注",
+    "unfollow": "取消关注",
+    "followSyncing": "同步中",
+    "followAria": "关注 {name}",
+    "unfollowAria": "取消关注 {name}",
+    "stats": {
+      "followers": "关注者",
+      "videos": "投稿",
+      "joined": "加入时间"
+    }
+  },
+  "following": {
+    "title": "关注动态",
+    "description": "使用匿名 clientId 写入后端社区关注关系，展示你订阅的创作者和最新投稿。",
+    "errorTitle": "关注流加载失败",
+    "errorDescription": "社区 API 暂时没有返回关注流数据。",
+    "retry": "重试",
+    "refresh": "刷新",
+    "emptyTitle": "还没有关注任何创作者",
+    "emptyDescription": "关注创作者后，这里会从后端关系表加载你的订阅更新。",
+    "searchAction": "先去搜索",
+    "followedTitle": "已关注创作者",
+    "followedDescription": "这些关系来自 Go 社区 API 的匿名关注表。",
+    "latestTitle": "关注更新",
+    "recommendedTitle": "推荐创作者",
+    "recommendedDescription": "还没有关注时，先展示社区 API 返回的推荐创作者。",
+    "recommendedLatestTitle": "推荐更新",
+    "exploreMore": "探索更多",
+    "noContentTitle": "关注流暂无内容",
+    "noContentDescription": "没有拿到关注流数据。"
+  },
   "docs": {
     "eyebrow": "Aoi Docs",
     "title": "项目系统与组件库文档",

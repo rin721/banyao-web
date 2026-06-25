@@ -1,7 +1,8 @@
-import type { CreatorProfile } from "~/types/api"
+import type { AoiApiErrorPayload, CreatorFollowState, CreatorProfile, FollowingFeedPayload } from "~/types/api"
 import type { FollowedCreatorSnapshot } from "~/types/following"
 
 const STORAGE_KEY = "aoi.following.v1"
+const CLIENT_ID_STORAGE_KEY = "aoi.community.clientId.v1"
 
 interface PersistedFollowingState {
   followedCreators: Record<string, FollowedCreatorSnapshot>
@@ -13,11 +14,15 @@ function emptyState(): PersistedFollowingState {
   }
 }
 
-function snapshotCreator(creator: CreatorProfile): FollowedCreatorSnapshot {
+function snapshotCreator(creator: CreatorProfile, options: {
+  followedAt?: string | null
+  followerCount?: number
+} = {}): FollowedCreatorSnapshot {
   return {
     ...creator,
     categories: creator.categories.map((category) => ({ ...category })),
-    followedAt: new Date().toISOString(),
+    followedAt: options.followedAt || creator.followedAt || new Date().toISOString(),
+    followerCount: options.followerCount ?? creator.followerCount,
     latest: {
       items: creator.latest.items.map((video) => ({
         ...video,
@@ -63,9 +68,31 @@ function isFollowedCreator(value: unknown): value is FollowedCreatorSnapshot {
     && Boolean(creator.latest && Array.isArray(creator.latest.items))
 }
 
+function createClientId() {
+  const random = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)
+
+  return `aoi-client-${random}`.slice(0, 96)
+}
+
+function normalizeClientId(value: string | null | undefined) {
+  const normalized = String(value || "").trim()
+
+  return normalized && normalized.length <= 96 ? normalized : ""
+}
+
+function errorMessage(error: unknown) {
+  const apiError = error as Partial<AoiApiErrorPayload>
+
+  return apiError.message || "社区关注接口暂时不可用，已使用本地降级。"
+}
+
 export const useFollowingStore = defineStore("following", () => {
+  const backendReady = ref(false)
+  const clientId = ref("")
   const followedCreators = ref<Record<string, FollowedCreatorSnapshot>>({})
   const hydrated = ref(false)
+  const pendingCreatorIds = ref<Record<string, boolean>>({})
+  const syncError = ref<string | null>(null)
 
   const followedList = computed(() => Object.values(followedCreators.value)
     .sort((a, b) => Date.parse(b.followedAt) - Date.parse(a.followedAt)))
@@ -80,6 +107,17 @@ export const useFollowingStore = defineStore("following", () => {
     followedCreators.value = state.followedCreators
   }
 
+  function ensureClientId() {
+    if (clientId.value) {
+      return clientId.value
+    }
+
+    clientId.value = createClientId()
+    persistClientId()
+
+    return clientId.value
+  }
+
   function persist() {
     if (!import.meta.client || !hydrated.value) {
       return
@@ -90,7 +128,19 @@ export const useFollowingStore = defineStore("following", () => {
         followedCreators: followedCreators.value
       } satisfies PersistedFollowingState))
     } catch {
-      // Local following is optional prototype data.
+      // 本地关注只是后端不可用时的降级缓存。
+    }
+  }
+
+  function persistClientId() {
+    if (!import.meta.client || !clientId.value) {
+      return
+    }
+
+    try {
+      window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId.value)
+    } catch {
+      // clientId 只用于匿名社区关系；写入失败时仍可在内存中工作。
     }
   }
 
@@ -104,19 +154,170 @@ export const useFollowingStore = defineStore("following", () => {
       assignState(raw ? coercePersistedState(JSON.parse(raw)) : emptyState())
     } catch {
       assignState(emptyState())
+    }
+
+    try {
+      clientId.value = normalizeClientId(window.localStorage.getItem(CLIENT_ID_STORAGE_KEY)) || createClientId()
+      persistClientId()
+    } catch {
+      clientId.value = createClientId()
     } finally {
       hydrated.value = true
     }
   }
 
-  function followCreator(creator: CreatorProfile) {
-    followedCreators.value = {
-      ...followedCreators.value,
-      [creator.id]: snapshotCreator(creator)
+  function applyBackendFeed(feed: FollowingFeedPayload) {
+    if (!feed.clientId) {
+      return
+    }
+
+    const normalizedClientId = normalizeClientId(feed.clientId)
+    if (normalizedClientId) {
+      clientId.value = normalizedClientId
+      persistClientId()
+    }
+
+    backendReady.value = true
+    syncError.value = null
+
+    if (feed.followingCount > 0) {
+      followedCreators.value = Object.fromEntries(feed.creators.map((creator) => [
+        creator.id,
+        snapshotCreator(creator, {
+          followedAt: creator.followedAt,
+          followerCount: creator.followerCount
+        })
+      ]))
+      return
+    }
+
+    followedCreators.value = {}
+  }
+
+  async function syncWithBackend() {
+    if (!hydrated.value) {
+      return null
+    }
+
+    const api = useAoiApi()
+
+    try {
+      const feed = await api.getFollowingFeed(ensureClientId())
+      applyBackendFeed(feed)
+      return feed
+    } catch (error) {
+      backendReady.value = false
+      syncError.value = errorMessage(error)
+      return null
     }
   }
 
-  function unfollowCreator(creatorId: string) {
+  function applyFollowState(creator: CreatorProfile, state: CreatorFollowState) {
+    if (state.following) {
+      followedCreators.value = {
+        ...followedCreators.value,
+        [creator.id]: snapshotCreator(creator, {
+          followedAt: state.followedAt,
+          followerCount: state.followerCount
+        })
+      }
+      return
+    }
+
+    removeLocalCreator(creator.id)
+  }
+
+  function setPending(creatorId: string, value: boolean) {
+    pendingCreatorIds.value = {
+      ...pendingCreatorIds.value,
+      [creatorId]: value
+    }
+
+    if (!value) {
+      const next = { ...pendingCreatorIds.value }
+      delete next[creatorId]
+      pendingCreatorIds.value = next
+    }
+  }
+
+  async function followCreator(creator: CreatorProfile) {
+    if (!hydrated.value) {
+      return
+    }
+
+    const api = useAoiApi()
+    const activeClientId = ensureClientId()
+    setPending(creator.id, true)
+
+    try {
+      const state = await api.followCreator(creator.handle, { clientId: activeClientId })
+      backendReady.value = true
+      syncError.value = null
+      applyFollowState(creator, state)
+    } catch (error) {
+      backendReady.value = false
+      syncError.value = errorMessage(error)
+      followedCreators.value = {
+        ...followedCreators.value,
+        [creator.id]: snapshotCreator(creator, {
+          followerCount: creator.followerCount + 1
+        })
+      }
+    } finally {
+      setPending(creator.id, false)
+    }
+  }
+
+  async function unfollowCreator(creatorOrId: CreatorProfile | string) {
+    const creatorId = typeof creatorOrId === "string" ? creatorOrId : creatorOrId.id
+    const snapshot = followedCreators.value[creatorId]
+    const handle = typeof creatorOrId === "string" ? snapshot?.handle : creatorOrId.handle
+
+    if (!hydrated.value || !handle) {
+      removeLocalCreator(creatorId)
+      return
+    }
+
+    const api = useAoiApi()
+    const activeClientId = ensureClientId()
+    setPending(creatorId, true)
+
+    try {
+      await api.unfollowCreator(handle, activeClientId)
+      backendReady.value = true
+      syncError.value = null
+      removeLocalCreator(creatorId)
+    } catch (error) {
+      backendReady.value = false
+      syncError.value = errorMessage(error)
+      removeLocalCreator(creatorId)
+    } finally {
+      setPending(creatorId, false)
+    }
+  }
+
+  async function toggleCreator(creator: CreatorProfile) {
+    if (isFollowing(creator.id)) {
+      await unfollowCreator(creator)
+      return
+    }
+
+    await followCreator(creator)
+  }
+
+  function isFollowing(creatorId: string) {
+    return Boolean(followedCreators.value[creatorId])
+  }
+
+  function isPending(creatorId: string) {
+    return Boolean(pendingCreatorIds.value[creatorId])
+  }
+
+  function followerCountFor(creator: CreatorProfile) {
+    return followedCreators.value[creator.id]?.followerCount ?? creator.followerCount
+  }
+
+  function removeLocalCreator(creatorId: string) {
     if (!followedCreators.value[creatorId]) {
       return
     }
@@ -126,27 +327,16 @@ export const useFollowingStore = defineStore("following", () => {
     followedCreators.value = next
   }
 
-  function toggleCreator(creator: CreatorProfile) {
-    if (isFollowing(creator.id)) {
-      unfollowCreator(creator.id)
-      return
-    }
-
-    followCreator(creator)
-  }
-
-  function isFollowing(creatorId: string) {
-    return Boolean(followedCreators.value[creatorId])
-  }
-
   function resetFollowing() {
     assignState(emptyState())
+    backendReady.value = false
+    syncError.value = null
 
     if (import.meta.client) {
       try {
         window.localStorage.removeItem(STORAGE_KEY)
       } catch {
-        // Local following is optional prototype data.
+        // 本地关注只是后端不可用时的降级缓存。
       }
     }
   }
@@ -156,17 +346,24 @@ export const useFollowingStore = defineStore("following", () => {
   }
 
   return {
+    applyBackendFeed,
+    backendReady,
+    clientId,
     followCreator,
     followedCount,
     followedCreators,
     followedHandles,
     followedIds,
     followedList,
+    followerCountFor,
     hydrated,
     isFollowing,
+    isPending,
     latestVideos,
     resetFollowing,
     restore,
+    syncError,
+    syncWithBackend,
     toggleCreator,
     unfollowCreator
   }

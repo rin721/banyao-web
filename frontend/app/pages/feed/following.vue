@@ -1,9 +1,33 @@
 <script setup lang="ts">
 const api = useAoiApi()
 const following = useFollowingStore()
+const { t } = useI18n()
 
-const { data: feed, error, pending, refresh } = useAsyncData("following-feed", () => api.getFollowingFeed())
-const recommendedCreators = computed(() => feed.value?.creators.filter((creator) => !following.isFollowing(creator.id)) || [])
+const { data: feed, error, pending, refresh } = useAsyncData(
+  "following-feed",
+  () => api.getFollowingFeed(following.clientId || undefined),
+  {
+    immediate: false,
+    server: false
+  }
+)
+const recommendedCreators = computed(() => feed.value?.followingCount
+  ? []
+  : feed.value?.creators.filter((creator) => !following.isFollowing(creator.id)) || [])
+const feedMessage = computed(() => following.syncError || feed.value?.message)
+
+watch(feed, (value) => {
+  if (value) {
+    following.applyBackendFeed(value)
+  }
+})
+
+onMounted(async () => {
+  if (!following.hydrated) {
+    following.restore()
+  }
+  await refresh()
+})
 
 useHead({
   title: "Following - Aoi"
@@ -14,17 +38,17 @@ useHead({
   <div class="aoi-page">
     <PageHeader
       icon="radio-tower"
-      title="关注动态"
-      description="关注流会在接入登录和用户关系接口后展示你订阅的创作者更新；当前提供社区推荐预览。"
+      :title="t('following.title')"
+      :description="t('following.description')"
     />
 
     <PageState
       v-if="!pending && error"
       icon="cloud-alert"
-      title="关注流加载失败"
-      description="社区 API 暂时没有返回关注流数据。"
+      :title="t('following.errorTitle')"
+      :description="t('following.errorDescription')"
       action-icon="refresh-cw"
-      action-label="重试"
+      :action-label="t('following.retry')"
       @action="refresh()"
     />
 
@@ -32,50 +56,55 @@ useHead({
       <PageState
         v-if="!feed.authenticated && following.hydrated && following.followedCount === 0"
         icon="user-round-plus"
-        title="关注流暂未登录"
-        :description="feed.message || '接入认证后，这里会展示关注创作者的最新视频；现在也可以先用本地关注预览。'"
+        :title="t('following.emptyTitle')"
+        :description="feedMessage || t('following.emptyDescription')"
         action-icon="search"
-        action-label="先去搜索"
+        :action-label="t('following.searchAction')"
         @action="navigateTo('/search')"
       />
 
-      <AoiSection
-        v-if="following.hydrated && following.followedList.length"
-        title="本地关注"
-        description="保存在当前浏览器，未来可迁移到 Go 用户关系接口。"
-        title-id="local-following-title"
+      <div
+        v-if="following.hydrated && (following.followedList.length || following.latestVideos.length)"
+        class="following-dashboard"
       >
-        <template #actions>
-          <AoiButton tone="accent" variant="outlined" size="sm" icon="settings" to="/settings">管理缓存</AoiButton>
-        </template>
-        <AoiContentGrid min-width="260px" gap="compact" :mobile-columns="1">
-          <AoiReveal
-            v-for="(creator, index) in following.followedList"
-            :key="creator.id"
-            class="following-card-reveal"
-            :index="index"
-          >
-            <CreatorCard :creator="creator" />
-          </AoiReveal>
-        </AoiContentGrid>
-      </AoiSection>
+        <AoiSection
+          v-if="following.followedList.length"
+          :title="t('following.followedTitle')"
+          :description="feedMessage || t('following.followedDescription')"
+          title-id="following-creators-title"
+        >
+          <template #actions>
+            <AoiButton tone="accent" variant="outlined" size="sm" icon="refresh-cw" @click="refresh()">{{ t("following.refresh") }}</AoiButton>
+          </template>
+          <AoiContentGrid min-width="260px" gap="compact" :mobile-columns="1">
+            <AoiReveal
+              v-for="(creator, index) in following.followedList"
+              :key="creator.id"
+              class="following-card-reveal"
+              :index="index"
+            >
+              <CreatorCard :creator="creator" />
+            </AoiReveal>
+          </AoiContentGrid>
+        </AoiSection>
 
-      <AoiSection
-        v-if="following.hydrated && following.latestVideos.length"
-        title="本地关注更新"
-        title-id="local-following-latest-title"
-      >
-        <VideoGrid :videos="following.latestVideos" />
-      </AoiSection>
+        <AoiSection
+          v-if="following.latestVideos.length"
+          :title="t('following.latestTitle')"
+          title-id="following-latest-title"
+        >
+          <VideoGrid :videos="following.latestVideos" />
+        </AoiSection>
+      </div>
 
       <AoiSection
         v-if="recommendedCreators.length"
-        title="推荐创作者"
-        description="这些推荐来自社区 API，可直接关注到本地列表。"
-        title-id="following-creators-title"
+        :title="t('following.recommendedTitle')"
+        :description="t('following.recommendedDescription')"
+        title-id="following-recommended-title"
       >
         <template #actions>
-          <AoiButton tone="accent" variant="outlined" size="sm" icon="search" to="/search">探索更多</AoiButton>
+          <AoiButton tone="accent" variant="outlined" size="sm" icon="search" to="/search">{{ t("following.exploreMore") }}</AoiButton>
         </template>
         <AoiContentGrid min-width="260px" gap="compact" :mobile-columns="1">
           <AoiReveal
@@ -90,9 +119,9 @@ useHead({
       </AoiSection>
 
       <AoiSection
-        v-if="feed.latest.items.length"
-        title="推荐更新"
-        title-id="following-latest-title"
+        v-if="!following.latestVideos.length && feed.latest.items.length"
+        :title="t('following.recommendedLatestTitle')"
+        title-id="following-recommended-latest-title"
       >
         <VideoGrid :videos="feed.latest.items" />
       </AoiSection>
@@ -101,10 +130,10 @@ useHead({
     <PageState
       v-else-if="!pending"
       icon="user-round-plus"
-      title="关注流暂无内容"
-      description="没有拿到关注流预览数据。"
+      :title="t('following.noContentTitle')"
+      :description="t('following.noContentDescription')"
       action-icon="refresh-cw"
-      action-label="重试"
+      :action-label="t('following.retry')"
       @action="refresh()"
     />
   </div>
@@ -113,5 +142,18 @@ useHead({
 <style scoped>
 .following-card-reveal {
   min-width: 0;
+}
+
+.following-dashboard {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .following-dashboard {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

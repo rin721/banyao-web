@@ -117,6 +117,19 @@ export interface CreateVideoCommentRequest {
   body: string
 }
 
+export interface CreatorFollowRequest {
+  clientId: string
+}
+
+export interface CreatorFollowState {
+  clientId: string
+  creatorId: string
+  handle: string
+  following: boolean
+  followerCount: number
+  followedAt: string | null
+}
+
 export interface Announcement {
   id: string
   title: string
@@ -135,6 +148,7 @@ export interface PageResult<T> {
 export interface CreatorProfile extends UserSummary {
   bio: string | null
   followerCount: number
+  followedAt?: string | null
   videoCount: number
   joinedAt: string
   categories: Category[]
@@ -143,6 +157,8 @@ export interface CreatorProfile extends UserSummary {
 
 export interface FollowingFeedPayload {
   authenticated: boolean
+  clientId?: string | null
+  followingCount: number
   message: string | null
   creators: CreatorProfile[]
   latest: PageResult<VideoSummary>

@@ -2,6 +2,7 @@
 const route = useRoute()
 const api = useAoiApi()
 const following = useFollowingStore()
+const { t } = useI18n()
 const handle = computed(() => String(route.params.handle || ""))
 
 const { data: creator, error, pending, refresh } = useAsyncData(
@@ -23,14 +24,13 @@ const joinedDate = computed(() => {
   }).format(new Date(creator.value.joinedAt))
 })
 const isFollowing = computed(() => creator.value ? following.isFollowing(creator.value.id) : false)
-const localFollowerCount = computed(() => creator.value
-  ? creator.value.followerCount + (isFollowing.value ? 1 : 0)
-  : 0)
+const isFollowPending = computed(() => creator.value ? following.isPending(creator.value.id) : false)
+const displayedFollowerCount = computed(() => creator.value ? following.followerCountFor(creator.value) : 0)
 const creatorStats = computed(() => creator.value
   ? [
-      { label: "关注者", value: formatCount(localFollowerCount.value) },
-      { label: "投稿", value: creator.value.videoCount },
-      { label: "加入时间", value: joinedDate.value }
+      { label: t("creator.stats.followers"), value: formatCount(displayedFollowerCount.value) },
+      { label: t("creator.stats.videos"), value: creator.value.videoCount },
+      { label: t("creator.stats.joined"), value: joinedDate.value }
     ]
   : [])
 const categoryTags = computed(() => creator.value?.categories.map((category) => ({
@@ -47,9 +47,9 @@ function formatCount(value: number) {
   return String(value)
 }
 
-function toggleFollow() {
+async function toggleFollow() {
   if (creator.value) {
-    following.toggleCreator(creator.value)
+    await following.toggleCreator(creator.value)
   }
 }
 
@@ -85,11 +85,12 @@ useHead(() => ({
             <AoiButton tone="accent"
               :variant="isFollowing ? 'tonal' : 'filled'"
               :icon="isFollowing ? 'user-check' : 'bell-plus'"
-              :aria-label="isFollowing ? '取消关注' : '关注'"
-              :disabled="!following.hydrated"
+              :aria-label="isFollowing ? t('creator.unfollow') : t('creator.follow')"
+              :disabled="!following.hydrated || isFollowPending"
+              :loading="isFollowPending"
               @click="toggleFollow"
             >
-              {{ isFollowing ? "已关注" : "关注" }}
+              {{ isFollowPending ? t("creator.followSyncing") : isFollowing ? t("creator.following") : t("creator.follow") }}
             </AoiButton>
             <AoiButton tone="accent" variant="outlined" icon="search" :to="`/search?q=${encodeURIComponent(creator.displayName)}`">
               搜索作品
@@ -101,11 +102,12 @@ useHead(() => ({
           <AoiButton tone="accent"
             :variant="isFollowing ? 'tonal' : 'filled'"
             :icon="isFollowing ? 'user-check' : 'bell-plus'"
-            :aria-label="isFollowing ? '取消关注' : '关注'"
-            :disabled="!following.hydrated"
+            :aria-label="isFollowing ? t('creator.unfollow') : t('creator.follow')"
+            :disabled="!following.hydrated || isFollowPending"
+            :loading="isFollowPending"
             @click="toggleFollow"
           >
-            {{ isFollowing ? "已关注" : "关注" }}
+            {{ isFollowPending ? t("creator.followSyncing") : isFollowing ? t("creator.following") : t("creator.follow") }}
           </AoiButton>
           <AoiButton tone="accent" variant="outlined" icon="search" :to="`/search?q=${encodeURIComponent(creator.displayName)}`">
             搜索作品

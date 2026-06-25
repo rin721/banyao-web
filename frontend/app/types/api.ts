@@ -5,6 +5,8 @@ export type {
   ApiStatus,
   Category,
   CategoryTreeNode,
+  CreatorFollowRequest,
+  CreatorFollowState,
   CreateVideoCommentRequest,
   CreatorProfile,
   ErrorResponse,

@@ -302,6 +302,9 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.videos.comments.create", deps.CommunityHandler.CreateVideoComment),
 		routeSpecFor("community.search", deps.CommunityHandler.Search),
 		routeSpecFor("community.creators.get", deps.CommunityHandler.Creator),
+		routeSpecFor("community.creators.follow-state", deps.CommunityHandler.CreatorFollowState),
+		routeSpecFor("community.creators.follow", deps.CommunityHandler.FollowCreator),
+		routeSpecFor("community.creators.unfollow", deps.CommunityHandler.UnfollowCreator),
 		routeSpecFor("community.feed.following", deps.CommunityHandler.Following),
 	}
 	registerRouteSpecs(public, appconstants.APIPath("public", "community"), specs)

@@ -118,6 +118,47 @@ func TestServiceCreateVideoCommentRejectsEmptyInput(t *testing.T) {
 	}
 }
 
+func TestServiceCreatorFollowStatePersistsAndUpdatesFeed(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	req := model.CreatorFollowRequest{ClientID: "browser-client-1"}
+
+	state, err := svc.FollowCreator(context.Background(), "rin721", req)
+	if err != nil {
+		t.Fatalf("FollowCreator() error = %v", err)
+	}
+	if !state.Following || state.FollowerCount != 43 || state.FollowedAt == nil {
+		t.Fatalf("unexpected follow state: %#v", state)
+	}
+
+	feed, err := svc.FollowingFeed(context.Background(), req)
+	if err != nil {
+		t.Fatalf("FollowingFeed() error = %v", err)
+	}
+	if feed.FollowingCount != 1 || len(feed.Creators) != 1 || feed.Creators[0].Handle != "rin721" {
+		t.Fatalf("expected client following feed, got %#v", feed)
+	}
+	if len(feed.Latest.Items) != 1 || feed.Latest.Items[0].Uploader.ID != "user-rin" {
+		t.Fatalf("expected followed creator latest videos, got %#v", feed.Latest.Items)
+	}
+
+	state, err = svc.UnfollowCreator(context.Background(), "rin721", req)
+	if err != nil {
+		t.Fatalf("UnfollowCreator() error = %v", err)
+	}
+	if state.Following || state.FollowerCount != 42 || state.FollowedAt != nil {
+		t.Fatalf("expected unfollowed state, got %#v", state)
+	}
+}
+
+func TestServiceCreatorFollowRejectsMissingClientID(t *testing.T) {
+	svc := New(newFakeRepository(), Config{Now: fixedNow})
+
+	if _, err := svc.FollowCreator(context.Background(), "rin721", model.CreatorFollowRequest{}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
 type fakeRepository struct {
 	categories    []model.Category
 	creators      []model.Creator
@@ -125,6 +166,7 @@ type fakeRepository struct {
 	categorySlugs map[string][]string
 	comments      map[string][]model.VideoComment
 	danmaku       map[string][]model.VideoDanmakuItem
+	follows       map[string][]model.CreatorFollow
 	sources       map[string][]model.VideoSourceOption
 	tags          map[string][]string
 }
@@ -159,6 +201,7 @@ func newFakeRepository() *fakeRepository {
 		danmaku: map[string][]model.VideoDanmakuItem{
 			"video-aoi-alpha": {{ID: "d1", VideoID: "video-aoi-alpha", Body: "清晰", TimeSeconds: 2, Mode: model.DanmakuModeScroll, Color: "#ffffff", AuthorName: "viewer", CreatedAt: fixedNow()}},
 		},
+		follows: map[string][]model.CreatorFollow{},
 		sources: map[string][]model.VideoSourceOption{
 			"video-aoi-alpha": {{ID: "s1", VideoID: "video-aoi-alpha", Src: "https://example.invalid/a.mp4", Kind: model.VideoSourceKindNative, Label: "主源", IsDefault: true}},
 		},
@@ -172,6 +215,16 @@ func (r *fakeRepository) FindCreatorByHandle(_ context.Context, handle string) (
 	for _, creator := range r.creators {
 		if creator.Handle == handle {
 			item := creator
+			return &item, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindCreatorFollow(_ context.Context, creatorID string, clientID string) (*model.CreatorFollow, error) {
+	for _, follow := range r.follows[clientID] {
+		if follow.CreatorID == creatorID && follow.DeletedAt == nil {
+			item := follow
 			return &item, nil
 		}
 	}
@@ -198,6 +251,19 @@ func (r *fakeRepository) ListCategorySlugs(_ context.Context, videoID string) ([
 
 func (r *fakeRepository) ListCreators(_ context.Context, limit int) ([]model.Creator, error) {
 	items := append([]model.Creator(nil), r.creators...)
+	if limit > 0 && len(items) > limit {
+		return items[:limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) ListCreatorFollows(_ context.Context, clientID string, limit int) ([]model.CreatorFollow, error) {
+	items := make([]model.CreatorFollow, 0)
+	for _, follow := range r.follows[clientID] {
+		if follow.DeletedAt == nil {
+			items = append(items, follow)
+		}
+	}
 	if limit > 0 && len(items) > limit {
 		return items[:limit], nil
 	}
@@ -231,6 +297,40 @@ func (r *fakeRepository) CreateVideoComment(_ context.Context, comment model.Vid
 	return nil
 }
 
+func (r *fakeRepository) FollowCreator(_ context.Context, follow model.CreatorFollow) error {
+	items := r.follows[follow.ClientID]
+	for index := range items {
+		if items[index].CreatorID != follow.CreatorID {
+			continue
+		}
+		wasDeleted := items[index].DeletedAt != nil
+		items[index] = follow
+		r.follows[follow.ClientID] = items
+		if wasDeleted {
+			r.bumpFollowerCount(follow.CreatorID, 1)
+		}
+		return nil
+	}
+	r.follows[follow.ClientID] = append(items, follow)
+	r.bumpFollowerCount(follow.CreatorID, 1)
+	return nil
+}
+
+func (r *fakeRepository) UnfollowCreator(_ context.Context, creatorID string, clientID string, now time.Time) error {
+	items := r.follows[clientID]
+	for index := range items {
+		if items[index].CreatorID != creatorID || items[index].DeletedAt != nil {
+			continue
+		}
+		items[index].DeletedAt = &now
+		items[index].UpdatedAt = now
+		r.follows[clientID] = items
+		r.bumpFollowerCount(creatorID, -1)
+		return nil
+	}
+	return nil
+}
+
 func (r *fakeRepository) ListSources(_ context.Context, videoID string) ([]model.VideoSourceOption, error) {
 	return append([]model.VideoSourceOption(nil), r.sources[videoID]...), nil
 }
@@ -245,6 +345,20 @@ func (r *fakeRepository) ListVideos(_ context.Context, filter model.VideoFilter)
 		return items[:filter.Limit], nil
 	}
 	return items, nil
+}
+
+func (r *fakeRepository) bumpFollowerCount(creatorID string, delta int64) {
+	for index := range r.creators {
+		if r.creators[index].ID != creatorID {
+			continue
+		}
+		next := r.creators[index].FollowerCount + delta
+		if next < 0 {
+			next = 0
+		}
+		r.creators[index].FollowerCount = next
+		return
+	}
 }
 
 func fixedNow() time.Time {

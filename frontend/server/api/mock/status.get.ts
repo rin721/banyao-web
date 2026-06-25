@@ -10,6 +10,8 @@ const endpoints = [
   "/search",
   "/feed/following",
   "/users/:handle",
+  "/users/:handle/follow-state",
+  "/users/:handle/follow",
   "/status"
 ]
 

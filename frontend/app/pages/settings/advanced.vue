@@ -251,8 +251,8 @@ function cancelPendingAction() {
         </SettingsDataActionCard>
 
         <SettingsDataActionCard
-          title="本地关注"
-          :description="`创作者 ${followingStats.creators} · 关注更新 ${followingStats.videos}`"
+          title="关注缓存"
+          :description="`本地缓存创作者 ${followingStats.creators} · 关注更新 ${followingStats.videos}`"
         >
           <template #actions>
             <AoiButton tone="accent"
@@ -260,7 +260,7 @@ function cancelPendingAction() {
               size="sm"
               icon="user-minus"
               :disabled="!following.hydrated || !hasFollowingData"
-              @click="askConfirm('清空本地关注', '将删除当前浏览器中的关注创作者缓存。', () => following.resetFollowing())"
+              @click="askConfirm('清空本地关注缓存', '只删除当前浏览器缓存；后端匿名关注关系会在下次同步时重新加载。', () => following.resetFollowing())"
             >
               清空
             </AoiButton>

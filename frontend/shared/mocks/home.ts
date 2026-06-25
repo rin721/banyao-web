@@ -2,10 +2,12 @@ import type {
   Announcement,
   Category,
   CategoryTreeNode,
+  CreatorFollowState,
   CreatorProfile,
   FollowingFeedPayload,
   HomePayload,
   SearchPayload,
+  CreatorFollowRequest,
   CreateVideoCommentRequest,
   VideoDanmakuItem,
   VideoDanmakuMode,
@@ -268,6 +270,8 @@ const creatorMeta: Record<string, {
   }
 }
 
+const mockCreatorFollows: Record<string, Record<string, string>> = {}
+
 export function listMockCreators(limit?: number): CreatorProfile[] {
   const creators = Object.values(mockUsers)
     .map((user) => getMockCreatorProfile(user.handle))
@@ -307,17 +311,87 @@ export function getMockCreatorProfile(handle: string): CreatorProfile | null {
   }
 }
 
-export function getMockFollowingFeed(): FollowingFeedPayload {
-  const creators = listMockCreators(4)
+export function getMockCreatorFollowState(handle: string, clientId: string): CreatorFollowState | null {
+  const creator = getMockCreatorProfile(handle)
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!creator || !normalizedClientId) {
+    return null
+  }
+
+  const followedAt = mockCreatorFollows[normalizedClientId]?.[creator.id] || null
+
+  return {
+    clientId: normalizedClientId,
+    creatorId: creator.id,
+    followedAt,
+    followerCount: creator.followerCount + (followedAt ? 1 : 0),
+    following: Boolean(followedAt),
+    handle: creator.handle
+  }
+}
+
+export function followMockCreator(handle: string, payload: CreatorFollowRequest): CreatorFollowState | null {
+  const creator = getMockCreatorProfile(handle)
+  const clientId = normalizeMockClientId(payload.clientId)
+
+  if (!creator || !clientId) {
+    return null
+  }
+
+  const followedAt = mockCreatorFollows[clientId]?.[creator.id] || new Date().toISOString()
+  mockCreatorFollows[clientId] = {
+    ...(mockCreatorFollows[clientId] || {}),
+    [creator.id]: followedAt
+  }
+
+  return getMockCreatorFollowState(handle, clientId)
+}
+
+export function unfollowMockCreator(handle: string, clientId: string): CreatorFollowState | null {
+  const creator = getMockCreatorProfile(handle)
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!creator || !normalizedClientId) {
+    return null
+  }
+
+  if (mockCreatorFollows[normalizedClientId]?.[creator.id]) {
+    const next = { ...mockCreatorFollows[normalizedClientId] }
+    delete next[creator.id]
+    mockCreatorFollows[normalizedClientId] = next
+  }
+
+  return getMockCreatorFollowState(handle, normalizedClientId)
+}
+
+export function getMockFollowingFeed(clientId?: string): FollowingFeedPayload {
+  const normalizedClientId = normalizeMockClientId(clientId || "")
+  const followedCreatorIds = normalizedClientId ? mockCreatorFollows[normalizedClientId] || {} : {}
+  const followedCreators: CreatorProfile[] = []
+  for (const [creatorId, followedAt] of Object.entries(followedCreatorIds)) {
+    const user = Object.values(mockUsers).find((item) => item.id === creatorId)
+    const creator = user ? getMockCreatorProfile(user.handle) : null
+
+    if (creator) {
+      followedCreators.push({ ...creator, followedAt })
+    }
+  }
+  followedCreators.sort((a, b) => Date.parse(b.followedAt || "") - Date.parse(a.followedAt || ""))
+  const creators = followedCreators.length ? followedCreators : listMockCreators(4)
 
   return {
     authenticated: false,
+    clientId: normalizedClientId || null,
     creators,
+    followingCount: followedCreators.length,
     latest: {
       items: creators.flatMap((creator) => creator.latest.items).slice(0, 6),
       nextCursor: null
     },
-    message: "当前社区读接口未接入认证；这里展示推荐关注的创作者预览。"
+    message: followedCreators.length
+      ? "关注关系来自 mock 社区 API，真实模式会写入 Go 后端。"
+      : "当前社区读接口未接入认证；这里展示推荐关注的创作者预览。"
   }
 }
 
@@ -612,6 +686,12 @@ function matchesCategory(category: Category, normalizedQuery: string) {
   ].filter(Boolean).join(" ")
 
   return normalize(haystack).includes(normalizedQuery)
+}
+
+function normalizeMockClientId(value: string) {
+  const normalized = value.trim()
+
+  return normalized && normalized.length <= 96 ? normalized : ""
 }
 
 function uniqueCategories(categories: Category[]) {

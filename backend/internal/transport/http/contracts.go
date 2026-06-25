@@ -348,7 +348,10 @@ func communityRouteContracts() []RouteContract {
 		publicRoute("community.videos.comments.create", http.MethodPost, appconstants.APIPath("public", "community", "videos", ":idOrSlug", "comments"), "Community", "发布社区视频评论", jsonType[communitymodel.CreateVideoCommentRequest](), jsonType[communitymodel.VideoComment](), pathString("idOrSlug")),
 		publicRoute("community.search", http.MethodGet, appconstants.APIPath("public", "community", "search"), "Community", "搜索社区视频、创作者和分类", nil, jsonType[communitymodel.SearchPayload](), queryParam("q", "string"), queryInt("limit")),
 		publicRoute("community.creators.get", http.MethodGet, appconstants.APIPath("public", "community", "users", ":handle"), "Community", "查询社区创作者资料", nil, jsonType[communitymodel.CreatorProfile](), pathString("handle")),
-		publicRoute("community.feed.following", http.MethodGet, appconstants.APIPath("public", "community", "feed", "following"), "Community", "查询社区关注推荐预览", nil, jsonType[communitymodel.FollowingFeedPayload]()),
+		publicRoute("community.creators.follow-state", http.MethodGet, appconstants.APIPath("public", "community", "users", ":handle", "follow-state"), "Community", "查询社区创作者关注状态", nil, jsonType[communitymodel.CreatorFollowState](), pathString("handle"), queryParam("clientId", "string")),
+		publicRoute("community.creators.follow", http.MethodPost, appconstants.APIPath("public", "community", "users", ":handle", "follow"), "Community", "关注社区创作者", jsonType[communitymodel.CreatorFollowRequest](), jsonType[communitymodel.CreatorFollowState](), pathString("handle")),
+		publicRoute("community.creators.unfollow", http.MethodDelete, appconstants.APIPath("public", "community", "users", ":handle", "follow"), "Community", "取消关注社区创作者", nil, jsonType[communitymodel.CreatorFollowState](), pathString("handle"), queryParam("clientId", "string")),
+		publicRoute("community.feed.following", http.MethodGet, appconstants.APIPath("public", "community", "feed", "following"), "Community", "查询社区关注动态", nil, jsonType[communitymodel.FollowingFeedPayload](), queryParam("clientId", "string")),
 	}
 }
 
