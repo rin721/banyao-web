@@ -5,52 +5,14 @@ const props = defineProps<{
   comment: CommentView
 }>()
 
-const emit = defineEmits<{
-  delete: [commentId: string]
-  edit: [commentId: string, body: string]
-}>()
-
-const editing = ref(false)
-const draft = ref(props.comment.body)
-
-const canSave = computed(() => draft.value.trim().length > 0 && draft.value.length <= 500)
-const canManage = computed(() => props.comment.editable)
 const isEdited = computed(() => props.comment.updatedAt !== props.comment.createdAt)
-
-watch(() => props.comment.body, (value) => {
-  if (!editing.value) {
-    draft.value = value
-  }
-})
+const { locale, t } = useI18n()
 
 function formatTime(value: string) {
-  return new Date(value).toLocaleString("zh-CN", {
+  return new Date(value).toLocaleString(locale.value, {
     dateStyle: "medium",
     timeStyle: "short"
   })
-}
-
-function startEdit() {
-  if (!canManage.value) {
-    return
-  }
-
-  draft.value = props.comment.body
-  editing.value = true
-}
-
-function cancelEdit() {
-  draft.value = props.comment.body
-  editing.value = false
-}
-
-function saveEdit() {
-  if (!canSave.value || !canManage.value) {
-    return
-  }
-
-  emit("edit", props.comment.id, draft.value.trim())
-  editing.value = false
 }
 </script>
 
@@ -65,40 +27,11 @@ function saveEdit() {
         <div>
           <strong>{{ comment.authorName }}</strong>
           <span>{{ formatTime(comment.createdAt) }}</span>
-          <small v-if="isEdited">已编辑</small>
+          <small v-if="isEdited">{{ t("comments.item.edited") }}</small>
         </div>
-        <AoiActionBar v-if="canManage" class="comment-item__actions" size="sm" align="end">
-          <AoiButton v-if="!editing" size="sm" icon="pencil" @click="startEdit">
-            编辑
-          </AoiButton>
-          <AoiButton size="sm" icon="trash-2" @click="emit('delete', comment.id)">
-            删除
-          </AoiButton>
-        </AoiActionBar>
       </header>
 
-      <template v-if="editing">
-        <AoiTextField
-          v-model="draft"
-          appearance="outlined"
-          label="编辑评论"
-          :max-length="500"
-          :supporting-text="`${draft.length}/500`"
-          :error-text="draft.length > 500 ? '评论内容过长' : undefined"
-          multiline
-          :rows="3"
-        />
-        <AoiActionBar class="comment-item__edit-actions" size="sm" align="end">
-          <AoiButton tone="accent" variant="outlined" size="sm" @click="cancelEdit">
-            取消
-          </AoiButton>
-          <AoiButton tone="accent" variant="filled" size="sm" icon="check" :disabled="!canSave" @click="saveEdit">
-            保存
-          </AoiButton>
-        </AoiActionBar>
-      </template>
-
-      <p v-else class="comment-item__body">{{ comment.body }}</p>
+      <p class="comment-item__body">{{ comment.body }}</p>
     </div>
   </AoiSurface>
 </template>
@@ -169,9 +102,5 @@ function saveEdit() {
     flex-direction: column;
   }
 
-  .comment-item__actions,
-  .comment-item__edit-actions {
-    justify-content: flex-start;
-  }
 }
 </style>

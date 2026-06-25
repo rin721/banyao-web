@@ -12,6 +12,28 @@
       "reset": "重置"
     }
   },
+  "comments": {
+    "composer": {
+      "authorLabel": "显示名称",
+      "bodyLabel": "写下你的想法",
+      "bodyPlaceholder": "保持友善，也欢迎补充观看笔记。",
+      "bodyTooLong": "评论内容过长",
+      "hint": "评论会提交到社区 API，并同步更新视频评论数。",
+      "submit": "发布评论"
+    },
+    "thread": {
+      "title": "讨论区",
+      "description": "{count} 条评论",
+      "emptyTitle": "还没有评论",
+      "emptyDescription": "写下第一条讨论。",
+      "sort": "排序",
+      "newest": "最新优先",
+      "oldest": "最早优先"
+    },
+    "item": {
+      "edited": "已编辑"
+    }
+  },
   "nav": {
     "home": "首页",
     "categories": "分类",
@@ -1015,13 +1037,13 @@
     "descriptionTitle": "简介",
     "tags": "标签",
     "localActions": "本地互动操作",
-    "localComments": "本地评论区",
     "communityComments": "社区讨论",
-    "communityCommentComposerHint": "评论会优先提交到社区 API；接口不可用时保存在当前浏览器。",
+    "communityCommentComposerHint": "评论会提交到社区 API；请保持友善、具体和可讨论。",
     "communityCommentSubmit": "发布评论",
+    "communityCommentSubmitError": "评论提交失败，请确认社区 API 可用后重试。",
     "communityCommentDescription": "已加载 {count} 条，社区共 {total} 条",
     "communityCommentEmptyTitle": "还没有社区评论",
-    "communityCommentEmptyDescription": "写下第一条讨论，接口不可用时会保存在当前浏览器。",
+    "communityCommentEmptyDescription": "写下第一条讨论，它会保存到后端社区评论表。",
     "communityCommentSort": "评论排序"
   },
   "lightbox": {

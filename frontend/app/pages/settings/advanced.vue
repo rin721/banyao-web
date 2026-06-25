@@ -42,11 +42,9 @@ const followingStats = computed(() => ({
 }))
 const hasFollowingData = computed(() => followingStats.value.creators > 0)
 const commentStats = computed(() => ({
-  author: comments.authorName,
-  total: comments.totalCount,
-  videos: comments.videoCount
+  author: comments.authorName
 }))
-const hasCommentData = computed(() => commentStats.value.total > 0 || commentStats.value.author !== defaultCommentAuthor)
+const hasCommentIdentity = computed(() => commentStats.value.author !== defaultCommentAuthor)
 const playerStats = computed(() => ({
   muted: playerSettings.muted,
   playbackRate: playerSettings.playbackRate,
@@ -179,7 +177,7 @@ function cancelPendingAction() {
     <SettingsPanel
       icon="database"
       title="本地数据"
-      description="这些数据只写入当前浏览器，不会发送到社区 API。"
+      description="这些缓存和偏好写入当前浏览器；评论显示名称只会在你发布评论时随社区 API 请求发送。"
     >
       <div class="settings-data-panels">
         <SettingsDataActionCard
@@ -217,16 +215,16 @@ function cancelPendingAction() {
         </SettingsDataActionCard>
 
         <SettingsDataActionCard
-          title="本地评论"
-          :description="`评论 ${commentStats.total} · 参与视频 ${commentStats.videos} · 作者 ${commentStats.author}`"
+          title="评论身份"
+          :description="`显示名称 ${commentStats.author}`"
         >
           <template #actions>
             <AoiButton tone="accent"
               variant="outlined"
               size="sm"
-              icon="message-circle-x"
-              :disabled="!comments.hydrated || !hasCommentData"
-              @click="askConfirm('重置本地评论数据', '将清空本地评论，并恢复默认评论作者。', () => comments.resetComments())"
+              icon="message-circle"
+              :disabled="!comments.hydrated || !hasCommentIdentity"
+              @click="askConfirm('重置评论身份', '将恢复评论显示名称；已发布的后端社区评论不会被删除。', () => comments.resetCommentIdentity())"
             >
               重置
             </AoiButton>
@@ -279,7 +277,7 @@ function cancelPendingAction() {
               size="sm"
               icon="rotate-ccw"
               :disabled="!settings.hydrated"
-              @click="askConfirm('重置应用设置', '将恢复外观、背景、语言和偏好的默认值，但不会清除互动、评论、投稿或关注数据。', () => settings.resetAllAppSettings(), true)"
+              @click="askConfirm('重置应用设置', '将恢复外观、背景、语言和偏好的默认值，但不会清除互动、投稿、关注缓存或评论身份。', () => settings.resetAllAppSettings(), true)"
             >
               重置
             </AoiButton>

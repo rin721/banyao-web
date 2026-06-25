@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import type { CommentSortMode, CommentView, LocalComment } from "~/types/comments"
-
-type ThreadComment = CommentView | LocalComment
+import type { CommentSortMode, CommentView } from "~/types/comments"
 
 const props = withDefaults(defineProps<{
-  comments: ThreadComment[]
+  comments: CommentView[]
   description?: string
   emptyDescription?: string
   emptyTitle?: string
@@ -14,52 +12,40 @@ const props = withDefaults(defineProps<{
   title?: string
 }>(), {
   description: undefined,
-  emptyDescription: "写下第一条讨论，刷新页面后也会保存在当前浏览器。",
-  emptyTitle: "还没有评论",
+  emptyDescription: undefined,
+  emptyTitle: undefined,
   hydrated: false,
-  sortLabel: "排序",
+  sortLabel: undefined,
   sortMode: "newest",
-  title: "讨论区"
+  title: undefined
 })
 
 const emit = defineEmits<{
-  delete: [commentId: string]
-  edit: [commentId: string, body: string]
   "update:sortMode": [value: CommentSortMode]
 }>()
 
+const { t } = useI18n()
 const sortValue = computed({
   get: () => props.sortMode,
   set: (value) => emit("update:sortMode", value as CommentSortMode)
 })
 
-const sortOptions = [
-  { label: "最新优先", value: "newest" },
-  { label: "最早优先", value: "oldest" }
-]
-
-const commentItems = computed(() => props.comments.map(toCommentView))
-const sectionDescription = computed(() => props.description || `${props.comments.length} 条评论`)
-
-function toCommentView(comment: ThreadComment): CommentView {
-  if ("source" in comment && "editable" in comment && "status" in comment) {
-    return comment
-  }
-
-  return {
-    ...comment,
-    editable: true,
-    source: "local",
-    status: "visible"
-  }
-}
+const titleText = computed(() => props.title || t("comments.thread.title"))
+const emptyTitleText = computed(() => props.emptyTitle || t("comments.thread.emptyTitle"))
+const emptyDescriptionText = computed(() => props.emptyDescription || t("comments.thread.emptyDescription"))
+const sortLabelText = computed(() => props.sortLabel || t("comments.thread.sort"))
+const sortOptions = computed(() => [
+  { label: t("comments.thread.newest"), value: "newest" },
+  { label: t("comments.thread.oldest"), value: "oldest" }
+])
+const sectionDescription = computed(() => props.description || t("comments.thread.description", { count: props.comments.length }))
 </script>
 
 <template>
   <section class="comment-thread" aria-labelledby="comment-thread-title">
     <AoiSection
       as="div"
-      :title="title"
+      :title="titleText"
       :description="sectionDescription"
       title-id="comment-thread-title"
       :reveal="false"
@@ -68,7 +54,7 @@ function toCommentView(comment: ThreadComment): CommentView {
         <AoiSelect
           v-model="sortValue"
           class="comment-thread__sort"
-          :label="sortLabel"
+          :label="sortLabelText"
           appearance="outlined"
           :options="sortOptions"
           :disabled="!hydrated || comments.length < 2"
@@ -79,13 +65,13 @@ function toCommentView(comment: ThreadComment): CommentView {
     <PageState
       v-if="hydrated && comments.length === 0"
       icon="message-circle"
-      :title="emptyTitle"
-      :description="emptyDescription"
+      :title="emptyTitleText"
+      :description="emptyDescriptionText"
     />
 
     <AoiContentGrid v-else-if="hydrated" min-width="100%" gap="compact" :mobile-columns="1">
       <AoiReveal
-        v-for="(comment, index) in commentItems"
+        v-for="(comment, index) in comments"
         :key="comment.id"
         class="comment-thread__item"
         :index="index"
@@ -93,8 +79,6 @@ function toCommentView(comment: ThreadComment): CommentView {
       >
         <CommentItem
           :comment="comment"
-          @delete="emit('delete', $event)"
-          @edit="(commentId, body) => emit('edit', commentId, body)"
         />
       </AoiReveal>
     </AoiContentGrid>

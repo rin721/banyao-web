@@ -12,6 +12,28 @@
       "reset": "Reset"
     }
   },
+  "comments": {
+    "composer": {
+      "authorLabel": "Display name",
+      "bodyLabel": "Share your thought",
+      "bodyPlaceholder": "Keep it kind, specific, and useful for the next viewer.",
+      "bodyTooLong": "Comment is too long",
+      "hint": "Comments are posted to the Community API and update the video count.",
+      "submit": "Post comment"
+    },
+    "thread": {
+      "title": "Discussion",
+      "description": "{count} comments",
+      "emptyTitle": "No comments yet",
+      "emptyDescription": "Start the first discussion.",
+      "sort": "Sort",
+      "newest": "Newest first",
+      "oldest": "Oldest first"
+    },
+    "item": {
+      "edited": "Edited"
+    }
+  },
   "nav": {
     "home": "Home",
     "categories": "Categories",
@@ -984,13 +1006,13 @@
     "descriptionTitle": "Description",
     "tags": "Tags",
     "localActions": "Local actions",
-    "localComments": "Local comments",
     "communityComments": "Community discussion",
-    "communityCommentComposerHint": "Comments post to the Community API first; if it is unavailable, they stay in this browser.",
+    "communityCommentComposerHint": "Comments post to the Community API. Keep them kind, specific, and discussable.",
     "communityCommentSubmit": "Post comment",
+    "communityCommentSubmitError": "Comment submission failed. Check that the Community API is available and retry.",
     "communityCommentDescription": "{count} loaded, {total} total in the community",
     "communityCommentEmptyTitle": "No community comments yet",
-    "communityCommentEmptyDescription": "Start the discussion. If the API is unavailable, the comment stays in this browser.",
+    "communityCommentEmptyDescription": "Start the discussion. It will be saved to the backend community comments table.",
     "communityCommentSort": "Comment sorting",
     "danmaku": "Danmaku",
     "danmakuColor": "Danmaku color",

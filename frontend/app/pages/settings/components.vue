@@ -9,7 +9,7 @@ import {
   mockVideos
 } from "~~/shared/mocks/home"
 import type { VideoDanmakuItem, VideoSummary } from "~/types/api"
-import type { LocalComment } from "~/types/comments"
+import type { CommentView } from "~/types/comments"
 import type { AoiDanmakuItem, AoiDanmakuMapper, AoiDanmakuMode } from "~/types/danmaku"
 import type { AoiLightboxItem } from "~/types/lightbox"
 import type { PlayerPlaybackRate } from "~/types/player"
@@ -49,6 +49,7 @@ const normalText = ref("Aoi components")
 const searchText = ref("组件、播放器、上传")
 const messageText = ref("发送消息到消息框")
 const commentAuthorName = ref("Demo User")
+const commentSubmitRevision = ref(0)
 const switchOn = ref(false)
 const disabledSwitch = ref(false)
 const checkedSwitch = ref(true)
@@ -116,12 +117,13 @@ const videoDetail = getMockVideoDetail(mockVideos[0]?.slug || "aoi-alpha")
 const videoDanmakuPayload = getMockVideoDanmaku(mockVideos[0]?.slug || "aoi-alpha")
 const creators = listMockCreators(3)
 const sampleVideos = mockVideos.slice(0, 6)
-const comments = ref<LocalComment[]>([
+const comments = ref<CommentView[]>([
   {
     authorName: "Aoi Viewer",
     body: "按钮、菜单、弹窗和输入状态都在同一页看到，回归时很顺手。",
     createdAt: "2026-06-09T03:00:00.000Z",
     id: "comment-demo-1",
+    status: "visible",
     updatedAt: "2026-06-09T03:00:00.000Z",
     videoId: "video-aoi-alpha"
   },
@@ -130,6 +132,7 @@ const comments = ref<LocalComment[]>([
     body: "长滚动实验台保留了目标页的密度，但颜色仍然来自 Aoi。",
     createdAt: "2026-06-09T03:08:00.000Z",
     id: "comment-demo-2",
+    status: "visible",
     updatedAt: "2026-06-09T03:08:00.000Z",
     videoId: "video-aoi-alpha"
   }
@@ -463,22 +466,14 @@ function addComment(body: string) {
       body: trimmedBody,
       createdAt: now,
       id: `comment-${Date.now().toString(36)}`,
+      status: "visible",
       updatedAt: now,
       videoId: "video-aoi-alpha"
     },
     ...comments.value
   ]
+  commentSubmitRevision.value += 1
   showStatus("评论组件已收到一条本地示例。")
-}
-
-function editComment(id: string, body: string) {
-  comments.value = comments.value.map((comment) => comment.id === id
-    ? { ...comment, body, updatedAt: new Date().toISOString() }
-    : comment)
-}
-
-function deleteComment(id: string) {
-  comments.value = comments.value.filter((comment) => comment.id !== id)
 }
 
 function handleUploadMetadata(files: File[]) {
@@ -1017,14 +1012,13 @@ function sendDanmaku(payload: { body: string, color: string, mode: AoiDanmakuMod
       <CommentComposer
         v-model:author-name="commentAuthorName"
         :disabled="false"
+        :submit-revision="commentSubmitRevision"
         @submit="addComment"
       />
       <CommentThread
         :comments="comments"
         hydrated
         v-model:sort-mode="commentSortMode"
-        @edit="editComment"
-        @delete="deleteComment"
       />
     </section>
 

@@ -1,18 +1,30 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   authorName: string
+  authorLabel?: string
+  bodyLabel?: string
+  bodyPlaceholder?: string
+  bodyTooLongText?: string
   disabled?: boolean
+  errorText?: string
   hint?: string
   maxAuthorLength?: number
   maxBodyLength?: number
+  submitRevision?: number
   submitLabel?: string
   submitting?: boolean
 }>(), {
+  authorLabel: undefined,
+  bodyLabel: undefined,
+  bodyPlaceholder: undefined,
+  bodyTooLongText: undefined,
   disabled: false,
-  hint: "本地评论只保存在当前浏览器。",
+  errorText: undefined,
+  hint: undefined,
   maxAuthorLength: 24,
   maxBodyLength: 500,
-  submitLabel: "发布评论",
+  submitRevision: 0,
+  submitLabel: undefined,
   submitting: false
 })
 
@@ -21,6 +33,7 @@ const emit = defineEmits<{
   "update:authorName": [value: string]
 }>()
 
+const { t } = useI18n()
 const body = ref("")
 
 const localAuthorName = computed({
@@ -31,6 +44,12 @@ const localAuthorName = computed({
 const trimmedBody = computed(() => body.value.trim())
 const bodyLength = computed(() => body.value.length)
 const isBodyTooLong = computed(() => bodyLength.value > props.maxBodyLength)
+const authorLabelText = computed(() => props.authorLabel || t("comments.composer.authorLabel"))
+const bodyLabelText = computed(() => props.bodyLabel || t("comments.composer.bodyLabel"))
+const bodyPlaceholderText = computed(() => props.bodyPlaceholder || t("comments.composer.bodyPlaceholder"))
+const bodyTooLongText = computed(() => props.bodyTooLongText || t("comments.composer.bodyTooLong"))
+const hintText = computed(() => props.hint || t("comments.composer.hint"))
+const submitLabelText = computed(() => props.submitLabel || t("comments.composer.submit"))
 const canSubmit = computed(() => {
   return !props.disabled
     && !props.submitting
@@ -39,13 +58,16 @@ const canSubmit = computed(() => {
     && !isBodyTooLong.value
 })
 
+watch(() => props.submitRevision, () => {
+  body.value = ""
+})
+
 function submitComment() {
   if (!canSubmit.value) {
     return
   }
 
   emit("submit", trimmedBody.value)
-  body.value = ""
 }
 </script>
 
@@ -62,19 +84,19 @@ function submitComment() {
       <AoiTextField
         v-model="localAuthorName"
         appearance="outlined"
-        label="显示名称"
+        :label="authorLabelText"
         :disabled="disabled || submitting"
         :max-length="maxAuthorLength"
       />
       <AoiTextField
         v-model="body"
         appearance="outlined"
-        label="写下你的想法"
-        placeholder="保持友善，也欢迎补充观看笔记。"
+        :label="bodyLabelText"
+        :placeholder="bodyPlaceholderText"
         :disabled="disabled || submitting"
         :max-length="maxBodyLength"
         :supporting-text="`${bodyLength}/${maxBodyLength}`"
-        :error-text="isBodyTooLong ? '评论内容过长' : undefined"
+        :error-text="isBodyTooLong ? bodyTooLongText : undefined"
         multiline
         :rows="4"
       />
@@ -82,16 +104,21 @@ function submitComment() {
 
     <AoiActionBar class="comment-composer__actions" align="between">
       <span class="comment-composer__hint">
-        {{ hint }}
+        {{ hintText }}
       </span>
       <AoiButton tone="accent" variant="filled"
         type="submit"
         icon="send"
         :disabled="!canSubmit"
+        :loading="submitting"
       >
-        {{ submitLabel }}
+        {{ submitLabelText }}
       </AoiButton>
     </AoiActionBar>
+
+    <p v-if="errorText" class="comment-composer__error" role="alert">
+      {{ errorText }}
+    </p>
   </AoiSurface>
 </template>
 
@@ -108,6 +135,13 @@ function submitComment() {
 
 .comment-composer__hint {
   color: var(--aoi-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.comment-composer__error {
+  margin: 0;
+  color: var(--aoi-danger);
   font-size: 13px;
   line-height: 1.6;
 }

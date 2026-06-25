@@ -2,7 +2,7 @@
 
 Aoi Web 是一个 Nuxt 4 前端优先的视频社区应用。项目使用 Vue 3、TypeScript、Pinia、`@nuxtjs/i18n`、`@nuxt/icon`，并通过本地 Aoi wrapper 统一封装 Material Web 组件。
 
-当前应用以 Nuxt mock API、后端社区公开接口和浏览器本地降级状态共同支撑体验，覆盖首页发现、分类浏览、搜索、关注动态、视频播放、用户页、历史/收藏、上传草稿和设置中心；评论与匿名创作者关注已优先接入 `backend/internal/modules/community`，历史、收藏和投稿草稿仍属于浏览器本地体验层。共享 DTO 与 mock fixture 需贴近后端社区契约。
+当前应用以 Nuxt mock API、后端社区公开接口和浏览器本地偏好 / 缓存共同支撑体验，覆盖首页发现、分类浏览、搜索、关注动态、视频播放、用户页、历史/收藏、上传草稿和设置中心；评论列表、评论发布与匿名创作者关注已接入 `backend/internal/modules/community`，历史、收藏和投稿草稿仍属于浏览器本地体验层。共享 DTO 与 mock fixture 需贴近后端社区契约。
 
 ## 标星历史
 

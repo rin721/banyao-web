@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommentSortMode, CommentView, LocalComment } from "~/types/comments"
+import type { CommentSortMode, CommentView } from "~/types/comments"
 import type { AoiDanmakuMapper, AoiDanmakuMode } from "~/types/danmaku"
 import type { PlayerPlaybackRate } from "~/types/player"
 import type { VideoComment, VideoDanmakuItem } from "~/types/api"
@@ -15,6 +15,8 @@ const { t } = useI18n()
 const id = computed(() => String(route.params.id || ""))
 const commentSortMode = ref<CommentSortMode>("newest")
 const localDanmakuEnabled = ref(true)
+const commentSubmitError = ref("")
+const commentSubmitRevision = ref(0)
 const commentSubmitting = ref(false)
 const selectedSourceId = ref("")
 
@@ -65,18 +67,10 @@ const isFavorite = computed(() => video.value ? library.isFavorite(video.value.i
 const isLiked = computed(() => video.value ? library.isLiked(video.value.id) : false)
 const isWatchLater = computed(() => video.value ? library.isWatchLater(video.value.id) : false)
 const localLikeCount = computed(() => video.value ? video.value.likeCount + (isLiked.value ? 1 : 0) : 0)
-const localCommentCount = computed(() => video.value ? comments.commentCountForVideo(video.value.id) : 0)
-const serverCommentCount = computed(() => serverCommentPayload.value?.totalCount || 0)
-const displayCommentCount = computed(() => serverCommentCount.value + localCommentCount.value)
+const displayCommentCount = computed(() => serverCommentPayload.value?.totalCount || video.value?.commentCount || 0)
 const displayDanmakuCount = computed(() => mergedDanmakuItems.value.length)
 const serverCommentViews = computed<CommentView[]>(() => (serverCommentPayload.value?.items || []).map(toCommunityCommentView))
-const localCommentViews = computed<CommentView[]>(() => video.value
-  ? comments.commentsForVideo(video.value.id, commentSortMode.value).map(toLocalCommentView)
-  : [])
-const visibleComments = computed(() => sortCommentViews([
-  ...serverCommentViews.value,
-  ...localCommentViews.value
-], commentSortMode.value))
+const visibleComments = computed(() => sortCommentViews(serverCommentViews.value, commentSortMode.value))
 const commentThreadDescription = computed(() => t("player.communityCommentDescription", {
   count: visibleComments.value.length,
   total: displayCommentCount.value
@@ -153,28 +147,18 @@ async function submitComment(body: string) {
   }
 
   commentSubmitting.value = true
+  commentSubmitError.value = ""
   try {
     const comment = await api.createVideoComment(video.value.id, {
       authorName: comments.authorName,
       body
     })
     appendServerComment(comment)
+    commentSubmitRevision.value += 1
   } catch {
-    comments.submitComment(video.value.id, body)
+    commentSubmitError.value = t("player.communityCommentSubmitError")
   } finally {
     commentSubmitting.value = false
-  }
-}
-
-function editComment(commentId: string, body: string) {
-  if (video.value) {
-    comments.editComment(video.value.id, commentId, body)
-  }
-}
-
-function deleteComment(commentId: string) {
-  if (video.value) {
-    comments.deleteComment(video.value.id, commentId)
   }
 }
 
@@ -197,20 +181,7 @@ function appendServerComment(comment: VideoComment) {
 }
 
 function toCommunityCommentView(comment: VideoComment): CommentView {
-  return {
-    ...comment,
-    editable: false,
-    source: "community"
-  }
-}
-
-function toLocalCommentView(comment: LocalComment): CommentView {
-  return {
-    ...comment,
-    editable: true,
-    source: "local",
-    status: "visible"
-  }
+  return comment
 }
 
 function sortCommentViews(items: CommentView[], sort: CommentSortMode) {
@@ -357,7 +328,9 @@ useHead(() => ({
               <CommentComposer
                 v-model:author-name="commentAuthorName"
                 :disabled="!comments.hydrated || commentSubmitting"
+                :error-text="commentSubmitError"
                 :hint="t('player.communityCommentComposerHint')"
+                :submit-revision="commentSubmitRevision"
                 :submit-label="t('player.communityCommentSubmit')"
                 :submitting="commentSubmitting"
                 @submit="submitComment"
@@ -371,8 +344,6 @@ useHead(() => ({
                 :hydrated="Boolean(video)"
                 :sort-label="t('player.communityCommentSort')"
                 :title="t('player.communityComments')"
-                @delete="deleteComment"
-                @edit="editComment"
               />
             </template>
           </VideoWatchDetails>

@@ -12,6 +12,28 @@
       "reset": "リセット"
     }
   },
+  "comments": {
+    "composer": {
+      "authorLabel": "表示名",
+      "bodyLabel": "コメントを書く",
+      "bodyPlaceholder": "やさしく、具体的で、次の視聴者にも役立つ内容にしましょう。",
+      "bodyTooLong": "コメントが長すぎます",
+      "hint": "コメントはコミュニティ API に投稿され、動画のコメント数も更新されます。",
+      "submit": "コメントを投稿"
+    },
+    "thread": {
+      "title": "討論",
+      "description": "{count} 件のコメント",
+      "emptyTitle": "まだコメントはありません",
+      "emptyDescription": "最初の討論を書き込みましょう。",
+      "sort": "並び替え",
+      "newest": "新しい順",
+      "oldest": "古い順"
+    },
+    "item": {
+      "edited": "編集済み"
+    }
+  },
   "nav": {
     "home": "ホーム",
     "categories": "カテゴリ",
@@ -1015,13 +1037,13 @@
     "descriptionTitle": "概要",
     "tags": "タグ",
     "localActions": "ローカル操作",
-    "localComments": "ローカルコメント",
     "communityComments": "コミュニティ討論",
-    "communityCommentComposerHint": "コメントはまず Community API に送信されます。利用できない場合はこのブラウザに保存されます。",
+    "communityCommentComposerHint": "コメントはコミュニティ API に投稿されます。やさしく、具体的で、話し合える内容にしましょう。",
     "communityCommentSubmit": "コメントを投稿",
+    "communityCommentSubmitError": "コメントの投稿に失敗しました。コミュニティ API を確認してから再試行してください。",
     "communityCommentDescription": "{count} 件を読み込み済み、コミュニティ合計 {total} 件",
     "communityCommentEmptyTitle": "コミュニティコメントはまだありません",
-    "communityCommentEmptyDescription": "最初の討論を書き込みましょう。API が利用できない場合はこのブラウザに保存されます。",
+    "communityCommentEmptyDescription": "最初の討論を書き込みましょう。バックエンドのコミュニティコメント表に保存されます。",
     "communityCommentSort": "コメントの並び替え"
   },
   "lightbox": {
