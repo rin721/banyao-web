@@ -98,6 +98,7 @@ func NewRouter(deps RouterDeps) ports.HTTPRouter {
 	}
 	if deps.IAMHandler != nil {
 		registeredContracts = append(registeredContracts, registerIAMRoutes(v1, deps)...)
+		registeredContracts = append(registeredContracts, registerCommunityAuthRoutes(v1, deps)...)
 	}
 	if deps.AnnouncementsHandler != nil {
 		registeredContracts = append(registeredContracts, registerAnnouncementRoutes(v1, deps)...)
@@ -257,6 +258,16 @@ func registerIAMRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContract {
 	registerProtectedRouteSpecs(orgs, appconstants.APIPath("orgs"), deps, orgSpecs)
 	registered = append(registered, routeContractsFromSpecs(orgSpecs)...)
 	return registered
+}
+
+func registerCommunityAuthRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContract {
+	auth := v1.Group("/public/community/auth")
+	auth.Use(middleware.RateLimit(middleware.RateLimitConfig{Enabled: true, Limit: 20, Window: time.Minute}))
+	specs := []routeSpec{
+		routeSpecFor("community.auth.signup", deps.IAMHandler.CommunitySignup),
+	}
+	registerRouteSpecs(auth, appconstants.APIPath("public", "community", "auth"), specs)
+	return routeContractsFromSpecs(specs)
 }
 
 func registerAnnouncementRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContract {

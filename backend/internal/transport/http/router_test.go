@@ -169,6 +169,7 @@ type fakeIAMService struct {
 	setupStatusCalls  int
 	initialSetupCalls int
 	signupCalls       int
+	lastSignupInput   iamservice.SignupInput
 	loginCalls        int
 	orgListCalls      int
 	lastOrgFilter     iamservice.OrganizationListFilter
@@ -203,8 +204,9 @@ func (s *fakeIAMService) InitialAdminSetup(context.Context, iamservice.InitialAd
 	s.initialSetupCalls++
 	return iamservice.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Add(time.Hour), RefreshExpiresAt: time.Now().Add(time.Hour)}, nil
 }
-func (s *fakeIAMService) Signup(context.Context, iamservice.SignupInput) (iamservice.SignupResult, error) {
+func (s *fakeIAMService) Signup(_ context.Context, input iamservice.SignupInput) (iamservice.SignupResult, error) {
 	s.signupCalls++
+	s.lastSignupInput = input
 	pair := iamservice.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Add(time.Hour), RefreshExpiresAt: time.Now().Add(time.Hour), UserID: 1, OrgID: 1, SessionID: 1, ProductCode: "console-platform", ClientType: "pc_web"}
 	snapshot := pair.SessionSnapshot()
 	return iamservice.SignupResult{Status: iamservice.SignupStatusAuthenticated, Session: &snapshot, Tokens: pair}, nil
@@ -428,6 +430,33 @@ func TestNewRouterSignupEndpointIsPublic(t *testing.T) {
 	}
 }
 
+func TestNewRouterCommunitySignupEndpointUsesCommunityPayload(t *testing.T) {
+	iamSvc := &fakeIAMService{}
+	router := newTestRouter(RouterDeps{
+		IAMHandler: iamhandler.New(iamSvc, nil),
+		IAMAuth:    iamSvc,
+		IAMAuthz:   iamSvc,
+	})
+
+	recorder := performJSONRouterRequest(router, http.MethodPost, "/api/v1/public/community/auth/signup", `{"username":"Rin 721","displayName":"Rin","email":"rin@example.com","password":"password123"}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected community signup status %d, got %d body %s", http.StatusOK, recorder.Code, recorder.Body.String())
+	}
+	if iamSvc.signupCalls != 1 {
+		t.Fatalf("expected signup call count 1, got %d", iamSvc.signupCalls)
+	}
+	if iamSvc.lastSignupInput.Username != "Rin 721" || iamSvc.lastSignupInput.DisplayName != "Rin" || iamSvc.lastSignupInput.Email != "rin@example.com" {
+		t.Fatalf("unexpected community signup identity input: %#v", iamSvc.lastSignupInput)
+	}
+	if iamSvc.lastSignupInput.OrgCode != "community-rin-721" || iamSvc.lastSignupInput.OrgName != "Rin" {
+		t.Fatalf("unexpected community signup account bridge: %#v", iamSvc.lastSignupInput)
+	}
+	if strings.Contains(recorder.Body.String(), "orgId") || strings.Contains(recorder.Body.String(), "permissions") {
+		t.Fatalf("community signup response should expose a compact community session, got %s", recorder.Body.String())
+	}
+}
+
 func TestNewRouterSetupEndpointsArePublic(t *testing.T) {
 	iamSvc := &fakeIAMService{}
 	router := newTestRouter(RouterDeps{
@@ -571,6 +600,7 @@ func TestGeneratedOpenAPIYAMLSyncsWithCommittedFile(t *testing.T) {
 		"/api/v1/auth/setup/initial-admin",
 		"/api/v1/auth/signup",
 		"/api/v1/auth/captcha",
+		"/api/v1/public/community/auth/signup",
 		"/api/v1/public/community/home",
 		"/api/v1/public/community/videos/{idOrSlug}",
 		"/api/v1/orgs/{orgId}",

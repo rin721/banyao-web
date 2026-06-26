@@ -123,6 +123,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 		LatencyMs:   0,
 		Endpoints: []string{
 			"/status",
+			"/auth/signup",
 			"/home",
 			"/dynamics",
 			"/submissions",

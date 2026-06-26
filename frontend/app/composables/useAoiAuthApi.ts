@@ -3,6 +3,7 @@ import type {
   ApiResultEnvelope,
   ErrorResponse,
   AuthSessionSnapshot,
+  CommunitySignupRequest,
   LoginRequest,
   SignupResult
 } from "~/types/api"
@@ -16,22 +17,6 @@ type AuthRequestOptions = {
 type AuthLogoutResult = {
   loggedOut?: boolean
 }
-
-type CommunitySignupRequest = {
-  username: string
-  email: string
-  displayName?: string
-  password: string
-}
-
-type BackendSignupRequest = CommunitySignupRequest & {
-  orgCode: string
-  orgName: string
-}
-
-const COMMUNITY_SIGNUP_ACCOUNT_PREFIX = "community"
-const COMMUNITY_SIGNUP_FALLBACK_HANDLE = "member"
-const COMMUNITY_SIGNUP_FALLBACK_NAME = "Community member"
 
 export function useAoiAuthApi() {
   const config = useRuntimeConfig()
@@ -81,8 +66,8 @@ export function useAoiAuthApi() {
   }
 
   async function signup(body: CommunitySignupRequest): Promise<SignupResult> {
-    return await request<SignupResult>("/auth/signup", {
-      body: toSignupRequest(body),
+    return await request<SignupResult>("/public/community/auth/signup", {
+      body,
       method: "POST"
     })
   }
@@ -93,31 +78,6 @@ export function useAoiAuthApi() {
     logout,
     signup
   }
-}
-
-function toSignupRequest(body: CommunitySignupRequest): BackendSignupRequest {
-  const handle = communityAccountHandle(body.username, body.email)
-  const name = body.displayName?.trim() || body.username.trim() || COMMUNITY_SIGNUP_FALLBACK_NAME
-
-  return {
-    displayName: body.displayName,
-    email: body.email,
-    orgCode: `${COMMUNITY_SIGNUP_ACCOUNT_PREFIX}-${handle}`,
-    orgName: name,
-    password: body.password,
-    username: body.username
-  }
-}
-
-function communityAccountHandle(username: string, email: string) {
-  const source = username.trim() || email.trim().split("@")[0] || COMMUNITY_SIGNUP_FALLBACK_HANDLE
-
-  return source
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || COMMUNITY_SIGNUP_FALLBACK_HANDLE
 }
 
 function unwrapAuthResponse<T>(response: unknown, endpoint: string): T {

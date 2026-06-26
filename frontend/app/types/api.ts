@@ -16,6 +16,7 @@ export type {
   CommunityNotificationRequest,
   CommunityNotificationTargetKind,
   CommunityReportReceipt,
+  CommunitySignupRequest,
   CommunitySubmissionItem,
   CommunitySubmissionPayload,
   CommunitySubmissionStatus,

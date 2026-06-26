@@ -44,6 +44,13 @@ export interface SignupResult {
   delivery?: AuthNotificationDelivery | null
 }
 
+export interface CommunitySignupRequest {
+  username: string
+  email: string
+  displayName?: string
+  password: string
+}
+
 export interface LoginRequest {
   identifier: string
   password: string

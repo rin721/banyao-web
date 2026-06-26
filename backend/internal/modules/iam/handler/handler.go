@@ -181,6 +181,27 @@ type SignupRequest struct {
 	Password    string `json:"password" binding:"required"`
 }
 
+// CommunitySignupRequest 是视频社区公开注册入口的请求体。
+type CommunitySignupRequest struct {
+	Username    string `json:"username" binding:"required"`
+	Email       string `json:"email" binding:"required"`
+	DisplayName string `json:"displayName"`
+	Password    string `json:"password" binding:"required"`
+}
+
+type CommunityAuthSessionSnapshot struct {
+	UserID           int64     `json:"userId,string"`
+	SessionID        int64     `json:"sessionId,string"`
+	AccessExpiresAt  time.Time `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time `json:"refreshExpiresAt"`
+}
+
+type CommunitySignupResult struct {
+	Status   string                        `json:"status"`
+	Session  *CommunityAuthSessionSnapshot `json:"session,omitempty"`
+	Delivery *service.NotificationDelivery `json:"delivery,omitempty"`
+}
+
 // InitialAdminSetupRequest 复用注册字段，保持 setup 接口与注册接口的输入一致。
 type InitialAdminSetupRequest = SignupRequest
 
@@ -401,6 +422,34 @@ func (h *Handler) Signup(c ports.HTTPContext) {
 	result.OK(c, signupResult)
 }
 
+func (h *Handler) CommunitySignup(c ports.HTTPContext) {
+	var req CommunitySignupRequest
+	if !bind(c, &req) {
+		return
+	}
+	productCode, clientType := h.requestSessionContext(c)
+	signupResult, err := h.service.Signup(c.RequestContext(), service.SignupInput{
+		OrgCode:     communitySignupAccountCode(req.Username, req.Email),
+		OrgName:     communitySignupAccountName(req),
+		Username:    req.Username,
+		Email:       req.Email,
+		DisplayName: req.DisplayName,
+		Password:    req.Password,
+		ProductCode: productCode,
+		ClientType:  clientType,
+		UserAgent:   c.GetHeader("User-Agent"),
+		IPAddress:   c.ClientIP(),
+	})
+	if err != nil {
+		h.write(c, nil, err)
+		return
+	}
+	if signupResult.Tokens.AccessToken != "" {
+		h.setAuthCookies(c, signupResult.Tokens)
+	}
+	result.OK(c, communitySignupResult(signupResult))
+}
+
 func (h *Handler) ConfirmEmailVerification(c ports.HTTPContext) {
 	productCode, clientType := h.requestSessionContext(c)
 	pair, err := h.service.ConfirmEmailVerification(c.RequestContext(), service.ConfirmEmailVerificationInput{
@@ -411,6 +460,62 @@ func (h *Handler) ConfirmEmailVerification(c ports.HTTPContext) {
 		IPAddress:   c.ClientIP(),
 	})
 	h.writeAuthResult(c, pair, err)
+}
+
+func communitySignupAccountCode(username string, email string) string {
+	for _, value := range []string{username, strings.Split(strings.TrimSpace(email), "@")[0]} {
+		if normalized := normalizeCommunityAccountHandle(value); normalized != "" {
+			return "community-" + normalized
+		}
+	}
+	return "community-member"
+}
+
+func communitySignupAccountName(req CommunitySignupRequest) string {
+	for _, value := range []string{req.DisplayName, req.Username, strings.Split(req.Email, "@")[0]} {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return "Community member"
+}
+
+func normalizeCommunityAccountHandle(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, char := range value {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') {
+			builder.WriteRune(char)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	normalized := strings.Trim(builder.String(), "-")
+	if len(normalized) > 48 {
+		normalized = strings.Trim(normalized[:48], "-")
+	}
+	return normalized
+}
+
+func communitySignupResult(result service.SignupResult) CommunitySignupResult {
+	out := CommunitySignupResult{
+		Status:   result.Status,
+		Delivery: result.Delivery,
+	}
+	if result.Session != nil {
+		out.Session = &CommunityAuthSessionSnapshot{
+			UserID:           result.Session.UserID,
+			SessionID:        result.Session.SessionID,
+			AccessExpiresAt:  result.Session.AccessExpiresAt,
+			RefreshExpiresAt: result.Session.RefreshExpiresAt,
+		}
+	}
+	return out
 }
 
 func (h *Handler) SetupStatus(c ports.HTTPContext) {

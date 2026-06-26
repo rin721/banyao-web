@@ -4990,6 +4990,115 @@
       "tags":
         - "Announcements"
       "x-scope": "platform"
+  "/api/v1/public/community/auth/signup":
+    "post":
+      "operationId": "community.auth.signup"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "displayName":
+                  "type": "string"
+                "email":
+                  "type": "string"
+                "password":
+                  "type": "string"
+                "username":
+                  "type": "string"
+              "required":
+                - "username"
+                - "email"
+                - "password"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "delivery":
+                        "properties":
+                          "debug":
+                            "type": "boolean"
+                          "token":
+                            "type": "string"
+                          "url":
+                            "type": "string"
+                        "type": "object"
+                      "session":
+                        "properties":
+                          "accessExpiresAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "refreshExpiresAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "sessionId":
+                            "format": "int64"
+                            "type": "integer"
+                          "userId":
+                            "format": "int64"
+                            "type": "integer"
+                        "type": "object"
+                      "status":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "注册社区账号"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
   "/api/v1/public/community/categories":
     "get":
       "operationId": "community.categories"
