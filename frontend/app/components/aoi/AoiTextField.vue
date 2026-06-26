@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
   max?: string
   step?: string | number
   multiline?: boolean
+  readonly?: boolean
   rows?: number
 }>(), {
   modelValue: "",
@@ -31,6 +32,7 @@ const props = withDefaults(defineProps<{
   maxLength: undefined,
   min: undefined,
   multiline: false,
+  readonly: false,
   rows: undefined,
   step: undefined
 })
@@ -141,6 +143,7 @@ defineExpose({
     :rows="rows"
     :step="step"
     :disabled="disabled || undefined"
+    :readonly="readonly || undefined"
     @input="onInput"
     @change="onInput"
     @keydown="onKeydown"

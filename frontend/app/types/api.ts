@@ -24,6 +24,7 @@ export type {
   CommunitySubmissionVisibility,
   CreatorFollowRequest,
   CreatorFollowState,
+  CreateCommunityAccountDynamicRequest,
   CreateCommunityAccountSubmissionRequest,
   CreateCommunityDynamicRequest,
   CreateCommunitySubmissionRequest,

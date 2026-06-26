@@ -42,6 +42,7 @@ type Service interface {
 	MarkCommunityNotificationsRead(context.Context, model.CommunityNotificationRequest) (model.CommunityNotificationPayload, error)
 	ListCommunityDynamics(context.Context, model.CommunityDynamicFilter) (model.CommunityDynamicPayload, error)
 	CreateCommunityDynamic(context.Context, model.CreateCommunityDynamicRequest) (model.CommunityDynamicItem, error)
+	CreateCommunityAccountDynamic(context.Context, authtypes.Principal, model.CreateCommunityAccountDynamicRequest) (model.CommunityDynamicItem, error)
 	ListCommunitySubmissions(context.Context, model.CommunitySubmissionFilter) (model.CommunitySubmissionPayload, error)
 	CreateCommunitySubmission(context.Context, model.CreateCommunitySubmissionRequest) (model.CommunitySubmissionItem, error)
 	ListCommunityAccountSubmissions(context.Context, authtypes.Principal, int) (model.CommunitySubmissionPayload, error)
@@ -130,6 +131,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/auth/logout",
 			"/auth/session",
 			"/auth/signup",
+			"/account/dynamics",
 			"/account/submissions",
 			"/home",
 			"/dynamics",
@@ -893,6 +895,19 @@ func (s *service) CreateCommunityDynamic(ctx context.Context, req model.CreateCo
 		return model.CommunityDynamicItem{}, ErrStorageUnavailable
 	}
 	return items[0], nil
+}
+
+func (s *service) CreateCommunityAccountDynamic(ctx context.Context, principal authtypes.Principal, req model.CreateCommunityAccountDynamicRequest) (model.CommunityDynamicItem, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	return s.CreateCommunityDynamic(ctx, model.CreateCommunityDynamicRequest{
+		AuthorName: communityAccountAuthorName(principal),
+		Body:       req.Body,
+		ClientID:   clientID,
+		VideoID:    req.VideoID,
+	})
 }
 
 func (s *service) ListCommunitySubmissions(ctx context.Context, filter model.CommunitySubmissionFilter) (model.CommunitySubmissionPayload, error) {

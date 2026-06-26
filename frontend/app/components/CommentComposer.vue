@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   errorText?: string
   hint?: string
+  authorReadonly?: boolean
   maxAuthorLength?: number
   maxBodyLength?: number
   submitRevision?: number
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<{
   disabled: false,
   errorText: undefined,
   hint: undefined,
+  authorReadonly: false,
   maxAuthorLength: 24,
   maxBodyLength: 500,
   submitRevision: 0,
@@ -86,6 +88,7 @@ function submitComment() {
         appearance="outlined"
         :label="authorLabelText"
         :disabled="disabled || submitting"
+        :readonly="authorReadonly"
         :max-length="maxAuthorLength"
       />
       <AoiTextField

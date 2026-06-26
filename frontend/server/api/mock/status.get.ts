@@ -5,6 +5,7 @@ const endpoints = [
   "/auth/logout",
   "/auth/session",
   "/auth/signup",
+  "/account/dynamics",
   "/account/submissions",
   "/home",
   "/categories",

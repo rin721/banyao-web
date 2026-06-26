@@ -337,6 +337,11 @@ type CreateCommunityDynamicRequest struct {
 	VideoID    string `json:"videoId,omitempty"`
 }
 
+type CreateCommunityAccountDynamicRequest struct {
+	Body    string `json:"body"`
+	VideoID string `json:"videoId,omitempty"`
+}
+
 type CreateCommunitySubmissionRequest struct {
 	ClientID      string   `json:"clientId"`
 	AuthorName    string   `json:"authorName"`

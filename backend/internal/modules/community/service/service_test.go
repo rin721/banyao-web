@@ -255,6 +255,31 @@ func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
 	}
 }
 
+func TestServiceCreateCommunityAccountDynamicUsesPrincipalIdentity(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{
+		NewID: func() string { return "account-dynamic" },
+		Now:   fixedNow,
+	})
+
+	item, err := svc.CreateCommunityAccountDynamic(context.Background(), authtypes.Principal{
+		UserID:   721,
+		Username: "rin721",
+		Email:    "rin@example.invalid",
+	}, model.CreateCommunityAccountDynamicRequest{
+		Body: "  Account owned pulse  ",
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunityAccountDynamic() error = %v", err)
+	}
+	if item.ID != "dynamic-account-dynamic" || item.AuthorName != "rin721" || item.Body != "Account owned pulse" {
+		t.Fatalf("expected principal-backed dynamic, got %#v", item)
+	}
+	if len(repo.dynamics) == 0 || repo.dynamics[0].ClientID != "account:721" {
+		t.Fatalf("expected account client id in repository, got %#v", repo.dynamics)
+	}
+}
+
 func TestServiceCommunityDynamicRejectsInvalidInput(t *testing.T) {
 	svc := New(newFakeRepository(), Config{Now: fixedNow})
 

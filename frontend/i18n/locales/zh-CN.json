@@ -1017,6 +1017,8 @@
     "emptyDescription": "发布一条动态，或先关注创作者来填充时间线。",
     "composer": {
       "defaultAuthor": "Aoi 观众",
+      "accountAuthor": "社区账号",
+      "accountAuthorLabel": "社区账号",
       "authorLabel": "显示名称",
       "bodyLabel": "动态内容",
       "bodyPlaceholder": "分享一条创作进度、站内发现或轻量公告。",

@@ -60,6 +60,19 @@ func (h *Handler) CreateDynamic(c ports.HTTPContext) {
 	writeOK(c, item, err, h.writeError)
 }
 
+func (h *Handler) CreateAccountDynamic(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.CreateCommunityAccountDynamicRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.CreateCommunityAccountDynamic(c.RequestContext(), principal, req)
+	writeOK(c, item, err, h.writeError)
+}
+
 func (h *Handler) Submissions(c ports.HTTPContext) {
 	limit, ok := parseIntQuery(c, "limit", 24)
 	if !ok {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const api = useAoiApi()
+const authSession = useAuthSessionStore()
 const following = useFollowingStore()
 const { locale, t } = useI18n()
 const dynamicAuthorName = ref(t("dynamics.composer.defaultAuthor"))
@@ -25,6 +26,17 @@ const dateLocale = computed(() => {
   return "zh-CN"
 })
 const isLoadingFeed = computed(() => pending.value || (!feed.value && !error.value))
+const communityAccountActive = computed(() => authSession.authenticated)
+const dynamicAuthorField = computed({
+  get: () => communityAccountActive.value
+    ? authSession.session?.account.displayName || authSession.session?.account.handle || t("dynamics.composer.accountAuthor")
+    : dynamicAuthorName.value,
+  set: (value: string) => {
+    if (!communityAccountActive.value) {
+      dynamicAuthorName.value = value
+    }
+  }
+})
 const recommendedCreators = computed(() => feed.value?.followingCount
   ? []
   : feed.value?.creators.filter((creator) => !following.isFollowing(creator.id)) || [])
@@ -90,6 +102,9 @@ onMounted(async () => {
   if (!following.hydrated) {
     following.restore()
   }
+  if (!authSession.hydrated) {
+    await authSession.refreshSession({ silent: true })
+  }
   await refresh()
 })
 
@@ -105,11 +120,18 @@ async function publishDynamic(body: string) {
   dynamicSubmitting.value = true
 
   try {
-    await api.createCommunityDynamic({
-      authorName: dynamicAuthorName.value.trim(),
-      body,
-      clientId: following.ensureClientId()
-    })
+    if (!authSession.hydrated) {
+      await authSession.refreshSession({ silent: true })
+    }
+    if (communityAccountActive.value) {
+      await api.createCommunityAccountDynamic({ body })
+    } else {
+      await api.createCommunityDynamic({
+        authorName: dynamicAuthorName.value.trim(),
+        body,
+        clientId: following.ensureClientId()
+      })
+    }
     dynamicSubmitRevision.value += 1
     await refresh()
   } catch (error) {
@@ -207,8 +229,9 @@ useHead(() => ({
         title-id="following-dynamic-composer-title"
       >
         <CommentComposer
-          v-model:author-name="dynamicAuthorName"
-          :author-label="t('dynamics.composer.authorLabel')"
+          v-model:author-name="dynamicAuthorField"
+          :author-label="communityAccountActive ? t('dynamics.composer.accountAuthorLabel') : t('dynamics.composer.authorLabel')"
+          :author-readonly="communityAccountActive"
           :body-label="t('dynamics.composer.bodyLabel')"
           :body-placeholder="t('dynamics.composer.bodyPlaceholder')"
           :hint="t('dynamics.composer.hint')"

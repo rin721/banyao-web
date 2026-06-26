@@ -11,6 +11,7 @@ import type {
   CommunitySubmissionItem,
   CommunitySubmissionPayload,
   CreatorFollowState,
+  CreateCommunityAccountDynamicRequest,
   CreateCommunityAccountSubmissionRequest,
   CreateCommunityDynamicRequest,
   CreateCommunitySubmissionRequest,
@@ -94,6 +95,13 @@ export function useAoiApi() {
 
   async function createCommunityDynamic(body: CreateCommunityDynamicRequest): Promise<CommunityDynamicItem> {
     return await request<CommunityDynamicItem>("/dynamics", {
+      body,
+      method: "POST"
+    })
+  }
+
+  async function createCommunityAccountDynamic(body: CreateCommunityAccountDynamicRequest): Promise<CommunityDynamicItem> {
+    return await request<CommunityDynamicItem>("/account/dynamics", {
       body,
       method: "POST"
     })
@@ -303,6 +311,7 @@ export function useAoiApi() {
     getVideoHistory,
     getVideoLibrary,
     followCreator,
+    createCommunityAccountDynamic,
     createCommunityAccountSubmission,
     createCommunityDynamic,
     createCommunitySubmission,

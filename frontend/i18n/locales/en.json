@@ -1017,6 +1017,8 @@
     "emptyDescription": "Post a pulse or follow creators to fill the timeline.",
     "composer": {
       "defaultAuthor": "Aoi Viewer",
+      "accountAuthor": "Community account",
+      "accountAuthorLabel": "Community account",
       "authorLabel": "Display name",
       "bodyLabel": "Pulse content",
       "bodyPlaceholder": "Share a creative note, site discovery, or lightweight update.",

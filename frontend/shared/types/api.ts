@@ -216,6 +216,8 @@ export interface CreateCommunityDynamicRequest {
   videoId?: string
 }
 
+export type CreateCommunityAccountDynamicRequest = Omit<CreateCommunityDynamicRequest, "authorName" | "clientId">
+
 export type CommunitySubmissionStatus = "pending_review"
 
 export type CommunitySubmissionVisibility = "public" | "unlisted" | "private"
