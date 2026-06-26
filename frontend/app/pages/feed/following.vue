@@ -2,6 +2,10 @@
 const api = useAoiApi()
 const following = useFollowingStore()
 const { t } = useI18n()
+const dynamicAuthorName = ref(t("dynamics.composer.defaultAuthor"))
+const dynamicError = ref("")
+const dynamicSubmitRevision = ref(0)
+const dynamicSubmitting = ref(false)
 
 const { data: feed, error, pending, refresh } = useAsyncData(
   "following-feed",
@@ -15,6 +19,7 @@ const recommendedCreators = computed(() => feed.value?.followingCount
   ? []
   : feed.value?.creators.filter((creator) => !following.isFollowing(creator.id)) || [])
 const feedMessage = computed(() => following.syncError || feed.value?.message)
+const dynamicItems = computed(() => feed.value?.dynamics.items || [])
 
 watch(feed, (value) => {
   if (value) {
@@ -28,6 +33,27 @@ onMounted(async () => {
   }
   await refresh()
 })
+
+async function publishDynamic(body: string) {
+  dynamicError.value = ""
+  dynamicSubmitting.value = true
+
+  try {
+    await api.createCommunityDynamic({
+      authorName: dynamicAuthorName.value.trim(),
+      body,
+      clientId: following.ensureClientId()
+    })
+    dynamicSubmitRevision.value += 1
+    await refresh()
+  } catch (error) {
+    dynamicError.value = error instanceof Error
+      ? error.message
+      : t("dynamics.composer.error")
+  } finally {
+    dynamicSubmitting.value = false
+  }
+}
 
 useHead({
   title: "Following - Aoi"
@@ -61,6 +87,33 @@ useHead({
         action-icon="search"
         :action-label="t('following.searchAction')"
         @action="navigateTo('/search')"
+      />
+
+      <AoiSection
+        icon="sparkles"
+        :title="t('following.dynamicComposerTitle')"
+        :description="t('following.dynamicComposerDescription')"
+        title-id="following-dynamic-composer-title"
+      >
+        <CommentComposer
+          v-model:author-name="dynamicAuthorName"
+          :author-label="t('dynamics.composer.authorLabel')"
+          :body-label="t('dynamics.composer.bodyLabel')"
+          :body-placeholder="t('dynamics.composer.bodyPlaceholder')"
+          :hint="t('dynamics.composer.hint')"
+          :submit-label="t('dynamics.composer.submit')"
+          :error-text="dynamicError"
+          :submitting="dynamicSubmitting"
+          :submit-revision="dynamicSubmitRevision"
+          :max-body-length="280"
+          @submit="publishDynamic"
+        />
+      </AoiSection>
+
+      <CommunityPulse
+        :items="dynamicItems"
+        :title="t('following.dynamicsTitle')"
+        :description="feedMessage || t('following.dynamicsDescription')"
       />
 
       <div

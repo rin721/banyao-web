@@ -37,6 +37,8 @@ type Service interface {
 	VideoLibrary(context.Context, model.VideoInteractionRequest) (model.VideoLibraryPayload, error)
 	CommunityNotifications(context.Context, model.CommunityNotificationFilter) (model.CommunityNotificationPayload, error)
 	MarkCommunityNotificationsRead(context.Context, model.CommunityNotificationRequest) (model.CommunityNotificationPayload, error)
+	ListCommunityDynamics(context.Context, model.CommunityDynamicFilter) (model.CommunityDynamicPayload, error)
+	CreateCommunityDynamic(context.Context, model.CreateCommunityDynamicRequest) (model.CommunityDynamicItem, error)
 	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	UnfollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	SetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
@@ -57,6 +59,7 @@ type Repository interface {
 	CreateVideoDanmaku(context.Context, model.VideoDanmakuItem) error
 	CreateCommunityReport(context.Context, model.CommunityReport) error
 	CreateCommunityNotification(context.Context, model.CommunityNotification) error
+	CreateCommunityDynamic(context.Context, model.CommunityDynamic) error
 	FollowCreator(context.Context, model.CreatorFollow) error
 	SetVideoInteraction(context.Context, model.VideoInteraction) error
 	ListCategories(context.Context) ([]model.Category, error)
@@ -64,6 +67,7 @@ type Repository interface {
 	ListCreatorFollows(context.Context, string, int) ([]model.CreatorFollow, error)
 	ListVideoInteractions(context.Context, model.VideoInteractionFilter) ([]model.VideoInteraction, error)
 	ListCommunityNotifications(context.Context, model.CommunityNotificationFilter) ([]model.CommunityNotification, error)
+	ListCommunityDynamics(context.Context, model.CommunityDynamicFilter) ([]model.CommunityDynamic, error)
 	ListVideoComments(context.Context, string, model.VideoCommentFilter) ([]model.VideoComment, error)
 	ListCreators(context.Context, int) ([]model.Creator, error)
 	ListDanmaku(context.Context, string) ([]model.VideoDanmakuItem, error)
@@ -109,6 +113,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 		Endpoints: []string{
 			"/status",
 			"/home",
+			"/dynamics",
 			"/categories",
 			"/videos",
 			"/videos/:idOrSlug",
@@ -138,10 +143,15 @@ func (s *service) GetHomePayload(ctx context.Context) (model.HomePayload, error)
 	if err != nil {
 		return model.HomePayload{}, err
 	}
+	dynamics, err := s.communityDynamicItems(ctx, model.CommunityDynamicFilter{Limit: 6})
+	if err != nil {
+		return model.HomePayload{}, err
+	}
 	return model.HomePayload{
 		Announcement: communityAnnouncement(s.now),
 		Categories:   categories,
 		Latest:       latest,
+		Dynamics:     model.PageResult[model.CommunityDynamicItem]{Items: dynamics},
 	}, nil
 }
 
@@ -715,6 +725,84 @@ func (s *service) MarkCommunityNotificationsRead(ctx context.Context, req model.
 	return s.CommunityNotifications(ctx, model.CommunityNotificationFilter{ClientID: clientID, Limit: 48})
 }
 
+func (s *service) ListCommunityDynamics(ctx context.Context, filter model.CommunityDynamicFilter) (model.CommunityDynamicPayload, error) {
+	if s.repo == nil {
+		return model.CommunityDynamicPayload{}, ErrStorageUnavailable
+	}
+	clientID, err := normalizeOptionalCommunityClientID(filter.ClientID)
+	if err != nil {
+		return model.CommunityDynamicPayload{}, err
+	}
+	filter.ClientID = clientID
+	filter.Limit = normalizeLimit(filter.Limit, 24)
+	items, err := s.communityDynamicItems(ctx, filter)
+	if err != nil {
+		return model.CommunityDynamicPayload{}, err
+	}
+	message := "社区动态来自后端 community_dynamics 表；登录态接入后可迁移为创作者动态与用户消息流。"
+	var client *string
+	if clientID != "" {
+		client = &clientID
+	}
+	return model.CommunityDynamicPayload{
+		Authenticated: false,
+		ClientID:      client,
+		Items:         model.PageResult[model.CommunityDynamicItem]{Items: items},
+		Message:       &message,
+	}, nil
+}
+
+func (s *service) CreateCommunityDynamic(ctx context.Context, req model.CreateCommunityDynamicRequest) (model.CommunityDynamicItem, error) {
+	if s.repo == nil {
+		return model.CommunityDynamicItem{}, ErrStorageUnavailable
+	}
+	clientID, err := normalizeCommunityClientID(req.ClientID)
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	authorName := normalizeCommentAuthor(req.AuthorName)
+	body := normalizeCommentBody(req.Body)
+	if authorName == "" || body == "" {
+		return model.CommunityDynamicItem{}, ErrInvalidInput
+	}
+	videoID := strings.TrimSpace(req.VideoID)
+	creatorID := ""
+	kind := model.CommunityDynamicKindText
+	if videoID != "" {
+		video, err := s.repo.FindVideoByIDOrSlug(ctx, videoID)
+		if err != nil {
+			return model.CommunityDynamicItem{}, mapStorageError(err)
+		}
+		videoID = video.ID
+		creatorID = video.UploaderID
+		kind = model.CommunityDynamicKindVideoUpdate
+	}
+	now := s.now()
+	dynamic := model.CommunityDynamic{
+		ID:         s.newDynamicID(),
+		ClientID:   clientID,
+		CreatorID:  creatorID,
+		AuthorName: authorName,
+		Body:       body,
+		Kind:       kind,
+		Status:     model.CommunityDynamicStatusVisible,
+		VideoID:    videoID,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	if err := s.repo.CreateCommunityDynamic(ctx, dynamic); err != nil {
+		return model.CommunityDynamicItem{}, mapStorageError(err)
+	}
+	items, err := s.decorateDynamics(ctx, []model.CommunityDynamic{dynamic})
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	if len(items) == 0 {
+		return model.CommunityDynamicItem{}, ErrStorageUnavailable
+	}
+	return items[0], nil
+}
+
 func (s *service) createNotification(ctx context.Context, notification model.CommunityNotification) error {
 	if s.repo == nil {
 		return ErrStorageUnavailable
@@ -762,12 +850,17 @@ func (s *service) recommendedFollowingFeed(ctx context.Context, clientID *string
 	if err != nil {
 		return model.FollowingFeedPayload{}, err
 	}
+	dynamics, err := s.communityDynamicItems(ctx, model.CommunityDynamicFilter{Limit: 6})
+	if err != nil {
+		return model.FollowingFeedPayload{}, err
+	}
 	message := messageText
 	return model.FollowingFeedPayload{
 		Authenticated:  false,
 		ClientID:       clientID,
 		Creators:       profiles,
 		FollowingCount: 0,
+		Dynamics:       model.PageResult[model.CommunityDynamicItem]{Items: dynamics},
 		Latest:         latest,
 		Message:        &message,
 	}, nil
@@ -784,6 +877,7 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 	}
 	profiles := make([]model.CreatorProfile, 0, len(follows))
 	followedIDs := make(map[string]struct{}, len(follows))
+	followedCreatorIDs := make([]string, 0, len(follows))
 	for _, follow := range follows {
 		creator, ok := creatorByID[follow.CreatorID]
 		if !ok {
@@ -797,6 +891,7 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 		profile.FollowedAt = &followedAt
 		profiles = append(profiles, profile)
 		followedIDs[creator.ID] = struct{}{}
+		followedCreatorIDs = append(followedCreatorIDs, creator.ID)
 	}
 	latest, err := s.ListVideos(ctx, model.VideoFilter{Limit: 24})
 	if err != nil {
@@ -808,15 +903,102 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 			filtered = append(filtered, video)
 		}
 	}
+	dynamics := []model.CommunityDynamicItem{}
+	if len(followedCreatorIDs) > 0 {
+		var err error
+		dynamics, err = s.communityDynamicItems(ctx, model.CommunityDynamicFilter{CreatorIDs: followedCreatorIDs, Limit: 12})
+		if err != nil {
+			return model.FollowingFeedPayload{}, err
+		}
+	}
 	message := "关注关系来自后端社区模块的匿名 clientId，接入登录后可迁移到用户关系。"
 	return model.FollowingFeedPayload{
 		Authenticated:  false,
 		ClientID:       &clientID,
 		Creators:       profiles,
 		FollowingCount: len(profiles),
+		Dynamics:       model.PageResult[model.CommunityDynamicItem]{Items: dynamics},
 		Latest:         model.PageResult[model.VideoSummary]{Items: filtered},
 		Message:        &message,
 	}, nil
+}
+
+func (s *service) communityDynamicItems(ctx context.Context, filter model.CommunityDynamicFilter) ([]model.CommunityDynamicItem, error) {
+	if s.repo == nil {
+		return nil, ErrStorageUnavailable
+	}
+	filter.Limit = normalizeLimit(filter.Limit, 24)
+	dynamics, err := s.repo.ListCommunityDynamics(ctx, filter)
+	if err != nil {
+		return nil, mapStorageError(err)
+	}
+	return s.decorateDynamics(ctx, dynamics)
+}
+
+func (s *service) decorateDynamics(ctx context.Context, dynamics []model.CommunityDynamic) ([]model.CommunityDynamicItem, error) {
+	if len(dynamics) == 0 {
+		return []model.CommunityDynamicItem{}, nil
+	}
+	creators, err := s.repo.ListCreators(ctx, 0)
+	if err != nil {
+		return nil, mapStorageError(err)
+	}
+	creatorByID := make(map[string]model.Creator, len(creators))
+	for _, creator := range creators {
+		creatorByID[creator.ID] = creator
+	}
+	videoIDs := make([]string, 0, len(dynamics))
+	seenVideoIDs := make(map[string]struct{}, len(dynamics))
+	for _, dynamic := range dynamics {
+		if dynamic.VideoID == "" {
+			continue
+		}
+		if _, ok := seenVideoIDs[dynamic.VideoID]; ok {
+			continue
+		}
+		seenVideoIDs[dynamic.VideoID] = struct{}{}
+		videoIDs = append(videoIDs, dynamic.VideoID)
+	}
+	videos, err := s.repo.ListVideosByIDs(ctx, videoIDs)
+	if err != nil {
+		return nil, mapStorageError(err)
+	}
+	summaries, err := s.decorateVideos(ctx, videos)
+	if err != nil {
+		return nil, err
+	}
+	videoByID := make(map[string]model.VideoSummary, len(summaries))
+	for _, video := range summaries {
+		videoByID[video.ID] = video
+	}
+	items := make([]model.CommunityDynamicItem, 0, len(dynamics))
+	for _, dynamic := range dynamics {
+		var author *model.UserSummary
+		authorName := dynamic.AuthorName
+		if creator, ok := creatorByID[dynamic.CreatorID]; ok {
+			authorSummary := creator.UserSummary
+			author = &authorSummary
+			if authorName == "" {
+				authorName = creator.DisplayName
+			}
+		}
+		var video *model.VideoSummary
+		if summary, ok := videoByID[dynamic.VideoID]; ok {
+			videoSummary := summary
+			video = &videoSummary
+		}
+		items = append(items, model.CommunityDynamicItem{
+			ID:         dynamic.ID,
+			Kind:       dynamic.Kind,
+			AuthorName: authorName,
+			Author:     author,
+			Body:       dynamic.Body,
+			VideoID:    dynamic.VideoID,
+			Video:      video,
+			CreatedAt:  dynamic.CreatedAt,
+		})
+	}
+	return items, nil
 }
 
 func (s *service) videoSummariesForInteractions(ctx context.Context, interactions []model.VideoInteraction) ([]model.VideoSummary, error) {
@@ -1403,4 +1585,15 @@ func (s *service) newNotificationID() string {
 		return raw
 	}
 	return "notification-" + raw
+}
+
+func (s *service) newDynamicID() string {
+	raw := strings.TrimSpace(s.cfg.NewID())
+	if raw == "" {
+		raw = strconv.FormatInt(s.now().UnixNano(), 10)
+	}
+	if strings.HasPrefix(raw, "dynamic-") {
+		return raw
+	}
+	return "dynamic-" + raw
 }

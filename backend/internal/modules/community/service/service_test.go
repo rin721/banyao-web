@@ -27,6 +27,9 @@ func TestServiceHomePayloadBuildsCategoryTreeAndVideos(t *testing.T) {
 	if len(payload.Latest.Items) != 2 {
 		t.Fatalf("expected latest videos, got %#v", payload.Latest.Items)
 	}
+	if len(payload.Dynamics.Items) != 2 {
+		t.Fatalf("expected latest dynamics, got %#v", payload.Dynamics.Items)
+	}
 	if got := payload.Latest.Items[0].Uploader.Handle; got != "rin721" {
 		t.Fatalf("expected decorated uploader handle rin721, got %q", got)
 	}
@@ -188,6 +191,9 @@ func TestServiceCreatorFollowStatePersistsAndUpdatesFeed(t *testing.T) {
 	if len(feed.Latest.Items) != 1 || feed.Latest.Items[0].Uploader.ID != "user-rin" {
 		t.Fatalf("expected followed creator latest videos, got %#v", feed.Latest.Items)
 	}
+	if len(feed.Dynamics.Items) != 1 || feed.Dynamics.Items[0].Author == nil || feed.Dynamics.Items[0].Author.ID != "user-rin" {
+		t.Fatalf("expected followed creator dynamics, got %#v", feed.Dynamics.Items)
+	}
 
 	state, err = svc.UnfollowCreator(context.Background(), "rin721", req)
 	if err != nil {
@@ -203,6 +209,55 @@ func TestServiceCreatorFollowRejectsMissingClientID(t *testing.T) {
 
 	if _, err := svc.FollowCreator(context.Background(), "rin721", model.CreatorFollowRequest{}); err != ErrInvalidInput {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{
+		NewID: func() string { return "unit-dynamic" },
+		Now:   fixedNow,
+	})
+
+	created, err := svc.CreateCommunityDynamic(context.Background(), model.CreateCommunityDynamicRequest{
+		AuthorName: "  Aoi Viewer  ",
+		Body:       "  The timeline is now backed by community_dynamics.  ",
+		ClientID:   " browser-client-1 ",
+		VideoID:    "aoi-alpha",
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunityDynamic() error = %v", err)
+	}
+	if created.ID != "dynamic-unit-dynamic" || created.VideoID != "video-aoi-alpha" {
+		t.Fatalf("unexpected created dynamic: %#v", created)
+	}
+	if created.Kind != model.CommunityDynamicKindVideoUpdate || created.Video == nil {
+		t.Fatalf("expected video dynamic with decorated video, got %#v", created)
+	}
+	if created.AuthorName != "Aoi Viewer" || created.Body != "The timeline is now backed by community_dynamics." {
+		t.Fatalf("expected normalized dynamic, got %#v", created)
+	}
+
+	payload, err := svc.ListCommunityDynamics(context.Background(), model.CommunityDynamicFilter{ClientID: " browser-client-1 ", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListCommunityDynamics() error = %v", err)
+	}
+	if payload.ClientID == nil || *payload.ClientID != "browser-client-1" {
+		t.Fatalf("expected normalized client id, got %#v", payload.ClientID)
+	}
+	if len(payload.Items.Items) != 3 || payload.Items.Items[0].ID != created.ID {
+		t.Fatalf("expected created dynamic first, got %#v", payload.Items.Items)
+	}
+}
+
+func TestServiceCommunityDynamicRejectsInvalidInput(t *testing.T) {
+	svc := New(newFakeRepository(), Config{Now: fixedNow})
+
+	if _, err := svc.CreateCommunityDynamic(context.Background(), model.CreateCommunityDynamicRequest{AuthorName: "Aoi Viewer"}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+	if _, err := svc.CreateCommunityDynamic(context.Background(), model.CreateCommunityDynamicRequest{ClientID: "browser-client-1", AuthorName: "Aoi Viewer"}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput for empty body, got %v", err)
 	}
 }
 
@@ -406,6 +461,7 @@ type fakeRepository struct {
 	categorySlugs map[string][]string
 	comments      map[string][]model.VideoComment
 	danmaku       map[string][]model.VideoDanmakuItem
+	dynamics      []model.CommunityDynamic
 	follows       map[string][]model.CreatorFollow
 	interactions  map[string][]model.VideoInteraction
 	notifications []model.CommunityNotification
@@ -443,6 +499,10 @@ func newFakeRepository() *fakeRepository {
 		},
 		danmaku: map[string][]model.VideoDanmakuItem{
 			"video-aoi-alpha": {{ID: "d1", VideoID: "video-aoi-alpha", Body: "清晰", TimeSeconds: 2, Mode: model.DanmakuModeScroll, Color: "#ffffff", AuthorName: "viewer", CreatedAt: fixedNow()}},
+		},
+		dynamics: []model.CommunityDynamic{
+			{ID: "dynamic-rin", CreatorID: "user-rin", VideoID: "video-aoi-alpha", AuthorName: "Rin721", Body: "Community timeline is live.", Kind: model.CommunityDynamicKindVideoUpdate, Status: model.CommunityDynamicStatusVisible, CreatedAt: fixedNow(), UpdatedAt: fixedNow()},
+			{ID: "dynamic-lab", CreatorID: "user-lab", VideoID: "video-go-api", AuthorName: "Aoi Lab", Body: "API client is reading real data.", Kind: model.CommunityDynamicKindVideoUpdate, Status: model.CommunityDynamicStatusVisible, CreatedAt: fixedNow().Add(-time.Minute), UpdatedAt: fixedNow().Add(-time.Minute)},
 		},
 		follows:      map[string][]model.CreatorFollow{},
 		interactions: map[string][]model.VideoInteraction{},
@@ -583,6 +643,11 @@ func (r *fakeRepository) CreateCommunityNotification(_ context.Context, notifica
 	return nil
 }
 
+func (r *fakeRepository) CreateCommunityDynamic(_ context.Context, dynamic model.CommunityDynamic) error {
+	r.dynamics = append([]model.CommunityDynamic{dynamic}, r.dynamics...)
+	return nil
+}
+
 func (r *fakeRepository) ListCommunityNotifications(_ context.Context, filter model.CommunityNotificationFilter) ([]model.CommunityNotification, error) {
 	items := make([]model.CommunityNotification, 0)
 	for _, notification := range r.notifications {
@@ -590,6 +655,29 @@ func (r *fakeRepository) ListCommunityNotifications(_ context.Context, filter mo
 			continue
 		}
 		items = append(items, notification)
+	}
+	if filter.Limit > 0 && len(items) > filter.Limit {
+		return items[:filter.Limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) ListCommunityDynamics(_ context.Context, filter model.CommunityDynamicFilter) ([]model.CommunityDynamic, error) {
+	allowedCreators := make(map[string]struct{}, len(filter.CreatorIDs))
+	for _, creatorID := range filter.CreatorIDs {
+		allowedCreators[creatorID] = struct{}{}
+	}
+	items := make([]model.CommunityDynamic, 0)
+	for _, dynamic := range r.dynamics {
+		if dynamic.DeletedAt != nil || dynamic.Status != model.CommunityDynamicStatusVisible {
+			continue
+		}
+		if len(allowedCreators) > 0 {
+			if _, ok := allowedCreators[dynamic.CreatorID]; !ok {
+				continue
+			}
+		}
+		items = append(items, dynamic)
 	}
 	if filter.Limit > 0 && len(items) > filter.Limit {
 		return items[:filter.Limit], nil

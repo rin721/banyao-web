@@ -52,7 +52,9 @@
     "latest": "最新",
     "gridView": "グリッド表示",
     "listView": "リスト表示",
-    "categoryTabsAria": "コンテンツカテゴリ"
+    "categoryTabsAria": "コンテンツカテゴリ",
+    "dynamicsTitle": "コミュニティ動向",
+    "dynamicsDescription": "バックエンドのタイムラインから届くクリエイター更新と軽いお知らせを、kirakira らしい軽やかな読書感で表示します。"
   },
   "category": {
     "childrenTitle": "サブカテゴリ",
@@ -89,7 +91,11 @@
     "recommendedLatestTitle": "おすすめ更新",
     "exploreMore": "もっと探す",
     "noContentTitle": "フォロー更新はありません",
-    "noContentDescription": "フォロー更新データを取得できませんでした。"
+    "noContentDescription": "フォロー更新データを取得できませんでした。",
+    "dynamicComposerTitle": "動向を投稿",
+    "dynamicComposerDescription": "このブラウザの匿名 clientId でコミュニティ動向へ書き込み、後でログイン済みクリエイター身份へ移行できます。",
+    "dynamicsTitle": "フォロー中の動向",
+    "dynamicsDescription": "フォローしたクリエイターの最新動向を優先して表示します。"
   },
   "notifications": {
     "title": "通知",
@@ -1112,5 +1118,21 @@
     "volume": "音量",
     "zoomIn": "拡大",
     "zoomOut": "縮小"
+  },
+  "dynamics": {
+    "anonymousAuthor": "匿名ビューアー",
+    "openVideoAria": "関連動画を開く：{title}",
+    "linkedVideo": "関連動画",
+    "emptyTitle": "動向はまだありません",
+    "emptyDescription": "動向を投稿するか、クリエイターをフォローしてタイムラインを埋めましょう。",
+    "composer": {
+      "defaultAuthor": "Aoi ビューアー",
+      "authorLabel": "表示名",
+      "bodyLabel": "動向本文",
+      "bodyPlaceholder": "制作メモ、サイト内の発見、軽いお知らせを共有しましょう。",
+      "hint": "動向はコミュニティ API に投稿され、このタイムラインを更新します。",
+      "submit": "動向を投稿",
+      "error": "動向の投稿に失敗しました。あとでもう一度お試しください。"
+    }
   }
 }

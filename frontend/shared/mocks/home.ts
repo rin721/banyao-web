@@ -2,9 +2,12 @@ import type {
   Announcement,
   Category,
   CategoryTreeNode,
+  CommunityDynamicItem,
+  CommunityDynamicPayload,
   CommunityNotificationItem,
   CommunityNotificationPayload,
   CommunityReportReceipt,
+  CreateCommunityDynamicRequest,
   CreatorFollowState,
   CreatorProfile,
   FollowingFeedPayload,
@@ -239,10 +242,56 @@ const mockVideoLikes: Record<string, number> = Object.fromEntries(mockVideos.map
   Math.max(24, Math.round(video.viewCount / 12))
 ]))
 const mockVideoInteractions: Record<string, Record<string, Record<string, string>>> = {}
+const mockCommunityDynamics: CommunityDynamicItem[] = [
+  {
+    id: "dynamic-rin-alpha",
+    kind: "video_update",
+    authorName: mockUsers.rin!.displayName,
+    author: mockUsers.rin!,
+    body: "首页动态流已经接上后端 community_dynamics 表，轻量卡片先承载创作者更新和站内小公告。",
+    videoId: "video-aoi-alpha",
+    video: mockVideos.find((video) => video.id === "video-aoi-alpha") || null,
+    createdAt: "2026-06-03T10:16:00.000Z"
+  },
+  {
+    id: "dynamic-design-sakura",
+    kind: "video_update",
+    authorName: mockUsers.design!.displayName,
+    author: mockUsers.design!,
+    body: "这轮视觉继续保留清透底色、细线边框和一点柔和粉色状态，让社区信息更像连续流而不是孤立卡片。",
+    videoId: "video-sakura-accent",
+    video: mockVideos.find((video) => video.id === "video-sakura-accent") || null,
+    createdAt: "2026-06-03T09:42:00.000Z"
+  },
+  {
+    id: "dynamic-frontend-mobile",
+    kind: "video_update",
+    authorName: mockUsers.frontend!.displayName,
+    author: mockUsers.frontend!,
+    body: "移动端动态卡片使用单列阅读节奏，长句会安全换行，避免挤压播放器和内容网格。",
+    videoId: "video-mobile-grid",
+    video: mockVideos.find((video) => video.id === "video-mobile-grid") || null,
+    createdAt: "2026-06-03T08:50:00.000Z"
+  },
+  {
+    id: "dynamic-aoi-lab-note",
+    kind: "text",
+    authorName: mockUsers.lab!.displayName,
+    author: mockUsers.lab!,
+    body: "关注页现在会优先显示已关注创作者的动态，没有关注时则展示推荐预览，方便继续打磨社区入口。",
+    videoId: "",
+    video: null,
+    createdAt: "2026-06-03T08:18:00.000Z"
+  }
+]
 
 export const mockHomePayload: HomePayload = {
   announcement: mockAnnouncement,
   categories: mockCategoryTree,
+  dynamics: {
+    items: mockCommunityDynamics.slice(0, 6),
+    nextCursor: null
+  },
   latest: {
     items: mockVideos,
     nextCursor: null
@@ -407,11 +456,19 @@ export function getMockFollowingFeed(clientId?: string): FollowingFeedPayload {
   }
   followedCreators.sort((a, b) => Date.parse(b.followedAt || "") - Date.parse(a.followedAt || ""))
   const creators = followedCreators.length ? followedCreators : listMockCreators(4)
+  const followedSet = new Set(Object.keys(followedCreatorIds))
+  const dynamicItems = followedSet.size
+    ? mockCommunityDynamics.filter((item) => item.author?.id && followedSet.has(item.author.id))
+    : mockCommunityDynamics.slice(0, 6)
 
   return {
     authenticated: false,
     clientId: normalizedClientId || null,
     creators,
+    dynamics: {
+      items: dynamicItems,
+      nextCursor: null
+    },
     followingCount: followedCreators.length,
     latest: {
       items: creators.flatMap((creator) => creator.latest.items).slice(0, 6),
@@ -421,6 +478,46 @@ export function getMockFollowingFeed(clientId?: string): FollowingFeedPayload {
       ? "关注关系来自 mock 社区 API，真实模式会写入 Go 后端。"
       : "当前社区读接口未接入认证；这里展示推荐关注的创作者预览。"
   }
+}
+
+export function getMockCommunityDynamics(clientId?: string, limit?: number): CommunityDynamicPayload {
+  const normalizedClientId = normalizeMockClientId(clientId || "")
+  const visibleLimit = Math.min(Math.max(limit || 24, 1), 100)
+
+  return {
+    authenticated: false,
+    clientId: normalizedClientId || null,
+    items: {
+      items: mockCommunityDynamics.slice(0, visibleLimit),
+      nextCursor: null
+    },
+    message: "社区动态来自 mock API；真实模式由 Go 后端 community_dynamics 表返回。"
+  }
+}
+
+export function createMockCommunityDynamic(payload: CreateCommunityDynamicRequest): CommunityDynamicItem | null {
+  const clientId = normalizeMockClientId(payload.clientId)
+  const authorName = payload.authorName.trim().slice(0, 24)
+  const body = payload.body.trim().slice(0, 280)
+  const video = payload.videoId ? getMockVideo(payload.videoId) : null
+
+  if (!clientId || !authorName || !body || (payload.videoId && !video)) {
+    return null
+  }
+
+  const item: CommunityDynamicItem = {
+    id: `dynamic-${clientId}-${Date.now().toString(36)}`,
+    kind: video ? "video_update" : "text",
+    authorName,
+    author: video?.uploader || null,
+    body,
+    videoId: video?.id || "",
+    video,
+    createdAt: new Date().toISOString()
+  }
+  mockCommunityDynamics.unshift(item)
+
+  return item
 }
 
 export function getMockVideoInteractionState(idOrSlug: string, clientId: string): VideoInteractionState | null {

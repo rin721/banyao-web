@@ -349,6 +349,7 @@ export const useFollowingStore = defineStore("following", () => {
     applyBackendFeed,
     backendReady,
     clientId,
+    ensureClientId,
     followCreator,
     followedCount,
     followedCreators,

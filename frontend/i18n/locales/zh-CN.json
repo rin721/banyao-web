@@ -52,7 +52,9 @@
     "latest": "最新",
     "gridView": "网格视图",
     "listView": "列表视图",
-    "categoryTabsAria": "内容分类"
+    "categoryTabsAria": "内容分类",
+    "dynamicsTitle": "社区动态",
+    "dynamicsDescription": "来自后端动态流的创作者更新与站内轻消息，保留 kirakira 式轻盈阅读节奏。"
   },
   "category": {
     "childrenTitle": "子分类",
@@ -89,7 +91,11 @@
     "recommendedLatestTitle": "推荐更新",
     "exploreMore": "探索更多",
     "noContentTitle": "关注流暂无内容",
-    "noContentDescription": "没有拿到关注流数据。"
+    "noContentDescription": "没有拿到关注流数据。",
+    "dynamicComposerTitle": "发布动态",
+    "dynamicComposerDescription": "用当前浏览器的匿名 clientId 写入社区动态流，稍后可迁移到登录创作者身份。",
+    "dynamicsTitle": "关注动态",
+    "dynamicsDescription": "已关注创作者的最新动态会优先显示在这里。"
   },
   "notifications": {
     "title": "通知",
@@ -1112,5 +1118,21 @@
     "volume": "音量",
     "zoomIn": "放大",
     "zoomOut": "缩小"
+  },
+  "dynamics": {
+    "anonymousAuthor": "匿名观众",
+    "openVideoAria": "打开关联视频：{title}",
+    "linkedVideo": "关联视频",
+    "emptyTitle": "还没有动态",
+    "emptyDescription": "发布一条动态，或先关注创作者来填充时间线。",
+    "composer": {
+      "defaultAuthor": "Aoi 观众",
+      "authorLabel": "显示名称",
+      "bodyLabel": "动态内容",
+      "bodyPlaceholder": "分享一条创作进度、站内发现或轻量公告。",
+      "hint": "动态会写入社区 API，并刷新当前时间线。",
+      "submit": "发布动态",
+      "error": "动态发布失败，请稍后重试。"
+    }
   }
 }

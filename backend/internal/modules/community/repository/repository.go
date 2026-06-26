@@ -310,6 +310,10 @@ func (r *repository) CreateCommunityNotification(ctx context.Context, notificati
 	return r.db.Create(ctx, &notification)
 }
 
+func (r *repository) CreateCommunityDynamic(ctx context.Context, dynamic model.CommunityDynamic) error {
+	return r.db.Create(ctx, &dynamic)
+}
+
 func (r *repository) ListCommunityNotifications(ctx context.Context, filter model.CommunityNotificationFilter) ([]model.CommunityNotification, error) {
 	opts := []database.QueryOption{
 		database.Where("client_id = ?", strings.TrimSpace(filter.ClientID)),
@@ -322,6 +326,23 @@ func (r *repository) ListCommunityNotifications(ctx context.Context, filter mode
 	var notifications []model.CommunityNotification
 	err := r.db.Find(ctx, &notifications, opts...)
 	return notifications, err
+}
+
+func (r *repository) ListCommunityDynamics(ctx context.Context, filter model.CommunityDynamicFilter) ([]model.CommunityDynamic, error) {
+	opts := []database.QueryOption{
+		database.Where("status = ?", model.CommunityDynamicStatusVisible),
+		alive(),
+		database.Order("created_at DESC, id DESC"),
+	}
+	if len(filter.CreatorIDs) > 0 {
+		opts = append(opts, database.Where("creator_id IN ?", filter.CreatorIDs))
+	}
+	if filter.Limit > 0 {
+		opts = append(opts, database.Limit(filter.Limit))
+	}
+	var dynamics []model.CommunityDynamic
+	err := r.db.Find(ctx, &dynamics, opts...)
+	return dynamics, err
 }
 
 func (r *repository) MarkCommunityNotificationsRead(ctx context.Context, clientID string, now time.Time) error {

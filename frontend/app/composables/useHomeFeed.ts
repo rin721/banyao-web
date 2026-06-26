@@ -13,6 +13,10 @@ export function useHomeFeed() {
     default: () => ({
       categories: [],
       announcement: null,
+      dynamics: {
+        items: [],
+        nextCursor: null
+      },
       latest: {
         items: [],
         nextCursor: null
@@ -22,6 +26,7 @@ export function useHomeFeed() {
 
   const categories = computed(() => data.value.categories)
   const announcement = computed(() => data.value.announcement)
+  const dynamics = computed(() => data.value.dynamics.items)
   const videos = computed(() => {
     if (selectedCategory.value === "home") {
       return data.value.latest.items
@@ -41,6 +46,7 @@ export function useHomeFeed() {
   return {
     announcement,
     categories,
+    dynamics,
     error,
     pending,
     refresh,

@@ -3,6 +3,7 @@ const { t } = useI18n()
 const {
   announcement,
   categories,
+  dynamics,
   error,
   pending,
   refresh,
@@ -28,6 +29,12 @@ useHead({
       />
 
       <AnnouncementStrip :announcement="announcement" />
+
+      <CommunityPulse
+        :items="dynamics"
+        :title="t('home.dynamicsTitle')"
+        :description="t('home.dynamicsDescription')"
+      />
 
       <AoiSection :title="t('home.latest')" :count="videos.length" title-id="latest-title">
         <template #actions>

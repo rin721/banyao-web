@@ -35,6 +35,10 @@ const (
 
 	CommunityNotificationTargetVideo   = "video"
 	CommunityNotificationTargetCreator = "creator"
+
+	CommunityDynamicKindText        = "text"
+	CommunityDynamicKindVideoUpdate = "video_update"
+	CommunityDynamicStatusVisible   = "visible"
 )
 
 // UserSummary 是社区公开接口中展示创作者的最小视图。
@@ -119,6 +123,23 @@ type CommunityNotification struct {
 }
 
 func (CommunityNotification) TableName() string { return "community_notifications" }
+
+// CommunityDynamic saves lightweight public timeline updates for the video community.
+type CommunityDynamic struct {
+	ID         string     `gorm:"column:id;primaryKey;size:96" json:"id"`
+	ClientID   string     `gorm:"column:client_id;size:96;not null;default:'';index" json:"clientId"`
+	CreatorID  string     `gorm:"column:creator_id;size:96;not null;default:'';index" json:"creatorId"`
+	VideoID    string     `gorm:"column:video_id;size:96;not null;default:'';index" json:"videoId"`
+	AuthorName string     `gorm:"column:author_name;size:120;not null" json:"authorName"`
+	Body       string     `gorm:"column:body;size:500;not null" json:"body"`
+	Kind       string     `gorm:"column:kind;size:32;not null;default:text;index" json:"kind"`
+	Status     string     `gorm:"column:status;size:32;not null;default:visible;index" json:"status"`
+	CreatedAt  time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
+	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CommunityDynamic) TableName() string { return "community_dynamics" }
 
 // Category 是社区内容分类的扁平持久化模型。
 type Category struct {
@@ -257,6 +278,37 @@ type CommunityNotificationRequest struct {
 	ClientID string `json:"clientId"`
 }
 
+type CreateCommunityDynamicRequest struct {
+	ClientID   string `json:"clientId"`
+	AuthorName string `json:"authorName"`
+	Body       string `json:"body"`
+	VideoID    string `json:"videoId,omitempty"`
+}
+
+type CommunityDynamicFilter struct {
+	ClientID   string
+	CreatorIDs []string
+	Limit      int
+}
+
+type CommunityDynamicItem struct {
+	ID         string        `json:"id"`
+	Kind       string        `json:"kind"`
+	AuthorName string        `json:"authorName"`
+	Author     *UserSummary  `json:"author,omitempty"`
+	Body       string        `json:"body"`
+	VideoID    string        `json:"videoId"`
+	Video      *VideoSummary `json:"video,omitempty"`
+	CreatedAt  time.Time     `json:"createdAt"`
+}
+
+type CommunityDynamicPayload struct {
+	Authenticated bool                             `json:"authenticated"`
+	ClientID      *string                          `json:"clientId,omitempty"`
+	Message       *string                          `json:"message"`
+	Items         PageResult[CommunityDynamicItem] `json:"items"`
+}
+
 type CommunityNotificationFilter struct {
 	ClientID string
 	Limit    int
@@ -363,18 +415,20 @@ type CreatorProfile struct {
 }
 
 type HomePayload struct {
-	Categories   []CategoryTreeNode       `json:"categories"`
-	Announcement *Announcement            `json:"announcement"`
-	Latest       PageResult[VideoSummary] `json:"latest"`
+	Categories   []CategoryTreeNode               `json:"categories"`
+	Announcement *Announcement                    `json:"announcement"`
+	Latest       PageResult[VideoSummary]         `json:"latest"`
+	Dynamics     PageResult[CommunityDynamicItem] `json:"dynamics"`
 }
 
 type FollowingFeedPayload struct {
-	Authenticated  bool                     `json:"authenticated"`
-	ClientID       *string                  `json:"clientId,omitempty"`
-	FollowingCount int                      `json:"followingCount"`
-	Message        *string                  `json:"message"`
-	Creators       []CreatorProfile         `json:"creators"`
-	Latest         PageResult[VideoSummary] `json:"latest"`
+	Authenticated  bool                             `json:"authenticated"`
+	ClientID       *string                          `json:"clientId,omitempty"`
+	FollowingCount int                              `json:"followingCount"`
+	Message        *string                          `json:"message"`
+	Creators       []CreatorProfile                 `json:"creators"`
+	Latest         PageResult[VideoSummary]         `json:"latest"`
+	Dynamics       PageResult[CommunityDynamicItem] `json:"dynamics"`
 }
 
 type VideoLibraryPayload struct {

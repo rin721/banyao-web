@@ -294,6 +294,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 	specs := []routeSpec{
 		routeSpecFor("community.status", deps.CommunityHandler.Status),
 		routeSpecFor("community.home", deps.CommunityHandler.Home),
+		routeSpecFor("community.dynamics.list", deps.CommunityHandler.Dynamics),
+		routeSpecFor("community.dynamics.create", deps.CommunityHandler.CreateDynamic),
 		routeSpecFor("community.categories", deps.CommunityHandler.Categories),
 		routeSpecFor("community.videos.list", deps.CommunityHandler.Videos),
 		routeSpecFor("community.videos.get", deps.CommunityHandler.VideoDetail),

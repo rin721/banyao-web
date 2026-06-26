@@ -340,6 +340,8 @@ func communityRouteContracts() []RouteContract {
 	return []RouteContract{
 		publicRoute("community.status", http.MethodGet, appconstants.APIPath("public", "community", "status"), "Community", "查询社区公开 API 状态", nil, jsonType[communitymodel.APIStatus]()),
 		publicRoute("community.home", http.MethodGet, appconstants.APIPath("public", "community", "home"), "Community", "查询社区首页聚合数据", nil, jsonType[communitymodel.HomePayload]()),
+		publicRoute("community.dynamics.list", http.MethodGet, appconstants.APIPath("public", "community", "dynamics"), "Community", "查询社区动态时间线", nil, jsonType[communitymodel.CommunityDynamicPayload](), queryParam("clientId", "string"), queryInt("limit")),
+		publicRoute("community.dynamics.create", http.MethodPost, appconstants.APIPath("public", "community", "dynamics"), "Community", "发布社区匿名动态", jsonType[communitymodel.CreateCommunityDynamicRequest](), jsonType[communitymodel.CommunityDynamicItem]()),
 		publicRoute("community.categories", http.MethodGet, appconstants.APIPath("public", "community", "categories"), "Community", "查询社区分类树", nil, jsonType[[]communitymodel.CategoryTreeNode]()),
 		publicRoute("community.videos.list", http.MethodGet, appconstants.APIPath("public", "community", "videos"), "Community", "查询社区视频列表", nil, jsonType[communitymodel.PageResult[communitymodel.VideoSummary]](), communityVideoListParams()...),
 		publicRoute("community.videos.get", http.MethodGet, appconstants.APIPath("public", "community", "videos", ":idOrSlug"), "Community", "查询社区视频详情", nil, jsonType[communitymodel.VideoDetail](), pathString("idOrSlug")),

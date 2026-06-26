@@ -146,6 +146,33 @@ export interface CreateVideoCommentRequest {
   clientId?: string
 }
 
+export type CommunityDynamicKind = "text" | "video_update"
+
+export interface CommunityDynamicItem {
+  id: string
+  kind: CommunityDynamicKind
+  authorName: string
+  author?: UserSummary | null
+  body: string
+  videoId: string
+  video?: VideoSummary | null
+  createdAt: string
+}
+
+export interface CommunityDynamicPayload {
+  authenticated: boolean
+  clientId?: string | null
+  message: string | null
+  items: PageResult<CommunityDynamicItem>
+}
+
+export interface CreateCommunityDynamicRequest {
+  clientId: string
+  authorName: string
+  body: string
+  videoId?: string
+}
+
 export interface CreatorFollowRequest {
   clientId: string
 }
@@ -206,6 +233,7 @@ export interface FollowingFeedPayload {
   message: string | null
   creators: CreatorProfile[]
   latest: PageResult<VideoSummary>
+  dynamics: PageResult<CommunityDynamicItem>
 }
 
 export interface VideoLibraryPayload {
@@ -276,4 +304,5 @@ export interface HomePayload {
   categories: CategoryTreeNode[]
   announcement: Announcement | null
   latest: PageResult<VideoSummary>
+  dynamics: PageResult<CommunityDynamicItem>
 }

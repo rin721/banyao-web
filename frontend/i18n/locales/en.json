@@ -52,7 +52,9 @@
     "latest": "Latest",
     "gridView": "Grid view",
     "listView": "List view",
-    "categoryTabsAria": "Content categories"
+    "categoryTabsAria": "Content categories",
+    "dynamicsTitle": "Community pulse",
+    "dynamicsDescription": "Creator updates and lightweight site notes from the backend timeline, tuned for a breezy kirakira reading rhythm."
   },
   "category": {
     "childrenTitle": "Subcategories",
@@ -89,7 +91,11 @@
     "recommendedLatestTitle": "Recommended updates",
     "exploreMore": "Explore more",
     "noContentTitle": "No following content",
-    "noContentDescription": "No following feed data was returned."
+    "noContentDescription": "No following feed data was returned.",
+    "dynamicComposerTitle": "Post a pulse",
+    "dynamicComposerDescription": "Write to the community timeline with this browser anonymous clientId; creator identity can replace it later.",
+    "dynamicsTitle": "Following pulse",
+    "dynamicsDescription": "Recent updates from followed creators appear here first."
   },
   "notifications": {
     "title": "Notifications",
@@ -1112,5 +1118,21 @@
     "volume": "Volume",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out"
+  },
+  "dynamics": {
+    "anonymousAuthor": "Anonymous viewer",
+    "openVideoAria": "Open linked video: {title}",
+    "linkedVideo": "Linked video",
+    "emptyTitle": "No pulse yet",
+    "emptyDescription": "Post a pulse or follow creators to fill the timeline.",
+    "composer": {
+      "defaultAuthor": "Aoi Viewer",
+      "authorLabel": "Display name",
+      "bodyLabel": "Pulse content",
+      "bodyPlaceholder": "Share a creative note, site discovery, or lightweight update.",
+      "hint": "Pulses are posted to the Community API and refresh this timeline.",
+      "submit": "Post pulse",
+      "error": "Pulse failed. Please try again."
+    }
   }
 }

@@ -3,10 +3,13 @@ import type {
   ApiResultEnvelope,
   ApiStatus,
   CategoryTreeNode,
+  CommunityDynamicItem,
+  CommunityDynamicPayload,
   CommunityNotificationPayload,
   CommunityNotificationRequest,
   CommunityReportReceipt,
   CreatorFollowState,
+  CreateCommunityDynamicRequest,
   CreateVideoCommentRequest,
   CreateVideoDanmakuRequest,
   CreateVideoReportRequest,
@@ -66,6 +69,22 @@ export function useAoiApi() {
 
   async function getHomePayload(): Promise<HomePayload> {
     return await request<HomePayload>("/home")
+  }
+
+  async function getCommunityDynamics(params: {
+    clientId?: string
+    limit?: number
+  } = {}): Promise<CommunityDynamicPayload> {
+    return await request<CommunityDynamicPayload>("/dynamics", {
+      query: params
+    })
+  }
+
+  async function createCommunityDynamic(body: CreateCommunityDynamicRequest): Promise<CommunityDynamicItem> {
+    return await request<CommunityDynamicItem>("/dynamics", {
+      body,
+      method: "POST"
+    })
   }
 
   async function listCategories(): Promise<CategoryTreeNode[]> {
@@ -218,10 +237,12 @@ export function useAoiApi() {
     getCategory,
     getCreatorFollowState,
     getCreatorProfile,
+    getCommunityDynamics,
     getFollowingFeed,
     getVideoInteractionState,
     getVideoLibrary,
     followCreator,
+    createCommunityDynamic,
     getHomePayload,
     getCommunityNotifications,
     createVideoComment,
