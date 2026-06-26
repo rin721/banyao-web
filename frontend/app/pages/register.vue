@@ -19,22 +19,6 @@ const canSubmit = computed(() => {
     && !pending.value
 })
 
-function communityAccountScope() {
-  const source = username.value.trim() || email.value.trim().split("@")[0] || "member"
-  const code = source
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "member"
-  const name = displayName.value.trim() || username.value.trim() || "Aoi member"
-
-  return {
-    orgCode: `community-${code}`,
-    orgName: name
-  }
-}
-
 async function submitRegister() {
   if (!canSubmit.value) {
     return
@@ -45,12 +29,9 @@ async function submitRegister() {
   successMessage.value = ""
 
   try {
-    const accountScope = communityAccountScope()
     const result = await authApi.signup({
       displayName: displayName.value.trim() || undefined,
       email: email.value.trim(),
-      orgCode: accountScope.orgCode,
-      orgName: accountScope.orgName,
       password: password.value,
       username: username.value.trim()
     })
