@@ -1036,7 +1036,7 @@
     "report": "通報",
     "descriptionTitle": "概要",
     "tags": "タグ",
-    "localActions": "ローカル操作",
+    "localActions": "コミュニティ操作",
     "communityComments": "コミュニティ討論",
     "communityCommentComposerHint": "コメントはコミュニティ API に投稿されます。やさしく、具体的で、話し合える内容にしましょう。",
     "communityCommentSubmit": "コメントを投稿",

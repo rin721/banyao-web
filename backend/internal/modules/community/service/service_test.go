@@ -159,6 +159,71 @@ func TestServiceCreatorFollowRejectsMissingClientID(t *testing.T) {
 	}
 }
 
+func TestServiceVideoInteractionPersistsAndUpdatesLikeCount(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	req := model.VideoInteractionRequest{ClientID: "browser-client-1"}
+
+	state, err := svc.SetVideoInteraction(context.Background(), "aoi-alpha", model.VideoInteractionKindLike, req)
+	if err != nil {
+		t.Fatalf("SetVideoInteraction() error = %v", err)
+	}
+	if !state.Liked || state.LikeCount != 21 {
+		t.Fatalf("expected active like and incremented count, got %#v", state)
+	}
+
+	state, err = svc.SetVideoInteraction(context.Background(), "aoi-alpha", model.VideoInteractionKindLike, req)
+	if err != nil {
+		t.Fatalf("SetVideoInteraction() idempotent error = %v", err)
+	}
+	if !state.Liked || state.LikeCount != 21 {
+		t.Fatalf("expected idempotent like count, got %#v", state)
+	}
+
+	state, err = svc.UnsetVideoInteraction(context.Background(), "aoi-alpha", model.VideoInteractionKindLike, req)
+	if err != nil {
+		t.Fatalf("UnsetVideoInteraction() error = %v", err)
+	}
+	if state.Liked || state.LikeCount != 20 {
+		t.Fatalf("expected inactive like and restored count, got %#v", state)
+	}
+}
+
+func TestServiceVideoLibraryCollectsFavoriteAndWatchLater(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	req := model.VideoInteractionRequest{ClientID: "browser-client-1"}
+
+	if _, err := svc.SetVideoInteraction(context.Background(), "aoi-alpha", model.VideoInteractionKindFavorite, req); err != nil {
+		t.Fatalf("SetVideoInteraction(favorite) error = %v", err)
+	}
+	if _, err := svc.SetVideoInteraction(context.Background(), "go-api-ready", model.VideoInteractionKindWatchLater, req); err != nil {
+		t.Fatalf("SetVideoInteraction(watch_later) error = %v", err)
+	}
+
+	payload, err := svc.VideoLibrary(context.Background(), req)
+	if err != nil {
+		t.Fatalf("VideoLibrary() error = %v", err)
+	}
+	if payload.ClientID == nil || *payload.ClientID != req.ClientID {
+		t.Fatalf("expected normalized client id, got %#v", payload.ClientID)
+	}
+	if payload.FavoriteCount != 1 || payload.Favorites.Items[0].ID != "video-aoi-alpha" {
+		t.Fatalf("expected favorite video from backend relations, got %#v", payload.Favorites.Items)
+	}
+	if payload.WatchLaterCount != 1 || payload.WatchLater.Items[0].ID != "video-go-api" {
+		t.Fatalf("expected watch later video from backend relations, got %#v", payload.WatchLater.Items)
+	}
+}
+
+func TestServiceVideoInteractionRejectsMissingClientID(t *testing.T) {
+	svc := New(newFakeRepository(), Config{Now: fixedNow})
+
+	if _, err := svc.SetVideoInteraction(context.Background(), "aoi-alpha", model.VideoInteractionKindFavorite, model.VideoInteractionRequest{}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
 type fakeRepository struct {
 	categories    []model.Category
 	creators      []model.Creator
@@ -167,6 +232,7 @@ type fakeRepository struct {
 	comments      map[string][]model.VideoComment
 	danmaku       map[string][]model.VideoDanmakuItem
 	follows       map[string][]model.CreatorFollow
+	interactions  map[string][]model.VideoInteraction
 	sources       map[string][]model.VideoSourceOption
 	tags          map[string][]string
 }
@@ -201,7 +267,8 @@ func newFakeRepository() *fakeRepository {
 		danmaku: map[string][]model.VideoDanmakuItem{
 			"video-aoi-alpha": {{ID: "d1", VideoID: "video-aoi-alpha", Body: "清晰", TimeSeconds: 2, Mode: model.DanmakuModeScroll, Color: "#ffffff", AuthorName: "viewer", CreatedAt: fixedNow()}},
 		},
-		follows: map[string][]model.CreatorFollow{},
+		follows:      map[string][]model.CreatorFollow{},
+		interactions: map[string][]model.VideoInteraction{},
 		sources: map[string][]model.VideoSourceOption{
 			"video-aoi-alpha": {{ID: "s1", VideoID: "video-aoi-alpha", Src: "https://example.invalid/a.mp4", Kind: model.VideoSourceKindNative, Label: "主源", IsDefault: true}},
 		},
@@ -225,6 +292,16 @@ func (r *fakeRepository) FindCreatorFollow(_ context.Context, creatorID string, 
 	for _, follow := range r.follows[clientID] {
 		if follow.CreatorID == creatorID && follow.DeletedAt == nil {
 			item := follow
+			return &item, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindVideoInteraction(_ context.Context, videoID string, clientID string, kind string) (*model.VideoInteraction, error) {
+	for _, interaction := range r.interactions[clientID] {
+		if interaction.VideoID == videoID && interaction.Kind == kind && interaction.DeletedAt == nil {
+			item := interaction
 			return &item, nil
 		}
 	}
@@ -266,6 +343,23 @@ func (r *fakeRepository) ListCreatorFollows(_ context.Context, clientID string, 
 	}
 	if limit > 0 && len(items) > limit {
 		return items[:limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) ListVideoInteractions(_ context.Context, filter model.VideoInteractionFilter) ([]model.VideoInteraction, error) {
+	items := make([]model.VideoInteraction, 0)
+	for _, interaction := range r.interactions[filter.ClientID] {
+		if interaction.DeletedAt != nil {
+			continue
+		}
+		if filter.Kind != "" && interaction.Kind != filter.Kind {
+			continue
+		}
+		items = append(items, interaction)
+	}
+	if filter.Limit > 0 && len(items) > filter.Limit {
+		return items[:filter.Limit], nil
 	}
 	return items, nil
 }
@@ -316,6 +410,27 @@ func (r *fakeRepository) FollowCreator(_ context.Context, follow model.CreatorFo
 	return nil
 }
 
+func (r *fakeRepository) SetVideoInteraction(_ context.Context, interaction model.VideoInteraction) error {
+	items := r.interactions[interaction.ClientID]
+	for index := range items {
+		if items[index].VideoID != interaction.VideoID || items[index].Kind != interaction.Kind {
+			continue
+		}
+		wasDeleted := items[index].DeletedAt != nil
+		items[index] = interaction
+		r.interactions[interaction.ClientID] = items
+		if wasDeleted && interaction.Kind == model.VideoInteractionKindLike {
+			r.bumpLikeCount(interaction.VideoID, 1)
+		}
+		return nil
+	}
+	r.interactions[interaction.ClientID] = append(items, interaction)
+	if interaction.Kind == model.VideoInteractionKindLike {
+		r.bumpLikeCount(interaction.VideoID, 1)
+	}
+	return nil
+}
+
 func (r *fakeRepository) UnfollowCreator(_ context.Context, creatorID string, clientID string, now time.Time) error {
 	items := r.follows[clientID]
 	for index := range items {
@@ -326,6 +441,23 @@ func (r *fakeRepository) UnfollowCreator(_ context.Context, creatorID string, cl
 		items[index].UpdatedAt = now
 		r.follows[clientID] = items
 		r.bumpFollowerCount(creatorID, -1)
+		return nil
+	}
+	return nil
+}
+
+func (r *fakeRepository) UnsetVideoInteraction(_ context.Context, videoID string, clientID string, kind string, now time.Time) error {
+	items := r.interactions[clientID]
+	for index := range items {
+		if items[index].VideoID != videoID || items[index].Kind != kind || items[index].DeletedAt != nil {
+			continue
+		}
+		items[index].DeletedAt = &now
+		items[index].UpdatedAt = now
+		r.interactions[clientID] = items
+		if kind == model.VideoInteractionKindLike {
+			r.bumpLikeCount(videoID, -1)
+		}
 		return nil
 	}
 	return nil
@@ -347,6 +479,20 @@ func (r *fakeRepository) ListVideos(_ context.Context, filter model.VideoFilter)
 	return items, nil
 }
 
+func (r *fakeRepository) ListVideosByIDs(_ context.Context, ids []string) ([]model.Video, error) {
+	allowed := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		allowed[id] = struct{}{}
+	}
+	items := make([]model.Video, 0, len(ids))
+	for _, video := range r.videos {
+		if _, ok := allowed[video.ID]; ok {
+			items = append(items, video)
+		}
+	}
+	return items, nil
+}
+
 func (r *fakeRepository) bumpFollowerCount(creatorID string, delta int64) {
 	for index := range r.creators {
 		if r.creators[index].ID != creatorID {
@@ -357,6 +503,20 @@ func (r *fakeRepository) bumpFollowerCount(creatorID string, delta int64) {
 			next = 0
 		}
 		r.creators[index].FollowerCount = next
+		return
+	}
+}
+
+func (r *fakeRepository) bumpLikeCount(videoID string, delta int64) {
+	for index := range r.videos {
+		if r.videos[index].ID != videoID {
+			continue
+		}
+		next := r.videos[index].LikeCount + delta
+		if next < 0 {
+			next = 0
+		}
+		r.videos[index].LikeCount = next
 		return
 	}
 }

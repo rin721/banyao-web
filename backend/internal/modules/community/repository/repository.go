@@ -106,6 +106,15 @@ func (r *repository) FindCreatorFollow(ctx context.Context, creatorID string, cl
 	return &follow, nil
 }
 
+func (r *repository) FindVideoInteraction(ctx context.Context, videoID string, clientID string, kind string) (*model.VideoInteraction, error) {
+	var interaction model.VideoInteraction
+	err := r.db.First(ctx, &interaction, database.Where("video_id = ? AND client_id = ? AND kind = ?", videoID, clientID, kind), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &interaction, nil
+}
+
 func (r *repository) ListCreatorFollows(ctx context.Context, clientID string, limit int) ([]model.CreatorFollow, error) {
 	opts := []database.QueryOption{
 		database.Where("client_id = ?", strings.TrimSpace(clientID)),
@@ -143,6 +152,53 @@ func (r *repository) FollowCreator(ctx context.Context, follow model.CreatorFoll
 		return nil
 	}
 	return r.incrementFollowerCount(ctx, follow.CreatorID, follow.UpdatedAt)
+}
+
+func (r *repository) SetVideoInteraction(ctx context.Context, interaction model.VideoInteraction) error {
+	existing, err := r.findVideoInteractionAny(ctx, interaction.VideoID, interaction.ClientID, interaction.Kind)
+	if err != nil && !errors.Is(err, communityservice.ErrNotFound) {
+		return err
+	}
+	if existing == nil {
+		if err := r.db.Create(ctx, &interaction); err != nil {
+			return err
+		}
+		return r.incrementLikeCountForInteraction(ctx, interaction)
+	}
+	values := map[string]any{
+		"interacted_at": interaction.InteractedAt,
+		"updated_at":    interaction.UpdatedAt,
+		"deleted_at":    nil,
+	}
+	if _, err := r.db.Update(ctx, &model.VideoInteraction{}, values, videoInteractionWhere(interaction.VideoID, interaction.ClientID, interaction.Kind), withDeleted()); err != nil {
+		return err
+	}
+	if existing.DeletedAt == nil {
+		return nil
+	}
+	return r.incrementLikeCountForInteraction(ctx, interaction)
+}
+
+func (r *repository) UnsetVideoInteraction(ctx context.Context, videoID string, clientID string, kind string, now time.Time) error {
+	existing, err := r.FindVideoInteraction(ctx, videoID, clientID, kind)
+	if err != nil {
+		if errors.Is(err, communityservice.ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	values := map[string]any{
+		"updated_at": now,
+		"deleted_at": now,
+	}
+	if _, err := r.db.Update(ctx, &model.VideoInteraction{}, values, videoInteractionWhere(existing.VideoID, existing.ClientID, existing.Kind)); err != nil {
+		return err
+	}
+	if kind != model.VideoInteractionKindLike {
+		return nil
+	}
+	_, err = r.db.Exec(ctx, "UPDATE community_videos SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END, updated_at = ? WHERE id = ?", now, videoID)
+	return err
 }
 
 func (r *repository) UnfollowCreator(ctx context.Context, creatorID string, clientID string, now time.Time) error {
@@ -185,6 +241,15 @@ func (r *repository) ListVideos(ctx context.Context, filter model.VideoFilter) (
 	}
 	var videos []model.Video
 	err := r.db.Find(ctx, &videos, opts...)
+	return videos, err
+}
+
+func (r *repository) ListVideosByIDs(ctx context.Context, ids []string) ([]model.Video, error) {
+	if len(ids) == 0 {
+		return []model.Video{}, nil
+	}
+	var videos []model.Video
+	err := r.db.Find(ctx, &videos, database.Where("id IN ?", ids), alive())
 	return videos, err
 }
 
@@ -249,6 +314,23 @@ func (r *repository) ListVideoComments(ctx context.Context, videoID string, filt
 	var comments []model.VideoComment
 	err := r.db.Find(ctx, &comments, opts...)
 	return comments, err
+}
+
+func (r *repository) ListVideoInteractions(ctx context.Context, filter model.VideoInteractionFilter) ([]model.VideoInteraction, error) {
+	opts := []database.QueryOption{
+		database.Where("client_id = ?", strings.TrimSpace(filter.ClientID)),
+		alive(),
+		database.Order("interacted_at DESC, video_id ASC, kind ASC"),
+	}
+	if kind := strings.TrimSpace(filter.Kind); kind != "" {
+		opts = append(opts, database.Where("kind = ?", kind))
+	}
+	if filter.Limit > 0 {
+		opts = append(opts, database.Limit(filter.Limit))
+	}
+	var interactions []model.VideoInteraction
+	err := r.db.Find(ctx, &interactions, opts...)
+	return interactions, err
 }
 
 func (r *repository) CountVideoComments(ctx context.Context, videoID string) (int, error) {
@@ -328,9 +410,30 @@ func (r *repository) findCreatorFollowAny(ctx context.Context, creatorID string,
 	return &follow, nil
 }
 
+func (r *repository) findVideoInteractionAny(ctx context.Context, videoID string, clientID string, kind string) (*model.VideoInteraction, error) {
+	var interaction model.VideoInteraction
+	err := r.db.First(ctx, &interaction, videoInteractionWhere(videoID, clientID, kind), withDeleted())
+	if err != nil {
+		return nil, err
+	}
+	return &interaction, nil
+}
+
 func (r *repository) incrementFollowerCount(ctx context.Context, creatorID string, now time.Time) error {
 	_, err := r.db.Exec(ctx, "UPDATE community_creators SET follower_count = follower_count + 1, updated_at = ? WHERE id = ?", now, creatorID)
 	return err
+}
+
+func (r *repository) incrementLikeCountForInteraction(ctx context.Context, interaction model.VideoInteraction) error {
+	if interaction.Kind != model.VideoInteractionKindLike {
+		return nil
+	}
+	_, err := r.db.Exec(ctx, "UPDATE community_videos SET like_count = like_count + 1, updated_at = ? WHERE id = ?", interaction.UpdatedAt, interaction.VideoID)
+	return err
+}
+
+func videoInteractionWhere(videoID string, clientID string, kind string) database.QueryOption {
+	return database.Where("video_id = ? AND client_id = ? AND kind = ?", videoID, clientID, kind)
 }
 
 func alive() database.QueryOption {

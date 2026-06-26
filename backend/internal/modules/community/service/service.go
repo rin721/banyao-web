@@ -25,13 +25,17 @@ type Service interface {
 	GetVideoDanmaku(context.Context, string) (model.VideoDanmakuPayload, error)
 	GetVideoComments(context.Context, string, model.VideoCommentFilter) (model.VideoCommentPayload, error)
 	GetVideoDetail(context.Context, string) (model.VideoDetail, error)
+	GetVideoInteractionState(context.Context, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
 	GetCreatorFollowState(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	ListCategories(context.Context) ([]model.CategoryTreeNode, error)
 	ListVideos(context.Context, model.VideoFilter) (model.PageResult[model.VideoSummary], error)
 	Search(context.Context, string, int) (model.SearchPayload, error)
 	FollowingFeed(context.Context, model.CreatorFollowRequest) (model.FollowingFeedPayload, error)
+	VideoLibrary(context.Context, model.VideoInteractionRequest) (model.VideoLibraryPayload, error)
 	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	UnfollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
+	SetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
+	UnsetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
 	CreateVideoComment(context.Context, string, model.CreateVideoCommentRequest) (model.VideoComment, error)
 }
 
@@ -40,19 +44,24 @@ type Repository interface {
 	FindCreatorByHandle(context.Context, string) (*model.Creator, error)
 	FindCreatorFollow(context.Context, string, string) (*model.CreatorFollow, error)
 	FindVideoByIDOrSlug(context.Context, string) (*model.Video, error)
+	FindVideoInteraction(context.Context, string, string, string) (*model.VideoInteraction, error)
 	CountVideoComments(context.Context, string) (int, error)
 	CreateVideoComment(context.Context, model.VideoComment) error
 	FollowCreator(context.Context, model.CreatorFollow) error
+	SetVideoInteraction(context.Context, model.VideoInteraction) error
 	ListCategories(context.Context) ([]model.Category, error)
 	ListCategorySlugs(context.Context, string) ([]string, error)
 	ListCreatorFollows(context.Context, string, int) ([]model.CreatorFollow, error)
+	ListVideoInteractions(context.Context, model.VideoInteractionFilter) ([]model.VideoInteraction, error)
 	ListVideoComments(context.Context, string, model.VideoCommentFilter) ([]model.VideoComment, error)
 	ListCreators(context.Context, int) ([]model.Creator, error)
 	ListDanmaku(context.Context, string) ([]model.VideoDanmakuItem, error)
 	ListSources(context.Context, string) ([]model.VideoSourceOption, error)
 	ListTags(context.Context, string) ([]string, error)
 	ListVideos(context.Context, model.VideoFilter) ([]model.Video, error)
+	ListVideosByIDs(context.Context, []string) ([]model.Video, error)
 	UnfollowCreator(context.Context, string, string, time.Time) error
+	UnsetVideoInteraction(context.Context, string, string, string, time.Time) error
 }
 
 type Config struct {
@@ -91,6 +100,8 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/categories",
 			"/videos",
 			"/videos/:idOrSlug",
+			"/videos/:idOrSlug/interaction-state",
+			"/videos/:idOrSlug/interactions/:kind",
 			"/videos/:idOrSlug/comments",
 			"/videos/:idOrSlug/danmaku",
 			"/search",
@@ -98,6 +109,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/users/:handle/follow-state",
 			"/users/:handle/follow",
 			"/feed/following",
+			"/library",
 		},
 	}
 }
@@ -258,6 +270,61 @@ func (s *service) CreateVideoComment(ctx context.Context, idOrSlug string, req m
 	return comment, nil
 }
 
+func (s *service) GetVideoInteractionState(ctx context.Context, idOrSlug string, req model.VideoInteractionRequest) (model.VideoInteractionState, error) {
+	video, clientID, err := s.videoAndClient(ctx, idOrSlug, req)
+	if err != nil {
+		return model.VideoInteractionState{}, err
+	}
+	return s.videoInteractionState(ctx, *video, clientID)
+}
+
+func (s *service) SetVideoInteraction(ctx context.Context, idOrSlug string, kind string, req model.VideoInteractionRequest) (model.VideoInteractionState, error) {
+	video, clientID, err := s.videoAndClient(ctx, idOrSlug, req)
+	if err != nil {
+		return model.VideoInteractionState{}, err
+	}
+	kind, err = normalizeVideoInteractionKind(kind)
+	if err != nil {
+		return model.VideoInteractionState{}, err
+	}
+	now := s.now()
+	interaction := model.VideoInteraction{
+		ClientID:     clientID,
+		VideoID:      video.ID,
+		Kind:         kind,
+		InteractedAt: now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	if err := s.repo.SetVideoInteraction(ctx, interaction); err != nil {
+		return model.VideoInteractionState{}, mapStorageError(err)
+	}
+	updated, err := s.repo.FindVideoByIDOrSlug(ctx, video.ID)
+	if err != nil {
+		return model.VideoInteractionState{}, mapStorageError(err)
+	}
+	return s.videoInteractionState(ctx, *updated, clientID)
+}
+
+func (s *service) UnsetVideoInteraction(ctx context.Context, idOrSlug string, kind string, req model.VideoInteractionRequest) (model.VideoInteractionState, error) {
+	video, clientID, err := s.videoAndClient(ctx, idOrSlug, req)
+	if err != nil {
+		return model.VideoInteractionState{}, err
+	}
+	kind, err = normalizeVideoInteractionKind(kind)
+	if err != nil {
+		return model.VideoInteractionState{}, err
+	}
+	if err := s.repo.UnsetVideoInteraction(ctx, video.ID, clientID, kind, s.now()); err != nil {
+		return model.VideoInteractionState{}, mapStorageError(err)
+	}
+	updated, err := s.repo.FindVideoByIDOrSlug(ctx, video.ID)
+	if err != nil {
+		return model.VideoInteractionState{}, mapStorageError(err)
+	}
+	return s.videoInteractionState(ctx, *updated, clientID)
+}
+
 func (s *service) GetCreatorProfile(ctx context.Context, handle string) (model.CreatorProfile, error) {
 	if s.repo == nil {
 		return model.CreatorProfile{}, ErrStorageUnavailable
@@ -393,7 +460,7 @@ func (s *service) Search(ctx context.Context, query string, limit int) (model.Se
 func (s *service) FollowingFeed(ctx context.Context, req model.CreatorFollowRequest) (model.FollowingFeedPayload, error) {
 	clientID := strings.TrimSpace(req.ClientID)
 	if clientID != "" {
-		normalizedClientID, err := normalizeFollowClientID(clientID)
+		normalizedClientID, err := normalizeCommunityClientID(clientID)
 		if err != nil {
 			return model.FollowingFeedPayload{}, err
 		}
@@ -407,6 +474,50 @@ func (s *service) FollowingFeed(ctx context.Context, req model.CreatorFollowRequ
 		return s.recommendedFollowingFeed(ctx, &normalizedClientID, "还没有关注任何创作者，先展示社区推荐。")
 	}
 	return s.recommendedFollowingFeed(ctx, nil, "当前公开接口未绑定登录态；这里展示后端社区模块返回的推荐关注预览。")
+}
+
+func (s *service) VideoLibrary(ctx context.Context, req model.VideoInteractionRequest) (model.VideoLibraryPayload, error) {
+	if s.repo == nil {
+		return model.VideoLibraryPayload{}, ErrStorageUnavailable
+	}
+	clientID, err := normalizeCommunityClientID(req.ClientID)
+	if err != nil {
+		return model.VideoLibraryPayload{}, err
+	}
+	favorites, err := s.repo.ListVideoInteractions(ctx, model.VideoInteractionFilter{
+		ClientID: clientID,
+		Kind:     model.VideoInteractionKindFavorite,
+		Limit:    48,
+	})
+	if err != nil {
+		return model.VideoLibraryPayload{}, mapStorageError(err)
+	}
+	watchLater, err := s.repo.ListVideoInteractions(ctx, model.VideoInteractionFilter{
+		ClientID: clientID,
+		Kind:     model.VideoInteractionKindWatchLater,
+		Limit:    48,
+	})
+	if err != nil {
+		return model.VideoLibraryPayload{}, mapStorageError(err)
+	}
+	favoriteVideos, err := s.videoSummariesForInteractions(ctx, favorites)
+	if err != nil {
+		return model.VideoLibraryPayload{}, err
+	}
+	watchLaterVideos, err := s.videoSummariesForInteractions(ctx, watchLater)
+	if err != nil {
+		return model.VideoLibraryPayload{}, err
+	}
+	message := "收藏和稍后看来自后端社区模块的匿名 clientId；接入登录后可迁移为用户资料库。"
+	return model.VideoLibraryPayload{
+		Authenticated:   false,
+		ClientID:        &clientID,
+		FavoriteCount:   len(favoriteVideos),
+		WatchLaterCount: len(watchLaterVideos),
+		Favorites:       model.PageResult[model.VideoSummary]{Items: favoriteVideos},
+		WatchLater:      model.PageResult[model.VideoSummary]{Items: watchLaterVideos},
+		Message:         &message,
+	}, nil
 }
 
 func (s *service) recommendedFollowingFeed(ctx context.Context, clientID *string, messageText string) (model.FollowingFeedPayload, error) {
@@ -481,6 +592,31 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 		Latest:         model.PageResult[model.VideoSummary]{Items: filtered},
 		Message:        &message,
 	}, nil
+}
+
+func (s *service) videoSummariesForInteractions(ctx context.Context, interactions []model.VideoInteraction) ([]model.VideoSummary, error) {
+	if len(interactions) == 0 {
+		return []model.VideoSummary{}, nil
+	}
+	ids := make([]string, 0, len(interactions))
+	for _, interaction := range interactions {
+		ids = append(ids, interaction.VideoID)
+	}
+	videos, err := s.repo.ListVideosByIDs(ctx, ids)
+	if err != nil {
+		return nil, mapStorageError(err)
+	}
+	videoByID := make(map[string]model.Video, len(videos))
+	for _, video := range videos {
+		videoByID[video.ID] = video
+	}
+	ordered := make([]model.Video, 0, len(interactions))
+	for _, interaction := range interactions {
+		if video, ok := videoByID[interaction.VideoID]; ok {
+			ordered = append(ordered, video)
+		}
+	}
+	return s.decorateVideos(ctx, ordered)
 }
 
 func (s *service) listVideoSummaries(ctx context.Context, filter model.VideoFilter) ([]model.VideoSummary, error) {
@@ -656,7 +792,7 @@ func (s *service) creatorAndClient(ctx context.Context, handle string, req model
 	if s.repo == nil {
 		return nil, "", ErrStorageUnavailable
 	}
-	clientID, err := normalizeFollowClientID(req.ClientID)
+	clientID, err := normalizeCommunityClientID(req.ClientID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -665,6 +801,21 @@ func (s *service) creatorAndClient(ctx context.Context, handle string, req model
 		return nil, "", mapStorageError(err)
 	}
 	return creator, clientID, nil
+}
+
+func (s *service) videoAndClient(ctx context.Context, idOrSlug string, req model.VideoInteractionRequest) (*model.Video, string, error) {
+	if s.repo == nil {
+		return nil, "", ErrStorageUnavailable
+	}
+	clientID, err := normalizeCommunityClientID(req.ClientID)
+	if err != nil {
+		return nil, "", err
+	}
+	video, err := s.repo.FindVideoByIDOrSlug(ctx, strings.TrimSpace(idOrSlug))
+	if err != nil {
+		return nil, "", mapStorageError(err)
+	}
+	return video, clientID, nil
 }
 
 func (s *service) creatorFollowState(ctx context.Context, creator model.Creator, clientID string) (model.CreatorFollowState, error) {
@@ -688,6 +839,37 @@ func (s *service) creatorFollowState(ctx context.Context, creator model.Creator,
 	}, nil
 }
 
+func (s *service) videoInteractionState(ctx context.Context, video model.Video, clientID string) (model.VideoInteractionState, error) {
+	state := model.VideoInteractionState{
+		ClientID:  clientID,
+		VideoID:   video.ID,
+		LikeCount: video.LikeCount,
+	}
+	kinds := []string{
+		model.VideoInteractionKindLike,
+		model.VideoInteractionKindFavorite,
+		model.VideoInteractionKindWatchLater,
+	}
+	for _, kind := range kinds {
+		interaction, err := s.repo.FindVideoInteraction(ctx, video.ID, clientID, kind)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return model.VideoInteractionState{}, mapStorageError(err)
+		}
+		if interaction == nil {
+			continue
+		}
+		switch kind {
+		case model.VideoInteractionKindLike:
+			state.Liked = true
+		case model.VideoInteractionKindFavorite:
+			state.Favorited = true
+		case model.VideoInteractionKindWatchLater:
+			state.WatchLater = true
+		}
+	}
+	return state, nil
+}
+
 func normalizeVideoFilter(filter model.VideoFilter) model.VideoFilter {
 	filter.Category = strings.TrimSpace(filter.Category)
 	filter.Cursor = strings.TrimSpace(filter.Cursor)
@@ -703,6 +885,19 @@ func normalizeVideoCommentFilter(filter model.VideoCommentFilter) model.VideoCom
 	}
 	filter.Limit = normalizeLimit(filter.Limit, 48)
 	return filter
+}
+
+func normalizeVideoInteractionKind(value string) (string, error) {
+	switch strings.TrimSpace(value) {
+	case model.VideoInteractionKindLike:
+		return model.VideoInteractionKindLike, nil
+	case model.VideoInteractionKindFavorite:
+		return model.VideoInteractionKindFavorite, nil
+	case model.VideoInteractionKindWatchLater:
+		return model.VideoInteractionKindWatchLater, nil
+	default:
+		return "", ErrInvalidInput
+	}
 }
 
 func normalizeCommentAuthor(value string) string {
@@ -721,7 +916,7 @@ func normalizeCommentBody(value string) string {
 	return value
 }
 
-func normalizeFollowClientID(value string) (string, error) {
+func normalizeCommunityClientID(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || len([]rune(value)) > 96 {
 		return "", ErrInvalidInput

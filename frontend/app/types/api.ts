@@ -22,6 +22,10 @@ export type {
   VideoCommentPayload,
   VideoCommentSortMode,
   VideoDetail,
+  VideoInteractionKind,
+  VideoInteractionRequest,
+  VideoInteractionState,
+  VideoLibraryPayload,
   VideoSourceKind,
   VideoSourceOption,
   VideoSummary

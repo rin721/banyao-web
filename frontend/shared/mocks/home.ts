@@ -9,6 +9,10 @@ import type {
   SearchPayload,
   CreatorFollowRequest,
   CreateVideoCommentRequest,
+  VideoInteractionKind,
+  VideoInteractionRequest,
+  VideoInteractionState,
+  VideoLibraryPayload,
   VideoDanmakuItem,
   VideoDanmakuMode,
   VideoDanmakuPayload,
@@ -224,6 +228,12 @@ export const mockVideos: VideoSummary[] = [
   }
 ]
 
+const mockVideoLikes: Record<string, number> = Object.fromEntries(mockVideos.map((video) => [
+  video.id,
+  Math.max(24, Math.round(video.viewCount / 12))
+]))
+const mockVideoInteractions: Record<string, Record<string, Record<string, string>>> = {}
+
 export const mockHomePayload: HomePayload = {
   announcement: mockAnnouncement,
   categories: mockCategoryTree,
@@ -395,6 +405,103 @@ export function getMockFollowingFeed(clientId?: string): FollowingFeedPayload {
   }
 }
 
+export function getMockVideoInteractionState(idOrSlug: string, clientId: string): VideoInteractionState | null {
+  const video = getMockVideo(idOrSlug)
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!video || !normalizedClientId) {
+    return null
+  }
+
+  const interactions = mockVideoInteractions[normalizedClientId]?.[video.id] || {}
+
+  return {
+    clientId: normalizedClientId,
+    favorited: Boolean(interactions.favorite),
+    liked: Boolean(interactions.like),
+    likeCount: getMockVideoLikeCount(video),
+    videoId: video.id,
+    watchLater: Boolean(interactions.watch_later)
+  }
+}
+
+export function setMockVideoInteraction(idOrSlug: string, kind: VideoInteractionKind, payload: VideoInteractionRequest): VideoInteractionState | null {
+  const video = getMockVideo(idOrSlug)
+  const clientId = normalizeMockClientId(payload.clientId)
+
+  if (!video || !clientId || !isMockVideoInteractionKind(kind)) {
+    return null
+  }
+
+  const videoInteractions = {
+    ...(mockVideoInteractions[clientId]?.[video.id] || {})
+  }
+  const wasActive = Boolean(videoInteractions[kind])
+  videoInteractions[kind] = videoInteractions[kind] || new Date().toISOString()
+  mockVideoInteractions[clientId] = {
+    ...(mockVideoInteractions[clientId] || {}),
+    [video.id]: videoInteractions
+  }
+
+  if (!wasActive && kind === "like") {
+    mockVideoLikes[video.id] = getMockVideoLikeCount(video) + 1
+  }
+
+  return getMockVideoInteractionState(video.id, clientId)
+}
+
+export function unsetMockVideoInteraction(idOrSlug: string, kind: VideoInteractionKind, clientId: string): VideoInteractionState | null {
+  const video = getMockVideo(idOrSlug)
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!video || !normalizedClientId || !isMockVideoInteractionKind(kind)) {
+    return null
+  }
+
+  const videoInteractions = {
+    ...(mockVideoInteractions[normalizedClientId]?.[video.id] || {})
+  }
+  const wasActive = Boolean(videoInteractions[kind])
+  delete videoInteractions[kind]
+  mockVideoInteractions[normalizedClientId] = {
+    ...(mockVideoInteractions[normalizedClientId] || {}),
+    [video.id]: videoInteractions
+  }
+
+  if (wasActive && kind === "like") {
+    mockVideoLikes[video.id] = Math.max(0, getMockVideoLikeCount(video) - 1)
+  }
+
+  return getMockVideoInteractionState(video.id, normalizedClientId)
+}
+
+export function getMockVideoLibrary(clientId: string): VideoLibraryPayload | null {
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!normalizedClientId) {
+    return null
+  }
+
+  const favorites = mockVideosForInteractionKind(normalizedClientId, "favorite")
+  const watchLater = mockVideosForInteractionKind(normalizedClientId, "watch_later")
+
+  return {
+    authenticated: false,
+    clientId: normalizedClientId,
+    favoriteCount: favorites.length,
+    favorites: {
+      items: favorites,
+      nextCursor: null
+    },
+    message: "收藏和稍后看来自 mock 社区 API；真实模式会写入 Go 后端匿名关系表。",
+    watchLater: {
+      items: watchLater,
+      nextCursor: null
+    },
+    watchLaterCount: watchLater.length
+  }
+}
+
 export function listMockVideos(params: {
   category?: string
   limit?: number
@@ -472,7 +579,7 @@ const primaryMockVideoUrl = "https://r2-store.kobayashi.eu.org/aoi/video/1e32a26
 const secondaryMockVideoUrl = "https://r2-store.kobayashi.eu.org/aoi/video/BV1EF3uzeETo.mp4"
 
 export function getMockVideoDetail(idOrSlug: string): VideoDetail | null {
-  const video = mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug)
+  const video = getMockVideo(idOrSlug)
 
   if (!video) {
     return null
@@ -488,7 +595,7 @@ export function getMockVideoDetail(idOrSlug: string): VideoDetail | null {
 
   return {
     ...video,
-    likeCount: Math.max(24, Math.round(video.viewCount / 12)),
+    likeCount: getMockVideoLikeCount(video),
     related: mockVideos.filter((item) => item.id !== video.id).slice(0, 4),
     sourceUrl: primaryMockVideoUrl,
     sources: [
@@ -663,6 +770,28 @@ function matchesVideo(video: VideoSummary, normalizedQuery: string) {
   ].filter(Boolean).join(" ")
 
   return normalize(haystack).includes(normalizedQuery)
+}
+
+function getMockVideo(idOrSlug: string) {
+  return mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug) || null
+}
+
+function getMockVideoLikeCount(video: VideoSummary) {
+  return mockVideoLikes[video.id] ?? Math.max(24, Math.round(video.viewCount / 12))
+}
+
+function isMockVideoInteractionKind(value: string): value is VideoInteractionKind {
+  return value === "like" || value === "favorite" || value === "watch_later"
+}
+
+function mockVideosForInteractionKind(clientId: string, kind: VideoInteractionKind) {
+  const interactions = mockVideoInteractions[clientId] || {}
+
+  return Object.entries(interactions)
+    .filter(([, kinds]) => Boolean(kinds[kind]))
+    .sort((left, right) => Date.parse(right[1][kind] || "") - Date.parse(left[1][kind] || ""))
+    .map(([videoId]) => mockVideos.find((video) => video.id === videoId))
+    .filter((video): video is VideoSummary => Boolean(video))
 }
 
 function matchesCreator(creator: CreatorProfile, normalizedQuery: string) {

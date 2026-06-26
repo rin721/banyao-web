@@ -66,7 +66,8 @@ const mergedDanmakuItems = computed(() => {
 const isFavorite = computed(() => video.value ? library.isFavorite(video.value.id) : false)
 const isLiked = computed(() => video.value ? library.isLiked(video.value.id) : false)
 const isWatchLater = computed(() => video.value ? library.isWatchLater(video.value.id) : false)
-const localLikeCount = computed(() => video.value ? video.value.likeCount + (isLiked.value ? 1 : 0) : 0)
+const interactionPending = computed(() => video.value ? library.isPending(video.value.id) : false)
+const displayLikeCount = computed(() => video.value ? library.likeCountFor(video.value) : 0)
 const displayCommentCount = computed(() => serverCommentPayload.value?.totalCount || video.value?.commentCount || 0)
 const displayDanmakuCount = computed(() => mergedDanmakuItems.value.length)
 const serverCommentViews = computed<CommentView[]>(() => (serverCommentPayload.value?.items || []).map(toCommunityCommentView))
@@ -106,6 +107,9 @@ const danmakuMapper: AoiDanmakuMapper<VideoDanmakuItem> = (item) => ({
 watch([video, () => library.hydrated], ([current, hydrated]) => {
   if (import.meta.client && hydrated && current && !settings.disableWatchHistory) {
     library.recordView(current)
+  }
+  if (import.meta.client && hydrated && current) {
+    library.syncVideoInteractions(current)
   }
 }, { immediate: true })
 
@@ -222,10 +226,11 @@ useHead(() => ({
             :variant="isLiked ? 'tonal' : 'outlined'"
             icon="heart"
             :aria-label="isLiked ? t('player.unlike') : t('player.like')"
-            :disabled="!library.hydrated"
-            @click="library.toggleLiked(video.id)"
+            :disabled="!library.hydrated || interactionPending"
+            :loading="interactionPending"
+            @click="library.toggleLiked(video)"
           >
-            {{ localLikeCount }}
+            {{ displayLikeCount }}
           </AoiButton>
           <AoiButton tone="accent" variant="outlined" icon="message-square-text">
             {{ displayDanmakuCount }}
@@ -305,7 +310,8 @@ useHead(() => ({
                 :variant="isFavorite ? 'tonal' : 'outlined'"
                 icon="star"
                 :aria-label="isFavorite ? t('player.unfavorite') : t('player.favorite')"
-                :disabled="!library.hydrated"
+                :disabled="!library.hydrated || interactionPending"
+                :loading="interactionPending"
                 @click="library.toggleFavorite(video)"
               >
                 {{ isFavorite ? t("player.favorited") : t("player.favorite") }}
@@ -314,7 +320,8 @@ useHead(() => ({
                 :variant="isWatchLater ? 'tonal' : 'outlined'"
                 icon="clock-3"
                 :aria-label="isWatchLater ? t('player.removeWatchLater') : t('player.watchLater')"
-                :disabled="!library.hydrated"
+                :disabled="!library.hydrated || interactionPending"
+                :loading="interactionPending"
                 @click="library.toggleWatchLater(video)"
               >
                 {{ isWatchLater ? t("player.watchLaterAdded") : t("player.watchLater") }}

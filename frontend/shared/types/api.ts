@@ -121,6 +121,12 @@ export interface CreatorFollowRequest {
   clientId: string
 }
 
+export type VideoInteractionKind = "like" | "favorite" | "watch_later"
+
+export interface VideoInteractionRequest {
+  clientId: string
+}
+
 export interface CreatorFollowState {
   clientId: string
   creatorId: string
@@ -128,6 +134,15 @@ export interface CreatorFollowState {
   following: boolean
   followerCount: number
   followedAt: string | null
+}
+
+export interface VideoInteractionState {
+  clientId: string
+  videoId: string
+  liked: boolean
+  favorited: boolean
+  watchLater: boolean
+  likeCount: number
 }
 
 export interface Announcement {
@@ -162,6 +177,16 @@ export interface FollowingFeedPayload {
   message: string | null
   creators: CreatorProfile[]
   latest: PageResult<VideoSummary>
+}
+
+export interface VideoLibraryPayload {
+  authenticated: boolean
+  clientId?: string | null
+  favoriteCount: number
+  watchLaterCount: number
+  message: string | null
+  favorites: PageResult<VideoSummary>
+  watchLater: PageResult<VideoSummary>
 }
 
 export interface SearchPayload {

@@ -300,12 +300,16 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.videos.danmaku", deps.CommunityHandler.VideoDanmaku),
 		routeSpecFor("community.videos.comments.list", deps.CommunityHandler.VideoComments),
 		routeSpecFor("community.videos.comments.create", deps.CommunityHandler.CreateVideoComment),
+		routeSpecFor("community.videos.interaction-state", deps.CommunityHandler.VideoInteractionState),
+		routeSpecFor("community.videos.interactions.set", deps.CommunityHandler.SetVideoInteraction),
+		routeSpecFor("community.videos.interactions.unset", deps.CommunityHandler.UnsetVideoInteraction),
 		routeSpecFor("community.search", deps.CommunityHandler.Search),
 		routeSpecFor("community.creators.get", deps.CommunityHandler.Creator),
 		routeSpecFor("community.creators.follow-state", deps.CommunityHandler.CreatorFollowState),
 		routeSpecFor("community.creators.follow", deps.CommunityHandler.FollowCreator),
 		routeSpecFor("community.creators.unfollow", deps.CommunityHandler.UnfollowCreator),
 		routeSpecFor("community.feed.following", deps.CommunityHandler.Following),
+		routeSpecFor("community.library", deps.CommunityHandler.Library),
 	}
 	registerRouteSpecs(public, appconstants.APIPath("public", "community"), specs)
 	return routeContractsFromSpecs(specs)

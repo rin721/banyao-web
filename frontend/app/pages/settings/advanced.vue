@@ -198,8 +198,8 @@ function cancelPendingAction() {
         </SettingsDataActionCard>
 
         <SettingsDataActionCard
-          title="本地互动"
-          :description="`历史 ${localStats.history} · 收藏 ${localStats.favorites} · 稍后看 ${localStats.watchLater} · 点赞 ${localStats.liked}`"
+          title="本地互动缓存"
+          :description="`历史 ${localStats.history} · 收藏缓存 ${localStats.favorites} · 稍后看缓存 ${localStats.watchLater} · 点赞缓存 ${localStats.liked}`"
         >
           <template #actions>
             <AoiButton tone="accent"
@@ -207,7 +207,7 @@ function cancelPendingAction() {
               size="sm"
               icon="rotate-ccw"
               :disabled="!library.hydrated || !hasLocalData"
-              @click="askConfirm('重置本地互动数据', '将清空历史、收藏、稍后看和点赞记录。', () => library.resetLibrary())"
+              @click="askConfirm('重置本地互动缓存', '将清空观看历史和浏览器互动缓存；后端匿名收藏、稍后看和点赞会在下次同步时重新加载。', () => library.resetLibrary())"
             >
               重置
             </AoiButton>

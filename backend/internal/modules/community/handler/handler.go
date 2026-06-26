@@ -81,6 +81,29 @@ func (h *Handler) CreateVideoComment(c ports.HTTPContext) {
 	writeOK(c, comment, err, h.writeError)
 }
 
+func (h *Handler) VideoInteractionState(c ports.HTTPContext) {
+	state, err := h.service.GetVideoInteractionState(c.RequestContext(), c.Param("idOrSlug"), model.VideoInteractionRequest{
+		ClientID: queryValue(c, "clientId"),
+	})
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) SetVideoInteraction(c ports.HTTPContext) {
+	var req model.VideoInteractionRequest
+	if !bind(c, &req) {
+		return
+	}
+	state, err := h.service.SetVideoInteraction(c.RequestContext(), c.Param("idOrSlug"), c.Param("kind"), req)
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) UnsetVideoInteraction(c ports.HTTPContext) {
+	state, err := h.service.UnsetVideoInteraction(c.RequestContext(), c.Param("idOrSlug"), c.Param("kind"), model.VideoInteractionRequest{
+		ClientID: queryValue(c, "clientId"),
+	})
+	writeOK(c, state, err, h.writeError)
+}
+
 func (h *Handler) Search(c ports.HTTPContext) {
 	limit, ok := parseIntQuery(c, "limit", 24)
 	if !ok {
@@ -120,6 +143,13 @@ func (h *Handler) UnfollowCreator(c ports.HTTPContext) {
 
 func (h *Handler) Following(c ports.HTTPContext) {
 	payload, err := h.service.FollowingFeed(c.RequestContext(), model.CreatorFollowRequest{
+		ClientID: queryValue(c, "clientId"),
+	})
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) Library(c ports.HTTPContext) {
+	payload, err := h.service.VideoLibrary(c.RequestContext(), model.VideoInteractionRequest{
 		ClientID: queryValue(c, "clientId"),
 	})
 	writeOK(c, payload, err, h.writeError)

@@ -17,6 +17,10 @@ import type {
   VideoCommentSortMode,
   VideoDanmakuPayload,
   VideoDetail,
+  VideoInteractionKind,
+  VideoInteractionRequest,
+  VideoInteractionState,
+  VideoLibraryPayload,
   VideoSummary
 } from "~/types/api"
 import { findCategoryInTree } from "~~/shared/utils/categories"
@@ -114,6 +118,26 @@ export function useAoiApi() {
     })
   }
 
+  async function getVideoInteractionState(idOrSlug: string, clientId: string): Promise<VideoInteractionState> {
+    return await request<VideoInteractionState>(`/videos/${encodeURIComponent(idOrSlug)}/interaction-state`, {
+      query: { clientId }
+    })
+  }
+
+  async function setVideoInteraction(idOrSlug: string, kind: VideoInteractionKind, body: VideoInteractionRequest): Promise<VideoInteractionState> {
+    return await request<VideoInteractionState>(`/videos/${encodeURIComponent(idOrSlug)}/interactions/${encodeURIComponent(kind)}`, {
+      body,
+      method: "POST"
+    })
+  }
+
+  async function unsetVideoInteraction(idOrSlug: string, kind: VideoInteractionKind, clientId: string): Promise<VideoInteractionState> {
+    return await request<VideoInteractionState>(`/videos/${encodeURIComponent(idOrSlug)}/interactions/${encodeURIComponent(kind)}`, {
+      method: "DELETE",
+      query: { clientId }
+    })
+  }
+
   async function getCreatorProfile(handle: string): Promise<CreatorProfile> {
     return await request<CreatorProfile>(`/users/${encodeURIComponent(handle)}`)
   }
@@ -144,6 +168,12 @@ export function useAoiApi() {
     })
   }
 
+  async function getVideoLibrary(clientId: string): Promise<VideoLibraryPayload> {
+    return await request<VideoLibraryPayload>("/library", {
+      query: { clientId }
+    })
+  }
+
   async function getCategory(slug: string): Promise<CategoryTreeNode | null> {
     const categories = await listCategories()
 
@@ -156,6 +186,8 @@ export function useAoiApi() {
     getCreatorFollowState,
     getCreatorProfile,
     getFollowingFeed,
+    getVideoInteractionState,
+    getVideoLibrary,
     followCreator,
     getHomePayload,
     createVideoComment,
@@ -166,7 +198,9 @@ export function useAoiApi() {
     listVideos,
     search,
     searchVideos,
-    unfollowCreator
+    setVideoInteraction,
+    unfollowCreator,
+    unsetVideoInteraction
   }
 }
 

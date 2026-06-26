@@ -14,6 +14,10 @@ const (
 	CommentStatusVisible = "visible"
 	CommentSortNewest    = "newest"
 	CommentSortOldest    = "oldest"
+
+	VideoInteractionKindLike       = "like"
+	VideoInteractionKindFavorite   = "favorite"
+	VideoInteractionKindWatchLater = "watch_later"
 )
 
 // UserSummary 是社区公开接口中展示创作者的最小视图。
@@ -48,6 +52,19 @@ type CreatorFollow struct {
 }
 
 func (CreatorFollow) TableName() string { return "community_creator_follows" }
+
+// VideoInteraction 保存匿名客户端对视频的点赞、收藏和稍后看关系。
+type VideoInteraction struct {
+	ClientID     string     `gorm:"column:client_id;primaryKey;size:96" json:"clientId"`
+	VideoID      string     `gorm:"column:video_id;primaryKey;size:96" json:"videoId"`
+	Kind         string     `gorm:"column:kind;primaryKey;size:32" json:"kind"`
+	InteractedAt time.Time  `gorm:"column:interacted_at;not null" json:"interactedAt"`
+	CreatedAt    time.Time  `gorm:"column:created_at;not null" json:"-"`
+	UpdatedAt    time.Time  `gorm:"column:updated_at;not null" json:"-"`
+	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (VideoInteraction) TableName() string { return "community_video_interactions" }
 
 // Category 是社区内容分类的扁平持久化模型。
 type Category struct {
@@ -162,6 +179,10 @@ type CreatorFollowRequest struct {
 	ClientID string `json:"clientId"`
 }
 
+type VideoInteractionRequest struct {
+	ClientID string `json:"clientId"`
+}
+
 type CreatorFollowState struct {
 	ClientID      string     `json:"clientId"`
 	CreatorID     string     `json:"creatorId"`
@@ -169,6 +190,15 @@ type CreatorFollowState struct {
 	Following     bool       `json:"following"`
 	FollowerCount int64      `json:"followerCount"`
 	FollowedAt    *time.Time `json:"followedAt"`
+}
+
+type VideoInteractionState struct {
+	ClientID   string `json:"clientId"`
+	VideoID    string `json:"videoId"`
+	Liked      bool   `json:"liked"`
+	Favorited  bool   `json:"favorited"`
+	WatchLater bool   `json:"watchLater"`
+	LikeCount  int64  `json:"likeCount"`
 }
 
 type Announcement struct {
@@ -235,6 +265,16 @@ type FollowingFeedPayload struct {
 	Latest         PageResult[VideoSummary] `json:"latest"`
 }
 
+type VideoLibraryPayload struct {
+	Authenticated   bool                     `json:"authenticated"`
+	ClientID        *string                  `json:"clientId,omitempty"`
+	FavoriteCount   int                      `json:"favoriteCount"`
+	WatchLaterCount int                      `json:"watchLaterCount"`
+	Message         *string                  `json:"message"`
+	Favorites       PageResult[VideoSummary] `json:"favorites"`
+	WatchLater      PageResult[VideoSummary] `json:"watchLater"`
+}
+
 type SearchPayload struct {
 	Categories PageResult[Category]       `json:"categories"`
 	Creators   PageResult[CreatorProfile] `json:"creators"`
@@ -271,6 +311,12 @@ type VideoFilter struct {
 	Cursor   string
 	Limit    int
 	Query    string
+}
+
+type VideoInteractionFilter struct {
+	ClientID string
+	Kind     string
+	Limit    int
 }
 
 type VideoCommentFilter struct {
