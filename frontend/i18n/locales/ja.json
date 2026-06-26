@@ -42,7 +42,6 @@
     "search": "検索",
     "history": "履歴",
     "collections": "コレクション",
-    "docs": "ドキュメント",
     "upload": "投稿",
     "settings": "設定",
     "login": "ログイン"
@@ -267,42 +266,6 @@
       "interaction": "インタラクション",
       "report": "通報",
       "submission": "投稿"
-    }
-  },
-  "docs": {
-    "eyebrow": "Aoi Docs",
-    "title": "プロジェクトシステムとコンポーネントライブラリ",
-    "description": "Nuxt の構成、リポジトリ境界、すべての Aoi wrapper API を静的 Markdown でまとめます。",
-    "actions": {
-      "project": "プロジェクトシステム",
-      "components": "コンポーネント"
-    },
-    "stats": {
-      "pages": "ページ",
-      "components": "コンポーネント",
-      "locales": "言語"
-    },
-    "nav": {
-      "open": "目次",
-      "label": "ドキュメント目次",
-      "close": "閉じる"
-    },
-    "search": {
-      "label": "ドキュメント検索",
-      "placeholder": "タイトル、説明、セクションを検索"
-    },
-    "notFound": {
-      "title": "ドキュメントが見つかりません",
-      "description": "現在のドキュメントセットにはこのページがありません。",
-      "action": "ドキュメントへ戻る"
-    },
-    "pager": {
-      "label": "ドキュメントの前後移動",
-      "previous": "前へ",
-      "next": "次へ"
-    },
-    "toc": {
-      "label": "このページ"
     }
   },
   "settings": {
@@ -1399,6 +1362,59 @@
       "pendingReview": "審査待ち",
       "fileSize": "ファイルサイズ",
       "createdAt": "送信日時"
+    }
+  },
+  "collections": {
+    "headTitle": "コレクション - Aoi",
+    "eyebrow": "コミュニティライブラリ",
+    "title": "コレクション",
+    "description": "お気に入りと後で見るは匿名 clientId ごとに Go バックエンドのコミュニティライブラリへ保存し、ローカルキャッシュはオフライン時の補助としてだけ使います。",
+    "clientPending": "同期待ち",
+    "clientLabel": "匿名 clientId：{client}",
+    "tabsAria": "コレクション種別",
+    "loadingTitle": "ライブラリを同期中",
+    "loadingDescription": "バックエンドのコミュニティモジュールからお気に入りと後で見るを読み込んでいます。",
+    "errorTitle": "ライブラリ同期に失敗しました",
+    "errorDescription": "Community Library API からお気に入りと後で見るのデータが返りませんでした。",
+    "source": {
+      "syncing": "コミュニティライブラリ、匿名 clientId、ローカルキャッシュを同期しています。",
+      "error": "Community Library API は一時的に利用できません。ローカルキャッシュがあれば表示を続けます。",
+      "ready": "Community Library API から取得：お気に入り {favorites} 件、後で見る {watchLater} 件。",
+      "local": "ローカルライブラリキャッシュを表示中です。更新すると Community API に再接続します。"
+    },
+    "stats": {
+      "favorites": "お気に入り",
+      "favoritesDescription": "現在の匿名 clientId に保存されたお気に入り数",
+      "watchLater": "後で見る",
+      "watchLaterDescription": "現在の匿名 clientId に保存された後で見る数",
+      "total": "合計",
+      "totalDescription": "お気に入りと後で見るの合計",
+      "backend": "バックエンド",
+      "backendDescription": "Community Library API の現在の同期状態",
+      "backendReady": "同期済み",
+      "backendLocal": "ローカル"
+    },
+    "actions": {
+      "refresh": "ライブラリを更新",
+      "clearFavorites": "お気に入りを空にする",
+      "clearWatchLater": "後で見るを空にする"
+    },
+    "tabs": {
+      "favorites": "お気に入り {count}",
+      "watchLater": "後で見る {count}"
+    },
+    "sections": {
+      "favoritesTitle": "お気に入り動画",
+      "favoritesDescription": "これらの項目は Community Library API から取得し、匿名 clientId ごとに同期します。",
+      "watchLaterTitle": "後で見る",
+      "watchLaterDescription": "続きを見たい動画を一時的に保存し、更新時にバックエンドから再同期します。"
+    },
+    "empty": {
+      "favoritesTitle": "お気に入りはまだありません",
+      "watchLaterTitle": "後で見るは空です",
+      "favoritesDescription": "動画詳細ページでお気に入りにすると、バックエンドのコミュニティライブラリへ保存されます。",
+      "watchLaterDescription": "動画詳細ページで後で見るに追加すると、ここから続きに戻れます。",
+      "action": "検索へ"
     }
   },
   "history": {

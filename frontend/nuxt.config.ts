@@ -3,7 +3,6 @@ export default defineNuxtConfig({
   devtools: { enabled: false },
 
   modules: [
-    "@nuxt/content",
     "@nuxt/icon",
     "@pinia/nuxt",
     "@nuxtjs/i18n"
@@ -25,17 +24,6 @@ export default defineNuxtConfig({
     public: {
       apiBaseURL: process.env.NUXT_PUBLIC_API_BASE_URL || "/api/v1/public/community",
       apiMock: process.env.NUXT_PUBLIC_API_MOCK !== "false"
-    }
-  },
-
-  routeRules: {
-    "/docs": { prerender: true },
-    "/docs/**": { prerender: true }
-  },
-
-  content: {
-    experimental: {
-      nativeSqlite: true
     }
   },
 

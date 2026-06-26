@@ -42,7 +42,6 @@
     "search": "Search",
     "history": "History",
     "collections": "Collections",
-    "docs": "Docs",
     "upload": "Upload",
     "settings": "Settings",
     "login": "Log in"
@@ -267,42 +266,6 @@
       "interaction": "Interaction",
       "report": "Report",
       "submission": "Submission"
-    }
-  },
-  "docs": {
-    "eyebrow": "Aoi Docs",
-    "title": "Project System and Component Library",
-    "description": "Static Markdown documentation for the Nuxt architecture, repository boundaries, and every Aoi wrapper API.",
-    "actions": {
-      "project": "Project system",
-      "components": "Component library"
-    },
-    "stats": {
-      "pages": "Pages",
-      "components": "Components",
-      "locales": "Locales"
-    },
-    "nav": {
-      "open": "Contents",
-      "label": "Documentation contents",
-      "close": "Close"
-    },
-    "search": {
-      "label": "Search docs",
-      "placeholder": "Search titles, descriptions, or sections"
-    },
-    "notFound": {
-      "title": "Document not found",
-      "description": "This page does not exist in the current documentation set.",
-      "action": "Back to docs"
-    },
-    "pager": {
-      "label": "Document pager",
-      "previous": "Previous",
-      "next": "Next"
-    },
-    "toc": {
-      "label": "On this page"
     }
   },
   "settings": {
@@ -1399,6 +1362,59 @@
       "pendingReview": "Pending review",
       "fileSize": "File size",
       "createdAt": "Submitted"
+    }
+  },
+  "collections": {
+    "headTitle": "Collections - Aoi",
+    "eyebrow": "Community library",
+    "title": "Collections",
+    "description": "Favorites and Watch Later are written to the Go community backend by anonymous clientId, with local cache kept only as an offline fallback.",
+    "clientPending": "waiting",
+    "clientLabel": "Anonymous clientId: {client}",
+    "tabsAria": "Collection library type",
+    "loadingTitle": "Syncing library",
+    "loadingDescription": "Reading favorites and Watch Later from the backend community module.",
+    "errorTitle": "Library sync failed",
+    "errorDescription": "The Community Library API did not return favorites or Watch Later data.",
+    "source": {
+      "syncing": "Syncing community library, anonymous clientId, and local cache.",
+      "error": "The Community Library API is unavailable; local cache will continue to show when present.",
+      "ready": "From the Community Library API: {favorites} favorites and {watchLater} Watch Later items.",
+      "local": "Showing local library cache; refresh will request the Community API again."
+    },
+    "stats": {
+      "favorites": "Favorites",
+      "favoritesDescription": "Favorites stored for the current anonymous clientId",
+      "watchLater": "Watch Later",
+      "watchLaterDescription": "Watch Later items stored for the current anonymous clientId",
+      "total": "Total",
+      "totalDescription": "Favorites and Watch Later combined",
+      "backend": "Backend",
+      "backendDescription": "Current Community Library API sync state",
+      "backendReady": "Synced",
+      "backendLocal": "Local"
+    },
+    "actions": {
+      "refresh": "Refresh library",
+      "clearFavorites": "Clear favorites",
+      "clearWatchLater": "Clear Watch Later"
+    },
+    "tabs": {
+      "favorites": "Favorites {count}",
+      "watchLater": "Watch Later {count}"
+    },
+    "sections": {
+      "favoritesTitle": "Favorite videos",
+      "favoritesDescription": "These items come from the Community Library API and are synced by anonymous clientId.",
+      "watchLaterTitle": "Watch Later",
+      "watchLaterDescription": "Temporary saves for videos you want to continue, reconciled from the backend on refresh."
+    },
+    "empty": {
+      "favoritesTitle": "No favorites yet",
+      "watchLaterTitle": "Watch Later is empty",
+      "favoritesDescription": "Open a video detail page and favorite it to write the item into the backend community library.",
+      "watchLaterDescription": "Add a video to Watch Later from the detail page and it will appear here.",
+      "action": "Search videos"
     }
   },
   "history": {
