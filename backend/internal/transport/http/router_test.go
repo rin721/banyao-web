@@ -171,6 +171,7 @@ type fakeIAMService struct {
 	signupCalls       int
 	lastSignupInput   iamservice.SignupInput
 	loginCalls        int
+	lastLoginInput    iamservice.LoginInput
 	orgListCalls      int
 	lastOrgFilter     iamservice.OrganizationListFilter
 	userListCalls     int
@@ -214,9 +215,10 @@ func (s *fakeIAMService) Signup(_ context.Context, input iamservice.SignupInput)
 func (s *fakeIAMService) ConfirmEmailVerification(context.Context, iamservice.ConfirmEmailVerificationInput) (iamservice.TokenPair, error) {
 	return iamservice.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Add(time.Hour), RefreshExpiresAt: time.Now().Add(time.Hour), UserID: 1, OrgID: 1, SessionID: 1, ProductCode: "console-platform", ClientType: "pc_web"}, nil
 }
-func (s *fakeIAMService) Login(context.Context, iamservice.LoginInput) (iamservice.TokenPair, error) {
+func (s *fakeIAMService) Login(_ context.Context, input iamservice.LoginInput) (iamservice.TokenPair, error) {
 	s.loginCalls++
-	return iamservice.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Add(time.Hour), RefreshExpiresAt: time.Now().Add(time.Hour)}, nil
+	s.lastLoginInput = input
+	return iamservice.TokenPair{AccessToken: "access", RefreshToken: "refresh", AccessExpiresAt: time.Now().Add(time.Hour), RefreshExpiresAt: time.Now().Add(time.Hour), UserID: 1, OrgID: 1, SessionID: 1, ProductCode: "console-platform", ClientType: "pc_web"}, nil
 }
 func (s *fakeIAMService) Refresh(context.Context, iamservice.RefreshInput) (iamservice.TokenPair, error) {
 	return iamservice.TokenPair{}, nil
@@ -457,6 +459,51 @@ func TestNewRouterCommunitySignupEndpointUsesCommunityPayload(t *testing.T) {
 	}
 }
 
+func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
+	iamSvc := &fakeIAMService{}
+	router := newTestRouter(RouterDeps{
+		IAMHandler: iamhandler.New(iamSvc, nil),
+		IAMAuth:    iamSvc,
+		IAMAuthz:   iamSvc,
+	})
+
+	login := performJSONRouterRequest(router, http.MethodPost, "/api/v1/public/community/auth/login", `{"identifier":"rin@example.com","password":"password123"}`)
+	if login.Code != http.StatusOK {
+		t.Fatalf("expected community login status %d, got %d body %s", http.StatusOK, login.Code, login.Body.String())
+	}
+	if iamSvc.loginCalls != 1 {
+		t.Fatalf("expected login call count 1, got %d", iamSvc.loginCalls)
+	}
+	if iamSvc.lastLoginInput.Identifier != "rin@example.com" || iamSvc.lastLoginInput.OrgCode != "" {
+		t.Fatalf("unexpected community login input: %#v", iamSvc.lastLoginInput)
+	}
+	if strings.Contains(login.Body.String(), "orgId") || strings.Contains(login.Body.String(), "permissions") {
+		t.Fatalf("community login response should expose a compact community session, got %s", login.Body.String())
+	}
+
+	session := httptest.NewRecorder()
+	sessionRequest := httptest.NewRequest(http.MethodGet, "/api/v1/public/community/auth/session", nil)
+	sessionRequest.Header.Set("Authorization", "Bearer token")
+	router.ServeHTTP(session, sessionRequest)
+	if session.Code != http.StatusOK {
+		t.Fatalf("expected community session status %d, got %d body %s", http.StatusOK, session.Code, session.Body.String())
+	}
+	if strings.Contains(session.Body.String(), "orgId") || strings.Contains(session.Body.String(), "permissions") {
+		t.Fatalf("community session response should expose a compact community session, got %s", session.Body.String())
+	}
+
+	logout := httptest.NewRecorder()
+	logoutRequest := httptest.NewRequest(http.MethodPost, "/api/v1/public/community/auth/logout", nil)
+	logoutRequest.Header.Set("Authorization", "Bearer token")
+	router.ServeHTTP(logout, logoutRequest)
+	if logout.Code != http.StatusOK {
+		t.Fatalf("expected community logout status %d, got %d body %s", http.StatusOK, logout.Code, logout.Body.String())
+	}
+	if !strings.Contains(logout.Body.String(), "loggedOut") {
+		t.Fatalf("expected community logout response, got %s", logout.Body.String())
+	}
+}
+
 func TestNewRouterSetupEndpointsArePublic(t *testing.T) {
 	iamSvc := &fakeIAMService{}
 	router := newTestRouter(RouterDeps{
@@ -600,6 +647,9 @@ func TestGeneratedOpenAPIYAMLSyncsWithCommittedFile(t *testing.T) {
 		"/api/v1/auth/setup/initial-admin",
 		"/api/v1/auth/signup",
 		"/api/v1/auth/captcha",
+		"/api/v1/public/community/auth/login",
+		"/api/v1/public/community/auth/logout",
+		"/api/v1/public/community/auth/session",
 		"/api/v1/public/community/auth/signup",
 		"/api/v1/public/community/home",
 		"/api/v1/public/community/videos/{idOrSlug}",

@@ -144,7 +144,7 @@ Nuxt public runtime config 支持以下环境变量：
 | --- | --- | --- |
 | `NUXT_PUBLIC_API_BASE_URL` | `/api/v1/public/community` | `useAoiApi()` 使用的后端社区 API 基础路径；本地分端口联调可设为 `http://127.0.0.1:9999/api/v1/public/community` |
 | `NUXT_PUBLIC_AUTH_API_BASE_URL` | 从 `NUXT_PUBLIC_API_BASE_URL` 派生到 `/api/v1` | `useAoiAuthApi()` 使用的社区账号 API 基础路径；分端口联调时可显式设为 `http://127.0.0.1:9999/api/v1` |
-| `NUXT_PUBLIC_API_MOCK` | `false` | 设置为 `true` 时内容接口走 `/api/mock/*`，社区账号登录 / 注册 / 会话走 `/api/mock/auth/*` 与 `/api/mock/me/session`；默认使用后端公开社区接口和账号接口并消费 `result` envelope |
+| `NUXT_PUBLIC_API_MOCK` | `false` | 设置为 `true` 时内容接口走 `/api/mock/*`，社区账号登录 / 注册 / 会话走 `/api/mock/auth/*`；默认使用后端公开社区接口和社区账号接口并消费 `result` envelope |
 
 社区页面访问公开社区接口时使用 `useAoiApi()`；登录、注册和后续账号接口使用 `useAoiAuthApi()`，并保持与 `useAoiApiTelemetry()` 的错误诊断兼容。
 

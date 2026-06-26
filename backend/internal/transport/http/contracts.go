@@ -338,6 +338,9 @@ func publicAnnouncementListParams() []RouteParam {
 
 func communityRouteContracts() []RouteContract {
 	return []RouteContract{
+		publicRoute("community.auth.login", http.MethodPost, appconstants.APIPath("public", "community", "auth", "login"), "Community", "登录社区账号", jsonType[iamhandler.CommunityLoginRequest](), jsonType[iamhandler.CommunityAuthSessionSnapshot]()),
+		authRoute("community.auth.logout", http.MethodPost, appconstants.APIPath("public", "community", "auth", "logout"), "Community", "退出社区账号会话", nil, jsonType[BooleanResult]()),
+		authRoute("community.auth.session", http.MethodGet, appconstants.APIPath("public", "community", "auth", "session"), "Community", "查询社区账号会话", nil, jsonType[iamhandler.CommunityAuthSessionSnapshot]()),
 		publicRoute("community.auth.signup", http.MethodPost, appconstants.APIPath("public", "community", "auth", "signup"), "Community", "注册社区账号", jsonType[iamhandler.CommunitySignupRequest](), jsonType[iamhandler.CommunitySignupResult]()),
 		publicRoute("community.submissions.list", http.MethodGet, appconstants.APIPath("public", "community", "submissions"), "Community", "查询社区匿名投稿记录", nil, jsonType[communitymodel.CommunitySubmissionPayload](), queryParam("clientId", "string"), queryInt("limit")),
 		publicRoute("community.submissions.create", http.MethodPost, appconstants.APIPath("public", "community", "submissions"), "Community", "提交社区投稿元数据", jsonType[communitymodel.CreateCommunitySubmissionRequest](), jsonType[communitymodel.CommunitySubmissionItem]()),

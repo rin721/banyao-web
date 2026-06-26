@@ -189,6 +189,14 @@ type CommunitySignupRequest struct {
 	Password    string `json:"password" binding:"required"`
 }
 
+type CommunityLoginRequest struct {
+	CaptchaCode string `json:"captchaCode"`
+	CaptchaID   string `json:"captchaId"`
+	Identifier  string `json:"identifier" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	MFACode     string `json:"mfaCode"`
+}
+
 type CommunityAuthSessionSnapshot struct {
 	UserID           int64     `json:"userId,string"`
 	SessionID        int64     `json:"sessionId,string"`
@@ -450,6 +458,58 @@ func (h *Handler) CommunitySignup(c ports.HTTPContext) {
 	result.OK(c, communitySignupResult(signupResult))
 }
 
+func (h *Handler) CommunityLogin(c ports.HTTPContext) {
+	var req CommunityLoginRequest
+	if !bind(c, &req) {
+		return
+	}
+	productCode, clientType := h.requestSessionContext(c)
+	pair, err := h.service.Login(c.RequestContext(), service.LoginInput{
+		CaptchaCode: req.CaptchaCode,
+		CaptchaID:   req.CaptchaID,
+		Identifier:  req.Identifier,
+		Password:    req.Password,
+		MFACode:     req.MFACode,
+		ProductCode: productCode,
+		ClientType:  clientType,
+		UserAgent:   c.GetHeader("User-Agent"),
+		IPAddress:   c.ClientIP(),
+	})
+	if err != nil {
+		h.write(c, nil, err)
+		return
+	}
+	if pair.AccessToken != "" {
+		h.setAuthCookies(c, pair)
+	}
+	result.OK(c, communityAuthSessionFromTokenPair(pair))
+}
+
+func (h *Handler) CommunitySession(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	session, err := h.service.CurrentSession(c.RequestContext(), principal)
+	if err != nil {
+		h.write(c, nil, err)
+		return
+	}
+	result.OK(c, communityAuthSessionFromSnapshot(session))
+}
+
+func (h *Handler) CommunityLogout(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	err := h.service.Logout(c.RequestContext(), principal)
+	if err == nil {
+		h.clearAuthCookies(c)
+	}
+	h.write(c, map[string]bool{"loggedOut": true}, err)
+}
+
 func (h *Handler) ConfirmEmailVerification(c ports.HTTPContext) {
 	productCode, clientType := h.requestSessionContext(c)
 	pair, err := h.service.ConfirmEmailVerification(c.RequestContext(), service.ConfirmEmailVerificationInput{
@@ -508,14 +568,28 @@ func communitySignupResult(result service.SignupResult) CommunitySignupResult {
 		Delivery: result.Delivery,
 	}
 	if result.Session != nil {
-		out.Session = &CommunityAuthSessionSnapshot{
-			UserID:           result.Session.UserID,
-			SessionID:        result.Session.SessionID,
-			AccessExpiresAt:  result.Session.AccessExpiresAt,
-			RefreshExpiresAt: result.Session.RefreshExpiresAt,
-		}
+		session := communityAuthSessionFromSnapshot(*result.Session)
+		out.Session = &session
 	}
 	return out
+}
+
+func communityAuthSessionFromTokenPair(pair service.TokenPair) CommunityAuthSessionSnapshot {
+	return CommunityAuthSessionSnapshot{
+		UserID:           pair.UserID,
+		SessionID:        pair.SessionID,
+		AccessExpiresAt:  pair.AccessExpiresAt,
+		RefreshExpiresAt: pair.RefreshExpiresAt,
+	}
+}
+
+func communityAuthSessionFromSnapshot(session service.SessionSnapshot) CommunityAuthSessionSnapshot {
+	return CommunityAuthSessionSnapshot{
+		UserID:           session.UserID,
+		SessionID:        session.SessionID,
+		AccessExpiresAt:  session.AccessExpiresAt,
+		RefreshExpiresAt: session.RefreshExpiresAt,
+	}
 }
 
 func (h *Handler) SetupStatus(c ports.HTTPContext) {

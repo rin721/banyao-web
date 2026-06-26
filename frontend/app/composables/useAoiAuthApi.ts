@@ -23,7 +23,7 @@ export function useAoiAuthApi() {
   const telemetry = useAoiApiTelemetry()
   const apiMock = computed(() => config.public.apiMock)
   const baseURL = computed(() => apiMock.value ? "/api/mock" : config.public.authApiBaseURL || "/api/v1")
-  const signupEndpoint = computed(() => apiMock.value ? "/auth/signup" : "/public/community/auth/signup")
+  const authPath = computed(() => apiMock.value ? "/auth" : "/public/community/auth")
 
   async function request<T>(endpoint: string, options: AuthRequestOptions = {}): Promise<T> {
     try {
@@ -46,21 +46,21 @@ export function useAoiAuthApi() {
   }
 
   async function login(body: LoginRequest): Promise<AuthSessionSnapshot> {
-    return await request<AuthSessionSnapshot>("/auth/login", {
+    return await request<AuthSessionSnapshot>(`${authPath.value}/login`, {
       body,
       method: "POST"
     })
   }
 
   async function getSession(options: { suppressTelemetry?: boolean } = {}): Promise<AuthSessionSnapshot> {
-    return await request<AuthSessionSnapshot>("/me/session", {
+    return await request<AuthSessionSnapshot>(`${authPath.value}/session`, {
       method: "GET",
       suppressTelemetry: options.suppressTelemetry
     })
   }
 
   async function logout(): Promise<boolean> {
-    const result = await request<AuthLogoutResult>("/auth/logout", {
+    const result = await request<AuthLogoutResult>(`${authPath.value}/logout`, {
       method: "POST"
     })
 
@@ -68,7 +68,7 @@ export function useAoiAuthApi() {
   }
 
   async function signup(body: CommunitySignupRequest): Promise<SignupResult> {
-    return await request<SignupResult>(signupEndpoint.value, {
+    return await request<SignupResult>(`${authPath.value}/signup`, {
       body,
       method: "POST"
     })
