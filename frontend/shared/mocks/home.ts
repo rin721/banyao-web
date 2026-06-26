@@ -103,9 +103,9 @@ export const mockCategoryTree: CategoryTreeNode[] = [
 export const mockCategories: Category[] = flattenCategoryTree(mockCategoryTree).map(({ children: _children, depth: _depth, path: _path, ...category }) => category)
 
 export const mockUsers: Record<string, UserSummary> = {
-  backend: { id: "user-backend", handle: "aoi-backend", displayName: "Aoi Backend", avatarUrl: null },
-  design: { id: "user-design", handle: "design-note", displayName: "Design Note", avatarUrl: null },
-  frontend: { id: "user-frontend", handle: "frontend-memo", displayName: "Frontend Memo", avatarUrl: null },
+  backend: { id: "user-curator", handle: "aoi-curator", displayName: "Aoi Curator", avatarUrl: null },
+  design: { id: "user-design", handle: "color-note", displayName: "Color Note", avatarUrl: null },
+  frontend: { id: "user-layout", handle: "layout-notes", displayName: "Layout Notes", avatarUrl: null },
   lab: { id: "user-lab", handle: "aoi-lab", displayName: "Aoi Lab", avatarUrl: null },
   motion: { id: "user-motion", handle: "aoi-motion", displayName: "Aoi Motion", avatarUrl: null },
   rin: { id: "user-rin", handle: "rin721", displayName: "Rin721", avatarUrl: null }
@@ -129,8 +129,8 @@ function category(slug: string) {
 
 export const mockAnnouncement: Announcement = {
   id: "ann-alpha",
-  title: "公告",
-  body: "Aoi 正在进行 KIRAKIRA 风格视觉与社区 API 接入。欢迎继续打磨创作者投稿、互动和通知能力。",
+  title: "今日更新",
+  body: "首页阅读节奏变得更轻了，分类、动态和最新投稿会一起陪你发现新的创作者内容。",
   href: null,
   severity: "info",
   startsAt: "2026-06-03T00:00:00.000Z",
@@ -142,7 +142,7 @@ export const mockVideos: VideoSummary[] = [
     id: "video-aoi-alpha",
     slug: "aoi-alpha",
     title: "Aoi Alpha：清透社区首页的第一次视觉试映",
-    description: "从静态设计原型迁移到 Nuxt 首页，并接入 Material Web 的 Aoi wrapper。",
+    description: "一次首页试映，观察清透标题、分类入口和动态流如何自然连在一起。",
     thumbnailUrl: "gradient:aoi-alpha",
     durationSeconds: 300,
     viewCount: 1200,
@@ -154,8 +154,8 @@ export const mockVideos: VideoSummary[] = [
   {
     id: "video-token-array",
     slug: "token-array",
-    title: "Colorful Array：蓝绿色主题 token 的组合实验",
-    description: "Aoi token 与 Material Web token 的映射记录。",
+    title: "Colorful Array：青粉主题的几何折线实验",
+    description: "用柔和色彩和几何折线做一组频道封面的延展实验。",
     thumbnailUrl: "gradient:token-array",
     durationSeconds: 198,
     viewCount: 856,
@@ -193,8 +193,8 @@ export const mockVideos: VideoSummary[] = [
   {
     id: "video-go-api",
     slug: "go-api-ready",
-    title: "Community API Ready：前端数据如何平滑切换后端",
-    description: "DTO、runtime config 与后端社区接口接入。",
+    title: "Community Notes：从投稿到互动的顺畅动线",
+    description: "围绕评论、收藏和关注整理一条轻快的社区浏览路径。",
     thumbnailUrl: "gradient:go-api",
     durationSeconds: 496,
     viewCount: 1800,
@@ -255,7 +255,7 @@ const mockCommunityDynamics: CommunityDynamicItem[] = [
     kind: "video_update",
     authorName: mockUsers.rin!.displayName,
     author: mockUsers.rin!,
-    body: "首页动态流已经接上后端 community_dynamics 表，轻量卡片先承载创作者更新和站内小公告。",
+    body: "今天把首页动态整理成更轻的阅读节奏，短更新和关联视频会自然连在一起。",
     videoId: "video-aoi-alpha",
     video: mockVideos.find((video) => video.id === "video-aoi-alpha") || null,
     createdAt: "2026-06-03T10:16:00.000Z"
@@ -275,7 +275,7 @@ const mockCommunityDynamics: CommunityDynamicItem[] = [
     kind: "video_update",
     authorName: mockUsers.frontend!.displayName,
     author: mockUsers.frontend!,
-    body: "移动端动态卡片使用单列阅读节奏，长句会安全换行，避免挤压播放器和内容网格。",
+    body: "手机上也能轻松阅读动态卡片，长句会自然换行，视频入口保持稳定比例。",
     videoId: "video-mobile-grid",
     video: mockVideos.find((video) => video.id === "video-mobile-grid") || null,
     createdAt: "2026-06-03T08:50:00.000Z"
@@ -310,8 +310,8 @@ const creatorMeta: Record<string, {
   followerCount: number
   joinedAt: string
 }> = {
-  "aoi-backend": {
-    bio: "记录 Aoi 前端与后端社区 API 的契约、数据流和工程化取舍。",
+  "aoi-curator": {
+    bio: "整理 Aoi 的创作者投稿、频道主题和社区活动笔记。",
     followerCount: 1480,
     joinedAt: "2026-05-08T00:00:00.000Z"
   },
@@ -325,13 +325,13 @@ const creatorMeta: Record<string, {
     followerCount: 760,
     joinedAt: "2026-05-12T00:00:00.000Z"
   },
-  "design-note": {
+  "color-note": {
     bio: "把复杂的视觉系统拆成可复用、可维护的产品界面记录。",
     followerCount: 960,
     joinedAt: "2026-04-25T00:00:00.000Z"
   },
-  "frontend-memo": {
-    bio: "前端布局、响应式细节和交互体验的实现备忘录。",
+  "layout-notes": {
+    bio: "记录社区页面的阅读节奏、响应式细节和互动体验。",
     followerCount: 1320,
     joinedAt: "2026-05-01T00:00:00.000Z"
   },
@@ -482,8 +482,8 @@ export function getMockFollowingFeed(clientId?: string): FollowingFeedPayload {
       nextCursor: null
     },
     message: followedCreators.length
-      ? "关注关系来自 mock 社区 API，真实模式会写入 Go 后端。"
-      : "当前社区读接口未接入认证；这里展示推荐关注的创作者预览。"
+      ? "关注关系来自本地演示数据；真实模式会同步你的社区关注。"
+      : "还没有识别到你的关注列表，先展示社区推荐。"
   }
 }
 
@@ -498,7 +498,7 @@ export function getMockCommunityDynamics(clientId?: string, limit?: number): Com
       items: mockCommunityDynamics.slice(0, visibleLimit),
       nextCursor: null
     },
-    message: "社区动态来自 mock API；真实模式由 Go 后端 community_dynamics 表返回。"
+    message: "社区动态来自本地演示数据；真实模式会展示社区时间线。"
   }
 }
 
@@ -627,7 +627,7 @@ export function getMockVideoLibrary(clientId: string): VideoLibraryPayload | nul
       items: favorites,
       nextCursor: null
     },
-    message: "收藏和稍后看来自 mock 社区 API；真实模式会写入 Go 后端匿名关系表。",
+    message: "收藏和稍后看来自本地演示数据；真实模式会同步社区资料库。",
     watchLater: {
       items: watchLater,
       nextCursor: null
@@ -763,13 +763,13 @@ const mockDanmakuSamples: Array<{
 }> = [
   { body: "开场好清爽", offset: 2 },
   { body: "这个控制条很有 Aoi 的味道", offset: 5 },
-  { body: "弹幕层测试通过", offset: 8, color: "#7ee7ff" },
+  { body: "弹幕刚好飘过", offset: 8, color: "#7ee7ff" },
   { body: "注意看右侧列表", offset: 11 },
   { body: "顶部固定弹幕", mode: "top", offset: 14, color: "#ffe58a" },
   { body: "节奏刚好", offset: 17 },
   { body: "底部固定弹幕", mode: "bottom", offset: 20, color: "#ffb4d8" },
-  { body: "Aoi wrapper 化很舒服", offset: 23 },
-  { body: "这里已经可以接后端社区 API", offset: 27 },
+  { body: "这个播放层很舒服", offset: 23 },
+  { body: "互动反馈已经很顺", offset: 27 },
   { body: "移动端也要稳", offset: 31 }
 ]
 
@@ -778,8 +778,8 @@ const mockVideoComments: Record<string, VideoComment[]> = {
     {
       id: "comment-aoi-alpha-1",
       videoId: "video-aoi-alpha",
-      body: "后端社区模块接上以后，页面里的信息密度终于不只是 mock 了。",
-      authorName: "Frontend Memo",
+      body: "首页信息密度轻了很多，动态、分类和最新投稿之间的节奏更顺了。",
+      authorName: "Layout Notes",
       status: "visible",
       createdAt: "2026-06-03T10:05:00.000Z",
       updatedAt: "2026-06-03T10:05:00.000Z"
@@ -788,7 +788,7 @@ const mockVideoComments: Record<string, VideoComment[]> = {
       id: "comment-aoi-alpha-2",
       videoId: "video-aoi-alpha",
       body: "黑白几何底色加一点青粉状态色，确实更接近 kirakira 那种清爽锋利感。",
-      authorName: "Design Note",
+      authorName: "Color Note",
       status: "visible",
       createdAt: "2026-06-03T10:07:00.000Z",
       updatedAt: "2026-06-03T10:07:00.000Z"
@@ -798,7 +798,7 @@ const mockVideoComments: Record<string, VideoComment[]> = {
     {
       id: "comment-go-api-1",
       videoId: "video-go-api",
-      body: "route contract 生成 OpenAPI 后，前端接口字段终于有稳定来源。",
+      body: "从投稿到收藏这一段路径很顺，适合作为新用户的第一条浏览路线。",
       authorName: "Aoi Viewer",
       status: "visible",
       createdAt: "2026-05-28T10:05:00.000Z",
@@ -832,7 +832,7 @@ export function getMockVideoHistory(clientId: string, limit?: number): VideoHist
       items: visibleItems,
       nextCursor: null
     },
-    message: "观看历史来自 mock 社区 API；真实模式会写入 Go 后端匿名观看历史表。"
+    message: "观看历史来自本地演示数据；真实模式会同步社区观看记录。"
   }
 }
 
@@ -1071,7 +1071,7 @@ export function getMockCommunitySubmissions(clientId: string, limit?: number): C
       items: visibleItems,
       nextCursor: null
     },
-    message: "投稿记录来自 mock 社区 API；真实模式会写入 Go 后端 community_submissions 表。"
+    message: "投稿记录来自本地演示数据；真实模式会同步社区投稿回执。"
   }
 }
 
@@ -1141,7 +1141,7 @@ export function getMockCommunityNotifications(clientId: string, limit?: number):
       items: visibleItems,
       nextCursor: null
     },
-    message: "通知来自 mock 社区 API；真实模式会写入 Go 后端匿名通知表。",
+    message: "通知来自本地演示数据；真实模式会同步社区通知流。",
     unreadCount
   }
 }

@@ -81,7 +81,7 @@ export const useCommentsStore = defineStore("comments", () => {
       try {
         window.localStorage.removeItem(STORAGE_KEY)
       } catch {
-        // 显示名称只是便捷偏好；清理失败不影响后端评论能力。
+        // 显示名称只是便捷偏好；清理失败不影响评论能力。
       }
     }
   }

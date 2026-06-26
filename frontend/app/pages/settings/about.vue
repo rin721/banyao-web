@@ -69,7 +69,7 @@ onBeforeUnmount(() => {
   <div class="settings-page">
     <SettingsPageHeader
       title="关于"
-      description="Aoi 是一个前端优先的视频社区，默认接入后端社区 API，Nuxt mock 仅用于本地演示与调试。"
+      description="Aoi 是一个轻量视频社区，围绕投稿发现、创作者关注、弹幕讨论和个人资料库展开。"
     />
 
     <SettingsPanel
@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
           <strong>Aoi</strong>
           <span class="settings-about-logo__glint" aria-hidden="true" />
         </button>
-        <span>Nuxt 4 Frontend · Backend Community API · Aoi Design System</span>
+        <span>Nuxt 4 · Community Flow · Aoi Design System</span>
         <small class="settings-about-dev-hint">{{ developerUnlockMessage }}</small>
       </div>
     </SettingsPanel>

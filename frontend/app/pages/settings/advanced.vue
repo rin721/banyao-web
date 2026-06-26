@@ -20,8 +20,8 @@ const pendingAction = ref<{
 
 const activeBaseURL = computed(() => config.public.apiMock ? "/api/mock" : config.public.apiBaseURL)
 const dataSourceStats = computed(() => [
-  { label: "数据源", value: config.public.apiMock ? "Nuxt Mock API" : "后端社区 API" },
-  { label: "Mock 开关", value: config.public.apiMock ? "NUXT_PUBLIC_API_MOCK=true" : "默认后端" },
+  { label: "数据源", value: config.public.apiMock ? "本地演示数据" : "社区实时数据" },
+  { label: "演示开关", value: config.public.apiMock ? "已启用" : "未启用" },
   { label: "Base URL", value: activeBaseURL.value }
 ])
 const localStats = computed(() => ({
@@ -208,7 +208,7 @@ function cancelPendingAction() {
               size="sm"
               icon="rotate-ccw"
               :disabled="!library.hydrated || !hasLocalData"
-              @click="askConfirm('重置本地互动缓存', '将清空观看历史和浏览器互动缓存；后端匿名收藏、稍后看和点赞会在下次同步时重新加载。', () => library.resetLibrary())"
+              @click="askConfirm('重置本地互动缓存', '将清空观看历史和浏览器互动缓存；收藏、稍后看和点赞会在下次同步时重新加载。', () => library.resetLibrary())"
             >
               重置
             </AoiButton>
@@ -225,7 +225,7 @@ function cancelPendingAction() {
               size="sm"
               icon="message-circle"
               :disabled="!comments.hydrated || !hasCommentIdentity"
-              @click="askConfirm('重置评论身份', '将恢复评论显示名称；已发布的后端社区评论不会被删除。', () => comments.resetCommentIdentity())"
+              @click="askConfirm('重置评论身份', '将恢复评论显示名称；已发布的社区评论不会被删除。', () => comments.resetCommentIdentity())"
             >
               重置
             </AoiButton>
@@ -259,7 +259,7 @@ function cancelPendingAction() {
               size="sm"
               icon="user-minus"
               :disabled="!following.hydrated || !hasFollowingData"
-              @click="askConfirm('清空本地关注缓存', '只删除当前浏览器缓存；后端匿名关注关系会在下次同步时重新加载。', () => following.resetFollowing())"
+              @click="askConfirm('清空本地关注缓存', '只删除当前浏览器缓存；匿名关注关系会在下次同步时重新加载。', () => following.resetFollowing())"
             >
               清空
             </AoiButton>

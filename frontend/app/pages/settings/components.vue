@@ -60,7 +60,7 @@ const fallbackComments: CommentView[] = [
     videoId: "video-aoi-alpha"
   },
   {
-    authorName: "Design Note",
+    authorName: "Color Note",
     body: "长滚动实验台保留了目标页的密度，但颜色仍然来自 Aoi。",
     createdAt: "2026-06-09T03:08:00.000Z",
     id: "comment-demo-2",

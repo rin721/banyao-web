@@ -31,19 +31,26 @@ function change(value: string) {
     snap
     :aria-label="t('home.categoryTabsAria')"
   >
-    <AoiTabs
-      :model-value="modelValue"
-      :items="tabItems"
-      :aria-label="t('home.categoryTabsAria')"
-      @update:model-value="change"
-    />
+    <div class="category-tabs__list" role="list" :aria-label="t('home.categoryTabsAria')">
+      <button
+        v-for="item in tabItems"
+        :key="item.value"
+        class="category-tabs__item"
+        :class="{ 'category-tabs__item--active': item.value === modelValue }"
+        type="button"
+        :aria-pressed="item.value === modelValue"
+        @click="change(item.value)"
+      >
+        {{ item.label }}
+      </button>
+    </div>
   </AoiScrollArea>
 </template>
 
 <style scoped>
 .category-tabs {
   margin: 0 calc(var(--aoi-category-tabs-bleed) * -1);
-  padding: 0 var(--aoi-category-tabs-bleed) var(--aoi-category-tabs-bleed);
+  padding: 0 var(--aoi-category-tabs-bleed) 14px;
   scrollbar-width: none;
 }
 
@@ -51,19 +58,78 @@ function change(value: string) {
   display: none;
 }
 
-.category-tabs :deep(md-tabs) {
+.category-tabs__list {
+  display: flex;
   min-width: max-content;
+  gap: 8px;
+  padding: 2px 0;
 }
 
-.category-tabs :deep(md-primary-tab) {
-  scroll-snap-align: start;
-  scroll-snap-stop: normal;
+.category-tabs__item {
+  display: inline-flex;
+  min-width: 82px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--aoi-radius-round);
+  appearance: none;
+  background: color-mix(in srgb, var(--aoi-surface-solid) 38%, transparent);
+  color: var(--aoi-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 720;
+  line-height: 1;
+  padding: 0 18px;
+  text-align: center;
+  transition:
+    background var(--aoi-motion-fast) var(--aoi-ease-out),
+    border-color var(--aoi-motion-fast) var(--aoi-ease-out),
+    color var(--aoi-motion-fast) var(--aoi-ease-out),
+    transform var(--aoi-motion-fast) var(--aoi-ease-out);
+  white-space: nowrap;
+}
+
+.category-tabs__item:hover {
+  border-color: color-mix(in srgb, var(--aoi-active-color) 18%, transparent);
+  background: color-mix(in srgb, var(--aoi-active-color) 7%, var(--aoi-surface-solid) 38%);
+  color: var(--aoi-text);
+  transform: translateY(-1px);
+}
+
+.category-tabs__item:active {
+  transform: translateY(0);
+}
+
+.category-tabs__item--active {
+  border-color: color-mix(in srgb, var(--aoi-active-color) 26%, transparent);
+  background: color-mix(in srgb, var(--aoi-active-color) 12%, var(--aoi-surface-solid) 42%);
+  color: var(--aoi-active-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--aoi-active-color) 8%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-tabs__item,
+  .category-tabs__item:hover,
+  .category-tabs__item:active {
+    transform: none;
+  }
 }
 
 @media (max-width: 639px) {
   .category-tabs {
     margin: 0 calc(var(--aoi-category-tabs-mobile-bleed) * -1);
-    padding: 0 var(--aoi-category-tabs-mobile-bleed) var(--aoi-category-tabs-mobile-bleed);
+    padding: 0 var(--aoi-category-tabs-mobile-bleed) 12px;
+  }
+
+  .category-tabs__list {
+    gap: 7px;
+  }
+
+  .category-tabs__item {
+    min-width: auto;
+    height: 44px;
+    padding: 0 14px;
   }
 }
 </style>

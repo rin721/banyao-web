@@ -94,13 +94,13 @@
     }
   },
   "home": {
-    "subtitle": "一个清爽、可爱、面向创作者的视频社区，默认接入后端社区 API，Nuxt mock 仅用于本地演示与调试。",
+    "subtitle": "一个清爽、可爱、面向创作者的视频社区，发现投稿、关注动态和轻量互动。",
     "latest": "最新",
     "gridView": "网格视图",
     "listView": "列表视图",
     "categoryTabsAria": "内容分类",
     "dynamicsTitle": "社区动态",
-    "dynamicsDescription": "来自后端动态流的创作者更新与站内轻消息，保留 kirakira 式轻盈阅读节奏。"
+    "dynamicsDescription": "来自创作者的短更新和站内轻消息，保留 kirakira 式轻盈阅读节奏。"
   },
   "category": {
     "indexHeadTitle": "分类 - Aoi",
@@ -108,22 +108,22 @@
     "detailHeadTitle": "{category} - Aoi 分类",
     "indexEyebrow": "社区分类",
     "indexTitle": "分类",
-    "indexDescription": "按内容类型浏览 Aoi 社区的视频内容。分类树和数量来自当前社区 API，并按真实返回展示。",
-    "indexSourceLoading": "正在读取社区分类 API 和视频索引。",
-    "indexSource": "来自社区分类 API：{categories} 个一级分类，已索引 {videos} 个视频。",
+    "indexDescription": "按内容类型浏览 Aoi 社区的视频内容。分类树和数量会跟随当前社区索引展示。",
+    "indexSourceLoading": "正在读取社区分类和视频索引。",
+    "indexSource": "社区分类索引：{categories} 个一级分类，已收录 {videos} 个视频。",
     "indexSectionsTitle": "分类地图",
     "indexSectionsDescription": "一级分类负责入口，子分类继续细分内容，数量会跟随真实视频索引更新。",
     "detailEyebrow": "社区分类",
     "detailSourceLoading": "正在读取「{slug}」分类。",
-    "detailSource": "正在使用社区分类 API 展示「{category}」下的 {count} 个视频。",
+    "detailSource": "正在展示「{category}」下的 {count} 个视频。",
     "searchAction": "搜索内容",
     "allCategoriesAction": "全部分类",
     "backToCategories": "返回分类",
     "retry": "重试",
     "loadingTitle": "正在读取分类",
-    "loadingDescription": "正在从社区 API 载入分类树和视频索引。",
+    "loadingDescription": "正在载入分类树和视频索引。",
     "errorTitle": "分类加载失败",
-    "errorDescription": "社区 API 返回异常，请重试。",
+    "errorDescription": "社区分类暂时没有加载成功，请重试。",
     "emptyTitle": "还没有分类",
     "emptyDescription": "当前社区数据源没有返回分类树，页面展示空状态并等待社区数据。",
     "notFoundTitle": "分类不存在",
@@ -237,7 +237,7 @@
     "headTitle": "关注动态 - Aoi",
     "eyebrow": "社区关系",
     "title": "关注动态",
-    "description": "使用匿名 clientId 写入后端社区关注关系，展示你订阅的创作者和最新投稿。",
+    "description": "使用匿名 clientId 同步关注关系，展示你订阅的创作者和最新投稿。",
     "sourceLoading": "正在从社区关注 API 同步匿名关注关系、动态和推荐内容。",
     "sourceMissing": "关注流尚未返回数据；页面展示空状态并等待社区数据。",
     "sourceAuthenticated": "正在展示登录态关注流，共 {count} 个关注关系。",
@@ -252,10 +252,10 @@
     "retry": "重试",
     "refresh": "刷新",
     "emptyTitle": "还没有关注任何创作者",
-    "emptyDescription": "关注创作者后，这里会从后端关系表加载你的订阅更新。",
+    "emptyDescription": "关注创作者后，这里会加载你的订阅更新。",
     "searchAction": "先去搜索",
     "followedTitle": "已关注创作者",
-    "followedDescription": "这些关系来自 Go 社区 API 的匿名关注表。",
+    "followedDescription": "这些关系来自当前浏览器的匿名关注资料。",
     "latestTitle": "关注更新",
     "recommendedTitle": "推荐创作者",
     "recommendedDescription": "还没有关注时，先展示社区 API 返回的推荐创作者。",
@@ -272,7 +272,7 @@
       "following": "关注关系",
       "followingDescription": "当前 clientId 已同步的创作者关系",
       "creators": "创作者",
-      "creatorsDescription": "后端关注流返回的创作者候选",
+      "creatorsDescription": "关注流返回的创作者候选",
       "latest": "视频更新",
       "latestDescription": "关注或推荐分支中的最新视频",
       "dynamics": "动态",
@@ -296,7 +296,7 @@
     "readStatus": "暂无未读通知",
     "defaultMessage": "通知使用当前浏览器的匿名 clientId 归档。",
     "listTitle": "消息流",
-    "listDescription": "最近的社区回执和状态变化来自后端通知表。",
+    "listDescription": "最近的社区回执和状态变化会汇总到这里。",
     "openTarget": "打开",
     "unreadDot": "未读通知",
     "timelineAria": "通知时间线",
@@ -1227,7 +1227,7 @@
     "reportClose": "关闭",
     "reportDetailLabel": "补充说明",
     "reportDetailPlaceholder": "例如：问题出现的位置、原因或你希望审核员重点看的内容",
-    "reportDialogDescription": "这条举报会提交到社区 API，并以待处理状态进入后端举报表。请提供清晰原因，避免重复举报。",
+    "reportDialogDescription": "这条举报会提交给社区审核队列。请提供清晰原因，避免重复举报。",
     "reportDialogTitle": "举报稿件",
     "reportReasonAbuse": "攻击、骚扰或仇恨",
     "reportReasonCopyright": "版权或搬运争议",
@@ -1247,7 +1247,7 @@
     "communityCommentSubmitError": "评论提交失败，请确认社区 API 可用后重试。",
     "communityCommentDescription": "已加载 {count} 条，社区共 {total} 条",
     "communityCommentEmptyTitle": "还没有社区评论",
-    "communityCommentEmptyDescription": "写下第一条讨论，它会保存到后端社区评论表。",
+    "communityCommentEmptyDescription": "写下第一条讨论，它会出现在社区讨论流里。",
     "communityCommentSort": "评论排序"
   },
   "lightbox": {
@@ -1292,7 +1292,7 @@
     "headTitle": "投稿 - Aoi",
     "eyebrow": "社区投稿",
     "title": "投稿工作台",
-    "description": "准备视频信息，并将元数据提交到后端社区待审核队列；文件字节仍留在浏览器，不写入本地持久化。",
+    "description": "准备视频信息，并将元数据提交到社区审核队列；文件字节仍留在浏览器，不写入本地持久化。",
     "newDraft": "新建草稿",
     "refresh": "刷新数据",
     "defaultAuthor": "Aoi 创作者",
@@ -1322,7 +1322,7 @@
       "readyDescription": "必填项已补齐的本地草稿",
       "submitted": "已提交",
       "submittedDescription": "本地标记为已送审的草稿",
-      "remote": "后端回执",
+      "remote": "投稿回执",
       "remoteDescription": "社区 API 返回的最近投稿记录"
     },
     "status": {
@@ -1400,7 +1400,7 @@
     },
     "submissions": {
       "title": "最近投稿",
-      "description": "当前匿名 clientId 从后端社区投稿队列读取到 {count} 条回执。",
+      "description": "当前匿名 clientId 已同步到 {count} 条投稿回执。",
       "refresh": "刷新投稿",
       "loading": "加载中",
       "empty": "当前浏览器还没有投稿记录。",
@@ -1415,12 +1415,12 @@
     "headTitle": "收藏 - Aoi",
     "eyebrow": "社区资料库",
     "title": "收藏",
-    "description": "收藏和稍后看会写入 Go 后端社区匿名资料库；本地只保留离线缓存和加载降级。",
+    "description": "收藏和稍后看会同步到社区资料库；本地只保留离线缓存和加载降级。",
     "clientPending": "等待同步",
     "clientLabel": "匿名 clientId：{client}",
     "tabsAria": "收藏资料库类型",
     "loadingTitle": "正在同步资料库",
-    "loadingDescription": "正在从后端社区模块读取收藏和稍后看。",
+    "loadingDescription": "正在同步收藏和稍后看。",
     "errorTitle": "资料库同步失败",
     "errorDescription": "社区资料库 API 暂时没有返回收藏和稍后看数据。",
     "source": {
@@ -1431,13 +1431,13 @@
     },
     "stats": {
       "favorites": "收藏",
-      "favoritesDescription": "当前匿名 clientId 在后端资料库中的收藏数",
+      "favoritesDescription": "当前匿名 clientId 在社区资料库中的收藏数",
       "watchLater": "稍后看",
-      "watchLaterDescription": "当前匿名 clientId 在后端资料库中的稍后看数",
+      "watchLaterDescription": "当前匿名 clientId 在社区资料库中的稍后看数",
       "total": "全部",
       "totalDescription": "收藏与稍后看合计",
-      "backend": "后端状态",
-      "backendDescription": "社区资料库 API 的当前同步状态",
+      "backend": "同步状态",
+      "backendDescription": "社区资料库的当前同步状态",
       "backendReady": "已同步",
       "backendLocal": "本地"
     },
@@ -1454,19 +1454,19 @@
       "favoritesTitle": "收藏视频",
       "favoritesDescription": "这些条目来自社区资料库 API，并按当前匿名 clientId 同步。",
       "watchLaterTitle": "稍后看",
-      "watchLaterDescription": "临时保留想继续观看的视频，刷新后会从后端重新校准。"
+      "watchLaterDescription": "临时保留想继续观看的视频，刷新后会重新校准。"
     },
     "empty": {
       "favoritesTitle": "还没有收藏",
       "watchLaterTitle": "稍后看为空",
-      "favoritesDescription": "打开视频详情后点击收藏，条目会写入后端社区资料库。",
+      "favoritesDescription": "打开视频详情后点击收藏，条目会同步到社区资料库。",
       "watchLaterDescription": "在视频详情页加入稍后看，稍后可以从这里继续找回。",
       "action": "去搜索"
     }
   },
   "history": {
     "title": "历史",
-    "description": "观看记录会写入后端社区模块，并保留本地缓存作为离线降级；刷新后会按匿名 clientId 自动校准最近观看和播放进度。",
+    "description": "观看记录会同步到社区观看记录，并保留本地缓存作为离线降级；刷新后会按匿名 clientId 自动校准最近观看和播放进度。",
     "gridAria": "最近观看",
     "actions": {
       "clear": "清空历史",
@@ -1480,7 +1480,7 @@
     },
     "empty": {
       "title": "暂无历史记录",
-      "description": "打开任意视频详情页后，这里会从后端同步最近观看和播放进度。",
+      "description": "打开任意视频详情页后，这里会同步最近观看和播放进度。",
       "action": "返回首页"
     }
   }

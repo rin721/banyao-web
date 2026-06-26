@@ -90,7 +90,7 @@ func TestServiceVideoCommentsCreatesAndListsPersistedComments(t *testing.T) {
 
 	comment, err := svc.CreateVideoComment(context.Background(), "aoi-alpha", model.CreateVideoCommentRequest{
 		AuthorName: "  Aoi Viewer  ",
-		Body:       "  这条评论来自后端社区模块。  ",
+		Body:       "  这条评论来自社区讨论区。  ",
 	})
 	if err != nil {
 		t.Fatalf("CreateVideoComment() error = %v", err)
@@ -98,7 +98,7 @@ func TestServiceVideoCommentsCreatesAndListsPersistedComments(t *testing.T) {
 	if comment.ID != "comment-unit-comment" || comment.VideoID != "video-aoi-alpha" {
 		t.Fatalf("unexpected created comment: %#v", comment)
 	}
-	if comment.AuthorName != "Aoi Viewer" || comment.Body != "这条评论来自后端社区模块。" {
+	if comment.AuthorName != "Aoi Viewer" || comment.Body != "这条评论来自社区讨论区。" {
 		t.Fatalf("expected normalized comment, got %#v", comment)
 	}
 
@@ -131,7 +131,7 @@ func TestServiceCreateVideoDanmakuPersistsAndNormalizesInput(t *testing.T) {
 
 	item, err := svc.CreateVideoDanmaku(context.Background(), "aoi-alpha", model.CreateVideoDanmakuRequest{
 		AuthorName:  "  Aoi Viewer  ",
-		Body:        "  Backend danmaku  ",
+		Body:        "  Smooth danmaku  ",
 		TimeSeconds: 999,
 		Mode:        "invalid",
 		Color:       "pink",
@@ -142,7 +142,7 @@ func TestServiceCreateVideoDanmakuPersistsAndNormalizesInput(t *testing.T) {
 	if item.ID != "danmaku-unit-danmaku" || item.VideoID != "video-aoi-alpha" {
 		t.Fatalf("unexpected created danmaku: %#v", item)
 	}
-	if item.AuthorName != "Aoi Viewer" || item.Body != "Backend danmaku" {
+	if item.AuthorName != "Aoi Viewer" || item.Body != "Smooth danmaku" {
 		t.Fatalf("expected normalized author and body, got %#v", item)
 	}
 	if item.TimeSeconds != 299 || item.Mode != model.DanmakuModeScroll || item.Color != "#ffffff" {
@@ -222,7 +222,7 @@ func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
 
 	created, err := svc.CreateCommunityDynamic(context.Background(), model.CreateCommunityDynamicRequest{
 		AuthorName: "  Aoi Viewer  ",
-		Body:       "  The timeline is now backed by community_dynamics.  ",
+		Body:       "  The timeline feels easy to read.  ",
 		ClientID:   " browser-client-1 ",
 		VideoID:    "aoi-alpha",
 	})
@@ -235,7 +235,7 @@ func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
 	if created.Kind != model.CommunityDynamicKindVideoUpdate || created.Video == nil {
 		t.Fatalf("expected video dynamic with decorated video, got %#v", created)
 	}
-	if created.AuthorName != "Aoi Viewer" || created.Body != "The timeline is now backed by community_dynamics." {
+	if created.AuthorName != "Aoi Viewer" || created.Body != "The timeline feels easy to read." {
 		t.Fatalf("expected normalized dynamic, got %#v", created)
 	}
 
@@ -614,7 +614,7 @@ type fakeRepository struct {
 
 func newFakeRepository() *fakeRepository {
 	description := "视觉与交互"
-	bio := "关注设计和后端契约"
+	bio := "关注设计和社区体验"
 	avatar := "https://example.invalid/avatar.png"
 	return &fakeRepository{
 		categories: []model.Category{
@@ -628,7 +628,7 @@ func newFakeRepository() *fakeRepository {
 		},
 		videos: []model.Video{
 			{ID: "video-aoi-alpha", Slug: "aoi-alpha", Title: "Banyao Alpha 设计预览", Description: &description, ThumbnailURL: "gradient:aoi-alpha", DurationSeconds: 300, ViewCount: 1200, CommentCount: 12, LikeCount: 20, SourceURL: "https://example.invalid/a.mp4", PublishedAt: fixedNow(), UploaderID: "user-rin"},
-			{ID: "video-go-api", Slug: "go-api-ready", Title: "Go API Ready", Description: strPtr("后端接入"), ThumbnailURL: "gradient:go-api", DurationSeconds: 240, ViewCount: 800, CommentCount: 8, LikeCount: 10, SourceURL: "https://example.invalid/b.mp4", PublishedAt: fixedNow().Add(-time.Hour), UploaderID: "user-lab"},
+			{ID: "video-go-api", Slug: "go-api-ready", Title: "Community Notes", Description: strPtr("社区动线"), ThumbnailURL: "gradient:go-api", DurationSeconds: 240, ViewCount: 800, CommentCount: 8, LikeCount: 10, SourceURL: "https://example.invalid/b.mp4", PublishedAt: fixedNow().Add(-time.Hour), UploaderID: "user-lab"},
 		},
 		categorySlugs: map[string][]string{
 			"video-aoi-alpha": {"design"},
@@ -636,15 +636,15 @@ func newFakeRepository() *fakeRepository {
 		},
 		comments: map[string][]model.VideoComment{
 			"video-aoi-alpha": {
-				{ID: "comment-seed", VideoID: "video-aoi-alpha", Body: "已有评论", AuthorName: "Design Note", Status: model.CommentStatusVisible, CreatedAt: fixedNow().Add(-time.Minute), UpdatedAt: fixedNow().Add(-time.Minute)},
+				{ID: "comment-seed", VideoID: "video-aoi-alpha", Body: "已有评论", AuthorName: "Color Note", Status: model.CommentStatusVisible, CreatedAt: fixedNow().Add(-time.Minute), UpdatedAt: fixedNow().Add(-time.Minute)},
 			},
 		},
 		danmaku: map[string][]model.VideoDanmakuItem{
 			"video-aoi-alpha": {{ID: "d1", VideoID: "video-aoi-alpha", Body: "清晰", TimeSeconds: 2, Mode: model.DanmakuModeScroll, Color: "#ffffff", AuthorName: "viewer", CreatedAt: fixedNow()}},
 		},
 		dynamics: []model.CommunityDynamic{
-			{ID: "dynamic-rin", CreatorID: "user-rin", VideoID: "video-aoi-alpha", AuthorName: "Rin721", Body: "Community timeline is live.", Kind: model.CommunityDynamicKindVideoUpdate, Status: model.CommunityDynamicStatusVisible, CreatedAt: fixedNow(), UpdatedAt: fixedNow()},
-			{ID: "dynamic-lab", CreatorID: "user-lab", VideoID: "video-go-api", AuthorName: "Aoi Lab", Body: "API client is reading real data.", Kind: model.CommunityDynamicKindVideoUpdate, Status: model.CommunityDynamicStatusVisible, CreatedAt: fixedNow().Add(-time.Minute), UpdatedAt: fixedNow().Add(-time.Minute)},
+			{ID: "dynamic-rin", CreatorID: "user-rin", VideoID: "video-aoi-alpha", AuthorName: "Rin721", Body: "首页动态整理成更轻的阅读节奏。", Kind: model.CommunityDynamicKindVideoUpdate, Status: model.CommunityDynamicStatusVisible, CreatedAt: fixedNow(), UpdatedAt: fixedNow()},
+			{ID: "dynamic-lab", CreatorID: "user-lab", VideoID: "video-go-api", AuthorName: "Aoi Lab", Body: "从投稿到收藏这一段路径很顺。", Kind: model.CommunityDynamicKindVideoUpdate, Status: model.CommunityDynamicStatusVisible, CreatedAt: fixedNow().Add(-time.Minute), UpdatedAt: fixedNow().Add(-time.Minute)},
 		},
 		follows:      map[string][]model.CreatorFollow{},
 		histories:    map[string][]model.VideoHistory{},

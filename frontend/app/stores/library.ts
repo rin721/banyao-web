@@ -155,7 +155,7 @@ export const useLibraryStore = defineStore("library", () => {
         watchLaterVideos: watchLaterVideos.value
       } satisfies PersistedLibraryState))
     } catch {
-      // 本地资料库只是后端匿名关系不可用时的缓存降级。
+      // 本地资料库只是匿名关系同步不可用时的缓存降级。
     }
   }
 
@@ -585,7 +585,7 @@ export const useLibraryStore = defineStore("library", () => {
     const results = await Promise.allSettled(items.map((video) => api.unsetVideoInteraction(video.id, kind, activeClientId)))
     if (results.some((item) => item.status === "rejected")) {
       backendReady.value = false
-      syncError.value = "部分后端互动关系清理失败，下次同步会重新校准。"
+      syncError.value = "部分互动关系清理失败，下次同步会重新校准。"
       return
     }
 
@@ -602,7 +602,7 @@ export const useLibraryStore = defineStore("library", () => {
       try {
         window.localStorage.removeItem(STORAGE_KEY)
       } catch {
-        // 本地资料库只是后端匿名关系不可用时的缓存降级。
+        // 本地资料库只是匿名关系同步不可用时的缓存降级。
       }
     }
   }

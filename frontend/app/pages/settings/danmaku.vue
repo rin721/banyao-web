@@ -183,7 +183,7 @@ function setSettingDerivationStrength(key: string, value: number) {
       v-if="settings.hydrated"
       icon="activity"
       title="弹幕降级缓存"
-      description="这里显示社区 API 暂时不可用时保存在当前浏览器里的发送弹幕，不包含后端已持久化弹幕。"
+      description="这里显示社区暂时不可用时保存在当前浏览器里的发送弹幕，不包含已同步弹幕。"
     >
       <AoiStatGrid :items="danmakuStats" />
     </SettingsPanel>

@@ -662,7 +662,7 @@ func (s *service) FollowingFeed(ctx context.Context, req model.CreatorFollowRequ
 		}
 		return s.recommendedFollowingFeed(ctx, &normalizedClientID, "还没有关注任何创作者，先展示社区推荐。")
 	}
-	return s.recommendedFollowingFeed(ctx, nil, "当前公开接口未绑定登录态；这里展示后端社区模块返回的推荐关注预览。")
+	return s.recommendedFollowingFeed(ctx, nil, "还没有识别到你的关注列表，先展示社区推荐。")
 }
 
 func (s *service) VideoLibrary(ctx context.Context, req model.VideoInteractionRequest) (model.VideoLibraryPayload, error) {
@@ -697,7 +697,7 @@ func (s *service) VideoLibrary(ctx context.Context, req model.VideoInteractionRe
 	if err != nil {
 		return model.VideoLibraryPayload{}, err
 	}
-	message := "收藏和稍后看来自后端社区模块的匿名 clientId；接入登录后可迁移为用户资料库。"
+	message := "收藏和稍后看会按当前浏览器同步；登录后可迁移为账号资料库。"
 	return model.VideoLibraryPayload{
 		Authenticated:   false,
 		ClientID:        &clientID,
@@ -823,7 +823,7 @@ func (s *service) ListCommunityDynamics(ctx context.Context, filter model.Commun
 	if err != nil {
 		return model.CommunityDynamicPayload{}, err
 	}
-	message := "社区动态来自后端 community_dynamics 表；登录态接入后可迁移为创作者动态与用户消息流。"
+	message := "社区动态会展示创作者短更新；登录后可汇入你的消息流。"
 	var client *string
 	if clientID != "" {
 		client = &clientID
@@ -905,7 +905,7 @@ func (s *service) ListCommunitySubmissions(ctx context.Context, filter model.Com
 	if err != nil {
 		return model.CommunitySubmissionPayload{}, err
 	}
-	message := "投稿记录来自后端 community_submissions 待审核池；当前只保存文件元数据，不保存文件字节。"
+	message := "投稿记录来自社区待审核池；当前只保存文件元数据，不保存文件字节。"
 	return model.CommunitySubmissionPayload{
 		Authenticated: false,
 		ClientID:      &clientID,
@@ -1095,7 +1095,7 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 			return model.FollowingFeedPayload{}, err
 		}
 	}
-	message := "关注关系来自后端社区模块的匿名 clientId，接入登录后可迁移到用户关系。"
+	message := "关注关系会按当前浏览器同步；登录后可迁移到你的账号。"
 	return model.FollowingFeedPayload{
 		Authenticated:  false,
 		ClientID:       &clientID,
@@ -1639,7 +1639,7 @@ func creatorLink(creator model.Creator) string {
 }
 
 func videoHistoryPayload(clientID string, items []model.VideoHistoryItem) model.VideoHistoryPayload {
-	message := "观看历史来自后端 community_video_history 表；接入登录后可迁移为用户播放记录。"
+	message := "观看历史会按当前浏览器同步；登录后可迁移为账号播放记录。"
 	return model.VideoHistoryPayload{
 		Authenticated: false,
 		ClientID:      &clientID,
@@ -1890,8 +1890,8 @@ func reportReceipt(report model.CommunityReport) model.CommunityReportReceipt {
 func communityAnnouncement(now func() time.Time) *model.Announcement {
 	return &model.Announcement{
 		ID:       "community-live-data",
-		Title:    "社区数据已接入 Go 后端",
-		Body:     "首页、搜索、视频详情、弹幕和创作者资料正在由社区模块公开接口返回。",
+		Title:    "今日更新",
+		Body:     "首页阅读节奏变得更轻了，分类、动态和最新投稿会一起陪你发现新的创作者内容。",
 		Href:     nil,
 		Severity: "info",
 		StartsAt: now().UTC(),

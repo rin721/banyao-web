@@ -94,13 +94,13 @@
     }
   },
   "home": {
-    "subtitle": "クリエイター向けの軽やかでかわいい動画コミュニティ。標準ではバックエンドの Community API に接続し、Nuxt mock はローカルのデモとデバッグに使います。",
+    "subtitle": "クリエイターの投稿、フォロー中の更新、やさしい交流を見つける軽やかでかわいい動画コミュニティ。",
     "latest": "最新",
     "gridView": "グリッド表示",
     "listView": "リスト表示",
     "categoryTabsAria": "コンテンツカテゴリ",
     "dynamicsTitle": "コミュニティ動向",
-    "dynamicsDescription": "バックエンドのタイムラインから届くクリエイター更新と軽いお知らせを、kirakira らしい軽やかな読書感で表示します。"
+    "dynamicsDescription": "クリエイターの短い更新と軽いお知らせを、kirakira らしい軽やかな読書感で表示します。"
   },
   "category": {
     "indexHeadTitle": "カテゴリ - Aoi",
@@ -108,22 +108,22 @@
     "detailHeadTitle": "{category} - Aoi カテゴリ",
     "indexEyebrow": "コミュニティカテゴリ",
     "indexTitle": "カテゴリ",
-    "indexDescription": "コンテンツタイプごとに Aoi コミュニティの動画を閲覧します。カテゴリツリーと件数は現在の Community API から取得し、返されたデータをそのまま表示します。",
-    "indexSourceLoading": "Community Categories API と動画インデックスを読み込んでいます。",
-    "indexSource": "Community Categories API から {categories} 件のルートカテゴリ、{videos} 件の動画を取得しました。",
+    "indexDescription": "コンテンツタイプごとに Aoi コミュニティの動画を閲覧します。カテゴリツリーと件数は現在のコミュニティ索引に合わせて表示します。",
+    "indexSourceLoading": "コミュニティカテゴリと動画インデックスを読み込んでいます。",
+    "indexSource": "コミュニティカテゴリ索引：{categories} 件のルートカテゴリ、{videos} 件の動画を収録しています。",
     "indexSectionsTitle": "カテゴリマップ",
     "indexSectionsDescription": "ルートカテゴリは入口になり、サブカテゴリで分岐を絞り込みます。件数は実際の動画インデックスに合わせて更新されます。",
     "detailEyebrow": "コミュニティカテゴリ",
     "detailSourceLoading": "「{slug}」カテゴリを読み込んでいます。",
-    "detailSource": "Community Categories API で「{category}」配下の {count} 件の動画を表示しています。",
+    "detailSource": "「{category}」配下の {count} 件の動画を表示しています。",
     "searchAction": "コンテンツを検索",
     "allCategoriesAction": "すべてのカテゴリ",
     "backToCategories": "カテゴリへ戻る",
     "retry": "再試行",
     "loadingTitle": "カテゴリを読み込み中",
-    "loadingDescription": "Community API からカテゴリツリーと動画インデックスを読み込んでいます。",
+    "loadingDescription": "カテゴリツリーと動画インデックスを読み込んでいます。",
     "errorTitle": "カテゴリの読み込みに失敗しました",
-    "errorDescription": "Community API がエラーを返しました。再試行してください。",
+    "errorDescription": "コミュニティカテゴリを読み込めませんでした。再試行してください。",
     "emptyTitle": "カテゴリはまだありません",
     "emptyDescription": "現在のコミュニティデータソースはカテゴリツリーを返していません。ページは空状態を表示し、コミュニティデータを待ちます。",
     "notFoundTitle": "カテゴリが見つかりません",
@@ -237,7 +237,7 @@
     "headTitle": "フォロー更新 - Aoi",
     "eyebrow": "コミュニティ関係",
     "title": "フォロー更新",
-    "description": "匿名 clientId のフォロー関係をコミュニティバックエンドへ保存し、購読したクリエイターと最新投稿を表示します。",
+    "description": "匿名 clientId のフォロー関係を同期し、購読したクリエイターと最新投稿を表示します。",
     "sourceLoading": "Community Following API から匿名フォロー、動向、おすすめを同期しています。",
     "sourceMissing": "フォロー更新データはまだ返っていません。ページは空状態を表示し、コミュニティデータを待ちます。",
     "sourceAuthenticated": "ログイン済みフォロー更新として {count} 件の関係を表示しています。",
@@ -252,7 +252,7 @@
     "retry": "再試行",
     "refresh": "更新",
     "emptyTitle": "まだフォローしていません",
-    "emptyDescription": "クリエイターをフォローすると、バックエンドの関係テーブルから購読更新を読み込みます。",
+    "emptyDescription": "クリエイターをフォローすると、購読更新を読み込みます。",
     "searchAction": "検索へ",
     "followedTitle": "フォロー中のクリエイター",
     "followedDescription": "これらの関係は Go コミュニティ API の匿名フォローテーブルから取得しています。",
@@ -296,7 +296,7 @@
     "readStatus": "未読はありません",
     "defaultMessage": "通知はこのブラウザの匿名 clientId に保存されます。",
     "listTitle": "メッセージ",
-    "listDescription": "最近のコミュニティ受領通知と状態変更はバックエンドの通知テーブルから取得します。",
+    "listDescription": "最近のコミュニティ受領通知と状態変更をここにまとめます。",
     "openTarget": "開く",
     "unreadDot": "未読通知",
     "timelineAria": "通知タイムライン",
@@ -1227,7 +1227,7 @@
     "reportClose": "閉じる",
     "reportDetailLabel": "補足説明",
     "reportDetailPlaceholder": "例: 問題の位置、理由、確認してほしい内容",
-    "reportDialogDescription": "この通報は Community API に送信され、バックエンドの通報テーブルに未対応として保存されます。重複を避け、具体的に入力してください。",
+    "reportDialogDescription": "この通報はコミュニティ審査キューへ送信されます。重複を避け、具体的に入力してください。",
     "reportDialogTitle": "動画を通報",
     "reportReasonAbuse": "攻撃、嫌がらせ、ヘイト",
     "reportReasonCopyright": "著作権または転載の懸念",
@@ -1247,7 +1247,7 @@
     "communityCommentSubmitError": "コメントの投稿に失敗しました。コミュニティ API を確認してから再試行してください。",
     "communityCommentDescription": "{count} 件を読み込み済み、コミュニティ合計 {total} 件",
     "communityCommentEmptyTitle": "コミュニティコメントはまだありません",
-    "communityCommentEmptyDescription": "最初の討論を書き込みましょう。バックエンドのコミュニティコメント表に保存されます。",
+    "communityCommentEmptyDescription": "最初の討論を書き込みましょう。コミュニティの会話に表示されます。",
     "communityCommentSort": "コメントの並び替え"
   },
   "lightbox": {
@@ -1292,7 +1292,7 @@
     "headTitle": "投稿 - Aoi",
     "eyebrow": "コミュニティ投稿",
     "title": "投稿ワークスペース",
-    "description": "動画情報を準備し、メタデータをバックエンドのコミュニティ審査キューへ送信します。ファイル本体はブラウザ内に残り、ローカルには保存しません。",
+    "description": "動画情報を準備し、メタデータをコミュニティ審査キューへ送信します。ファイル本体はブラウザ内に残り、ローカルには保存しません。",
     "newDraft": "新規下書き",
     "refresh": "データを更新",
     "defaultAuthor": "Aoi クリエイター",
@@ -1400,7 +1400,7 @@
     },
     "submissions": {
       "title": "最近の投稿",
-      "description": "この匿名 clientId に対して、バックエンドのコミュニティキューから {count} 件の控えが返りました。",
+      "description": "この匿名 clientId で {count} 件の投稿控えを同期しました。",
       "refresh": "投稿を更新",
       "loading": "読み込み中",
       "empty": "このブラウザからの投稿はまだありません。",
@@ -1415,12 +1415,12 @@
     "headTitle": "コレクション - Aoi",
     "eyebrow": "コミュニティライブラリ",
     "title": "コレクション",
-    "description": "お気に入りと後で見るは匿名 clientId ごとに Go バックエンドのコミュニティライブラリへ保存し、ローカルキャッシュはオフライン時の補助としてだけ使います。",
+    "description": "お気に入りと後で見るはコミュニティライブラリへ同期し、ローカルキャッシュはオフライン時の補助としてだけ使います。",
     "clientPending": "同期待ち",
     "clientLabel": "匿名 clientId：{client}",
     "tabsAria": "コレクション種別",
     "loadingTitle": "ライブラリを同期中",
-    "loadingDescription": "バックエンドのコミュニティモジュールからお気に入りと後で見るを読み込んでいます。",
+    "loadingDescription": "お気に入りと後で見るを同期しています。",
     "errorTitle": "ライブラリ同期に失敗しました",
     "errorDescription": "Community Library API からお気に入りと後で見るのデータが返りませんでした。",
     "source": {
@@ -1436,8 +1436,8 @@
       "watchLaterDescription": "現在の匿名 clientId に保存された後で見る数",
       "total": "合計",
       "totalDescription": "お気に入りと後で見るの合計",
-      "backend": "バックエンド",
-      "backendDescription": "Community Library API の現在の同期状態",
+      "backend": "同期状態",
+      "backendDescription": "コミュニティライブラリの現在の同期状態",
       "backendReady": "同期済み",
       "backendLocal": "ローカル"
     },
@@ -1454,19 +1454,19 @@
       "favoritesTitle": "お気に入り動画",
       "favoritesDescription": "これらの項目は Community Library API から取得し、匿名 clientId ごとに同期します。",
       "watchLaterTitle": "後で見る",
-      "watchLaterDescription": "続きを見たい動画を一時的に保存し、更新時にバックエンドから再同期します。"
+      "watchLaterDescription": "続きを見たい動画を一時的に保存し、更新時に再同期します。"
     },
     "empty": {
       "favoritesTitle": "お気に入りはまだありません",
       "watchLaterTitle": "後で見るは空です",
-      "favoritesDescription": "動画詳細ページでお気に入りにすると、バックエンドのコミュニティライブラリへ保存されます。",
+      "favoritesDescription": "動画詳細ページでお気に入りにすると、コミュニティライブラリへ同期されます。",
       "watchLaterDescription": "動画詳細ページで後で見るに追加すると、ここから続きに戻れます。",
       "action": "検索へ"
     }
   },
   "history": {
     "title": "履歴",
-    "description": "視聴履歴はバックエンドのコミュニティモジュールへ保存し、オフライン時の補助としてローカルキャッシュも残します。更新時は匿名 clientId で最近の視聴と再生位置を同期します。",
+    "description": "視聴履歴はコミュニティの視聴記録へ同期し、オフライン時の補助としてローカルキャッシュも残します。更新時は匿名 clientId で最近の視聴と再生位置を同期します。",
     "gridAria": "最近視聴した動画",
     "actions": {
       "clear": "履歴をクリア",
@@ -1480,7 +1480,7 @@
     },
     "empty": {
       "title": "履歴はまだありません",
-      "description": "動画詳細ページを開くと、最近の視聴と再生位置がバックエンドから同期されます。",
+      "description": "動画詳細ページを開くと、最近の視聴と再生位置が同期されます。",
       "action": "ホームへ戻る"
     }
   }

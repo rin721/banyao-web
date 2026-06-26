@@ -128,7 +128,7 @@ export const useFollowingStore = defineStore("following", () => {
         followedCreators: followedCreators.value
       } satisfies PersistedFollowingState))
     } catch {
-      // 本地关注只是后端不可用时的降级缓存。
+      // 本地关注只是同步不可用时的降级缓存。
     }
   }
 
@@ -336,7 +336,7 @@ export const useFollowingStore = defineStore("following", () => {
       try {
         window.localStorage.removeItem(STORAGE_KEY)
       } catch {
-        // 本地关注只是后端不可用时的降级缓存。
+        // 本地关注只是同步不可用时的降级缓存。
       }
     }
   }

@@ -235,11 +235,14 @@ useHead(() => ({
 
 .category-index-page__map {
   min-width: 0;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  align-items: stretch;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
 }
 
 .category-index-page__map :deep(.category-card) {
   align-self: stretch;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .category-loading {

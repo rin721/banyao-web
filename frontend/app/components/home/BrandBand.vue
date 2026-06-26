@@ -26,6 +26,7 @@ const { t } = useI18n()
   border: 0;
   background: none;
   box-shadow: none;
+  padding: 4px 0 18px;
 }
 
 .brand-band__inner {
@@ -35,12 +36,12 @@ const { t } = useI18n()
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 32px;
   margin: 0;
   border: 0;
   background: none;
   box-shadow: none;
-  padding: 8px 0 26px;
+  padding: 0;
   backdrop-filter: none;
 }
 
@@ -50,8 +51,8 @@ const { t } = useI18n()
 }
 
 .brand-band__eyebrow {
-  margin: 0 0 10px;
-  color: var(--aoi-accent-60);
+  margin: 0 0 8px;
+  color: var(--aoi-active-color);
   font-family: Montserrat, Inter, "Noto Sans SC", system-ui, sans-serif;
   font-size: 14px;
   font-weight: 800;
@@ -60,16 +61,16 @@ const { t } = useI18n()
 
 .brand-band__title {
   margin: 0;
-  color: var(--aoi-accent-60);
+  color: var(--aoi-active-color);
   font-family: Montserrat, Inter, "Noto Sans SC", system-ui, sans-serif;
-  font-size: 64px;
+  font-size: 60px;
   font-weight: 800;
   line-height: 1;
   overflow-wrap: anywhere;
 }
 
 .brand-band__subtitle {
-  max-width: 640px;
+  max-width: 600px;
   margin: 12px 0 0;
   color: var(--aoi-text-muted);
   line-height: 1.7;
@@ -79,7 +80,7 @@ const { t } = useI18n()
 
 .brand-band__motif {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   color: color-mix(in srgb, var(--aoi-text) 82%, var(--aoi-accent-60));
   font-family: Montserrat, Inter, system-ui, sans-serif;
   font-size: 20px;
@@ -91,7 +92,7 @@ const { t } = useI18n()
 }
 
 .brand-band__motif span:nth-child(2) {
-  color: var(--aoi-accent-60);
+  color: var(--aoi-active-color);
 }
 
 @media (max-width: 900px) {
@@ -102,8 +103,12 @@ const { t } = useI18n()
 }
 
 @media (max-width: 639px) {
+  .brand-band {
+    padding: 2px 0 14px;
+  }
+
   .brand-band__inner {
-    padding: 4px 0 18px;
+    padding: 0;
   }
 
   .brand-band__eyebrow {
