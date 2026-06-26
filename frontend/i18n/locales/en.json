@@ -188,8 +188,19 @@
     }
   },
   "following": {
+    "headTitle": "Following - Aoi",
+    "eyebrow": "Community graph",
     "title": "Following",
     "description": "Anonymous clientId follows are written to the community backend, then used to show subscribed creators and new uploads.",
+    "sourceLoading": "Syncing anonymous follows, pulses, and recommendations from the Community Following API.",
+    "sourceMissing": "The following feed has not returned data; static placeholders will not be used.",
+    "sourceAuthenticated": "Showing an authenticated following feed with {count} relationships.",
+    "sourceAnonymous": "Showing an anonymous following feed with {count} relationships.",
+    "sourceRecommended": "This anonymous clientId has no follows yet, so {creators} recommended creators and {videos} recommended updates are shown.",
+    "clientPending": "waiting",
+    "clientLabel": "Anonymous clientId: {client}",
+    "loadingTitle": "Syncing following feed",
+    "loadingDescription": "Reading follow relationships, creator pulses, and recommendations from the Community API.",
     "errorTitle": "Following feed failed",
     "errorDescription": "The community API did not return following data.",
     "retry": "Retry",
@@ -203,13 +214,24 @@
     "recommendedTitle": "Recommended creators",
     "recommendedDescription": "When you have no follows yet, the community API shows recommended creators first.",
     "recommendedLatestTitle": "Recommended updates",
+    "recommendedLatestDescription": "There are no subscription updates yet, so the latest community updates from the API are shown first.",
     "exploreMore": "Explore more",
     "noContentTitle": "No following content",
     "noContentDescription": "No following feed data was returned.",
     "dynamicComposerTitle": "Post a pulse",
     "dynamicComposerDescription": "Write to the community timeline with this browser anonymous clientId; creator identity can replace it later.",
     "dynamicsTitle": "Following pulse",
-    "dynamicsDescription": "Recent updates from followed creators appear here first."
+    "dynamicsDescription": "Recent updates from followed creators appear here first.",
+    "stats": {
+      "following": "Relationships",
+      "followingDescription": "Creator relationships synced for this clientId",
+      "creators": "Creators",
+      "creatorsDescription": "Creator candidates returned by the following feed",
+      "latest": "Video updates",
+      "latestDescription": "Latest videos in the following or recommendation branch",
+      "dynamics": "Pulses",
+      "dynamicsDescription": "Lightweight messages from the community timeline"
+    }
   },
   "notifications": {
     "title": "Notifications",

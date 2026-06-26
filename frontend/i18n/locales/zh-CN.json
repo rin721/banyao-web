@@ -188,8 +188,19 @@
     }
   },
   "following": {
+    "headTitle": "关注动态 - Aoi",
+    "eyebrow": "社区关系",
     "title": "关注动态",
     "description": "使用匿名 clientId 写入后端社区关注关系，展示你订阅的创作者和最新投稿。",
+    "sourceLoading": "正在从社区关注 API 同步匿名关注关系、动态和推荐内容。",
+    "sourceMissing": "关注流尚未返回数据；页面不会用静态占位内容替代。",
+    "sourceAuthenticated": "正在展示登录态关注流，共 {count} 个关注关系。",
+    "sourceAnonymous": "正在展示匿名关注流，共 {count} 个关注关系。",
+    "sourceRecommended": "当前匿名 clientId 暂无关注，展示 {creators} 位推荐创作者和 {videos} 条推荐更新。",
+    "clientPending": "等待同步",
+    "clientLabel": "匿名 clientId：{client}",
+    "loadingTitle": "正在同步关注流",
+    "loadingDescription": "正在从社区 API 读取关注关系、创作者动态和推荐内容。",
     "errorTitle": "关注流加载失败",
     "errorDescription": "社区 API 暂时没有返回关注流数据。",
     "retry": "重试",
@@ -203,13 +214,24 @@
     "recommendedTitle": "推荐创作者",
     "recommendedDescription": "还没有关注时，先展示社区 API 返回的推荐创作者。",
     "recommendedLatestTitle": "推荐更新",
+    "recommendedLatestDescription": "当前还没有订阅更新，因此先展示社区 API 返回的最新内容。",
     "exploreMore": "探索更多",
     "noContentTitle": "关注流暂无内容",
     "noContentDescription": "没有拿到关注流数据。",
     "dynamicComposerTitle": "发布动态",
     "dynamicComposerDescription": "用当前浏览器的匿名 clientId 写入社区动态流，稍后可迁移到登录创作者身份。",
     "dynamicsTitle": "关注动态",
-    "dynamicsDescription": "已关注创作者的最新动态会优先显示在这里。"
+    "dynamicsDescription": "已关注创作者的最新动态会优先显示在这里。",
+    "stats": {
+      "following": "关注关系",
+      "followingDescription": "当前 clientId 已同步的创作者关系",
+      "creators": "创作者",
+      "creatorsDescription": "后端关注流返回的创作者候选",
+      "latest": "视频更新",
+      "latestDescription": "关注或推荐分支中的最新视频",
+      "dynamics": "动态",
+      "dynamicsDescription": "社区动态时间线返回的轻消息"
+    }
   },
   "notifications": {
     "title": "通知",

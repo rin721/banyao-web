@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const api = useAoiApi()
 const following = useFollowingStore()
-const { t } = useI18n()
+const { locale, t } = useI18n()
 const dynamicAuthorName = ref(t("dynamics.composer.defaultAuthor"))
 const dynamicError = ref("")
 const dynamicSubmitRevision = ref(0)
@@ -15,11 +15,74 @@ const { data: feed, error, pending, refresh } = useAsyncData(
     server: false
   }
 )
+const dateLocale = computed(() => {
+  if (locale.value === "ja") {
+    return "ja-JP"
+  }
+  if (locale.value === "en") {
+    return "en-US"
+  }
+  return "zh-CN"
+})
+const isLoadingFeed = computed(() => pending.value || (!feed.value && !error.value))
 const recommendedCreators = computed(() => feed.value?.followingCount
   ? []
   : feed.value?.creators.filter((creator) => !following.isFollowing(creator.id)) || [])
 const feedMessage = computed(() => following.syncError || feed.value?.message)
 const dynamicItems = computed(() => feed.value?.dynamics.items || [])
+const latestItems = computed(() => feed.value?.latest.items || [])
+const activeClientId = computed(() => following.clientId || feed.value?.clientId || "")
+const maskedClientId = computed(() => activeClientId.value
+  ? `...${activeClientId.value.slice(-8)}`
+  : t("following.clientPending"))
+const sourceLabel = computed(() => {
+  if (isLoadingFeed.value) {
+    return t("following.sourceLoading")
+  }
+  if (!feed.value) {
+    return t("following.sourceMissing")
+  }
+  if (feed.value.authenticated) {
+    return t("following.sourceAuthenticated", {
+      count: formatCount(feed.value.followingCount)
+    })
+  }
+  if (feed.value.followingCount > 0) {
+    return t("following.sourceAnonymous", {
+      count: formatCount(feed.value.followingCount)
+    })
+  }
+  return t("following.sourceRecommended", {
+    creators: formatCount(recommendedCreators.value.length),
+    videos: formatCount(latestItems.value.length)
+  })
+})
+const followingStats = computed(() => [
+  {
+    description: t("following.stats.followingDescription"),
+    icon: "user-check",
+    label: t("following.stats.following"),
+    value: formatCount(feed.value?.followingCount ?? following.followedCount)
+  },
+  {
+    description: t("following.stats.creatorsDescription"),
+    icon: "users",
+    label: t("following.stats.creators"),
+    value: formatCount(feed.value?.creators.length ?? following.followedCount)
+  },
+  {
+    description: t("following.stats.latestDescription"),
+    icon: "play-square",
+    label: t("following.stats.latest"),
+    value: formatCount((following.latestVideos.length || latestItems.value.length))
+  },
+  {
+    description: t("following.stats.dynamicsDescription"),
+    icon: "radio-tower",
+    label: t("following.stats.dynamics"),
+    value: formatCount(dynamicItems.value.length)
+  }
+])
 
 watch(feed, (value) => {
   if (value) {
@@ -33,6 +96,13 @@ onMounted(async () => {
   }
   await refresh()
 })
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat(dateLocale.value, {
+    maximumFractionDigits: 1,
+    notation: value >= 1000 ? "compact" : "standard"
+  }).format(value)
+}
 
 async function publishDynamic(body: string) {
   dynamicError.value = ""
@@ -55,21 +125,70 @@ async function publishDynamic(body: string) {
   }
 }
 
-useHead({
-  title: "Following - Aoi"
-})
+useHead(() => ({
+  title: t("following.headTitle")
+}))
 </script>
 
 <template>
-  <div class="aoi-page">
-    <PageHeader
-      icon="radio-tower"
-      :title="t('following.title')"
-      :description="t('following.description')"
+  <div class="aoi-page following-page">
+    <section v-aoi-reveal="'rise'" class="following-hero" :aria-label="t('following.title')">
+      <PageHeader
+        icon="radio-tower"
+        :eyebrow="t('following.eyebrow')"
+        :title="t('following.title')"
+        :description="t('following.description')"
+      >
+        <template #actions>
+          <AoiButton tone="accent" variant="tonal" icon="search" to="/search">
+            {{ t("following.searchAction") }}
+          </AoiButton>
+          <AoiButton tone="neutral" variant="outlined" icon="refresh-cw" @click="refresh()">
+            {{ t("following.refresh") }}
+          </AoiButton>
+        </template>
+      </PageHeader>
+
+      <div class="following-hero__meta">
+        <p class="following-hero__source">
+          <AoiIcon name="database" :size="14" decorative />
+          {{ sourceLabel }}
+        </p>
+        <p class="following-hero__source">
+          <AoiIcon name="fingerprint" :size="14" decorative />
+          {{ t("following.clientLabel", { client: maskedClientId }) }}
+        </p>
+      </div>
+    </section>
+
+    <AoiStatGrid
+      v-if="feed && !error"
+      class="following-page__stats"
+      :items="followingStats"
+      :columns="4"
+      reveal="fade"
     />
 
+    <section
+      v-if="isLoadingFeed"
+      class="following-loading"
+      :aria-label="t('following.loadingTitle')"
+      aria-live="polite"
+    >
+      <span class="following-loading__sr">
+        {{ t("following.loadingTitle") }}. {{ t("following.loadingDescription") }}
+      </span>
+      <div class="following-loading__header" aria-hidden="true">
+        <span class="following-loading__line following-loading__line--title" />
+        <span class="following-loading__line" />
+      </div>
+      <div class="following-loading__cards" aria-hidden="true">
+        <span v-for="item in 6" :key="item" class="following-loading__card" />
+      </div>
+    </section>
+
     <PageState
-      v-if="!pending && error"
+      v-else-if="error"
       icon="cloud-alert"
       :title="t('following.errorTitle')"
       :description="t('following.errorDescription')"
@@ -78,7 +197,7 @@ useHead({
       @action="refresh()"
     />
 
-    <template v-else-if="!pending && feed">
+    <template v-else-if="feed">
       <PageState
         v-if="!feed.authenticated && following.hydrated && following.followedCount === 0"
         icon="user-round-plus"
@@ -127,7 +246,9 @@ useHead({
           title-id="following-creators-title"
         >
           <template #actions>
-            <AoiButton tone="accent" variant="outlined" size="sm" icon="refresh-cw" @click="refresh()">{{ t("following.refresh") }}</AoiButton>
+            <AoiButton tone="accent" variant="outlined" size="sm" icon="refresh-cw" @click="refresh()">
+              {{ t("following.refresh") }}
+            </AoiButton>
           </template>
           <AoiContentGrid min-width="260px" gap="compact" :mobile-columns="1">
             <AoiReveal
@@ -157,7 +278,9 @@ useHead({
         title-id="following-recommended-title"
       >
         <template #actions>
-          <AoiButton tone="accent" variant="outlined" size="sm" icon="search" to="/search">{{ t("following.exploreMore") }}</AoiButton>
+          <AoiButton tone="accent" variant="outlined" size="sm" icon="search" to="/search">
+            {{ t("following.exploreMore") }}
+          </AoiButton>
         </template>
         <AoiContentGrid min-width="260px" gap="compact" :mobile-columns="1">
           <AoiReveal
@@ -172,16 +295,17 @@ useHead({
       </AoiSection>
 
       <AoiSection
-        v-if="!following.latestVideos.length && feed.latest.items.length"
+        v-if="!following.latestVideos.length && latestItems.length"
         :title="t('following.recommendedLatestTitle')"
+        :description="t('following.recommendedLatestDescription')"
         title-id="following-recommended-latest-title"
       >
-        <VideoGrid :videos="feed.latest.items" />
+        <VideoGrid :videos="latestItems" />
       </AoiSection>
     </template>
 
     <PageState
-      v-else-if="!pending"
+      v-else
       icon="user-round-plus"
       :title="t('following.noContentTitle')"
       :description="t('following.noContentDescription')"
@@ -193,6 +317,69 @@ useHead({
 </template>
 
 <style scoped>
+.following-page {
+  display: grid;
+  gap: 18px;
+}
+
+.following-hero {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  overflow: hidden;
+  border: 1px solid var(--aoi-state-border-active);
+  border-radius: var(--aoi-radius-sm);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-10) 72%, transparent), transparent 46%),
+    linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 88%, transparent), var(--aoi-surface));
+  box-shadow: var(--aoi-shadow-sm);
+  padding: 18px;
+}
+
+.following-hero::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--aoi-accent-50), var(--aoi-sakura-50), var(--aoi-accent-40));
+  content: "";
+}
+
+.following-hero :deep(.page-header) {
+  margin: 0;
+}
+
+.following-hero :deep(.page-header__description) {
+  max-width: 780px;
+  text-wrap: pretty;
+}
+
+.following-hero__meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.following-hero__source {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--aoi-state-border-active) 58%, transparent);
+  border-radius: var(--aoi-radius-round);
+  background: color-mix(in srgb, var(--aoi-surface-solid) 76%, transparent);
+  color: var(--aoi-text-muted);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.5;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 6px 10px;
+}
+
+.following-page__stats,
 .following-card-reveal {
   min-width: 0;
 }
@@ -204,9 +391,91 @@ useHead({
   gap: 18px;
 }
 
+.following-loading {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  overflow: hidden;
+  border: 1px solid var(--aoi-border);
+  border-radius: var(--aoi-radius-sm);
+  background: var(--aoi-surface);
+  box-shadow: var(--aoi-shadow-sm);
+  padding: 18px;
+}
+
+.following-loading__sr {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.following-loading__header {
+  display: grid;
+  gap: 10px;
+}
+
+.following-loading__line,
+.following-loading__card {
+  background: linear-gradient(110deg, var(--aoi-accent-10), var(--aoi-surface-muted), var(--aoi-accent-10));
+  background-size: 200% 100%;
+  animation: following-loading-shimmer 1.2s var(--aoi-ease-out) infinite;
+}
+
+.following-loading__line {
+  display: block;
+  width: min(100%, 640px);
+  height: 10px;
+  border-radius: var(--aoi-radius-round);
+}
+
+.following-loading__line--title {
+  width: min(52%, 320px);
+  height: 18px;
+}
+
+.following-loading__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--aoi-grid-gap-compact);
+}
+
+.following-loading__card {
+  min-height: 132px;
+  border-radius: var(--aoi-radius-sm);
+}
+
 @media (max-width: 900px) {
-  .following-dashboard {
+  .following-dashboard,
+  .following-loading__cards {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .following-hero__meta {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .following-loading__line,
+  .following-loading__card {
+    animation: none;
+  }
+}
+
+@keyframes following-loading-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -80% 0;
   }
 }
 </style>

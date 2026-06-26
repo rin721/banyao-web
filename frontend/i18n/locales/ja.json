@@ -188,8 +188,19 @@
     }
   },
   "following": {
+    "headTitle": "フォロー更新 - Aoi",
+    "eyebrow": "コミュニティ関係",
     "title": "フォロー更新",
     "description": "匿名 clientId のフォロー関係をコミュニティバックエンドへ保存し、購読したクリエイターと最新投稿を表示します。",
+    "sourceLoading": "Community Following API から匿名フォロー、動向、おすすめを同期しています。",
+    "sourceMissing": "フォロー更新データはまだ返っていません。静的な代替内容は表示しません。",
+    "sourceAuthenticated": "ログイン済みフォロー更新として {count} 件の関係を表示しています。",
+    "sourceAnonymous": "匿名フォロー更新として {count} 件の関係を表示しています。",
+    "sourceRecommended": "この匿名 clientId にはまだフォローがないため、{creators} 人のおすすめクリエイターと {videos} 件のおすすめ更新を表示しています。",
+    "clientPending": "同期待ち",
+    "clientLabel": "匿名 clientId：{client}",
+    "loadingTitle": "フォロー更新を同期中",
+    "loadingDescription": "Community API からフォロー関係、クリエイター動向、おすすめを読み込んでいます。",
     "errorTitle": "フォロー更新の読み込みに失敗しました",
     "errorDescription": "コミュニティ API からフォロー更新データが返りませんでした。",
     "retry": "再試行",
@@ -203,13 +214,24 @@
     "recommendedTitle": "おすすめクリエイター",
     "recommendedDescription": "まだフォローがない場合は、コミュニティ API のおすすめを表示します。",
     "recommendedLatestTitle": "おすすめ更新",
+    "recommendedLatestDescription": "購読更新がまだないため、Community API の最新コンテンツを先に表示します。",
     "exploreMore": "もっと探す",
     "noContentTitle": "フォロー更新はありません",
     "noContentDescription": "フォロー更新データを取得できませんでした。",
     "dynamicComposerTitle": "動向を投稿",
     "dynamicComposerDescription": "このブラウザの匿名 clientId でコミュニティ動向へ書き込み、後でログイン済みクリエイター身份へ移行できます。",
     "dynamicsTitle": "フォロー中の動向",
-    "dynamicsDescription": "フォローしたクリエイターの最新動向を優先して表示します。"
+    "dynamicsDescription": "フォローしたクリエイターの最新動向を優先して表示します。",
+    "stats": {
+      "following": "フォロー関係",
+      "followingDescription": "この clientId に同期されたクリエイター関係",
+      "creators": "クリエイター",
+      "creatorsDescription": "フォロー更新 API が返したクリエイター候補",
+      "latest": "動画更新",
+      "latestDescription": "フォローまたはおすすめ分岐の最新動画",
+      "dynamics": "動向",
+      "dynamicsDescription": "コミュニティタイムラインの軽いメッセージ"
+    }
   },
   "notifications": {
     "title": "通知",
