@@ -25,6 +25,7 @@ export function useAoiNavigation() {
     { icon: "star", label: t("nav.collections"), to: "/collections", active: isActive("/collections") },
     { icon: "book-open", label: t("nav.docs"), to: "/docs", active: isActive("/docs") },
     { icon: "radio-tower", label: t("nav.following"), to: "/feed/following", active: isActive("/feed/following") },
+    { icon: "bell", label: t("nav.notifications"), to: "/notifications", active: isActive("/notifications") },
     { icon: "upload", label: t("nav.upload"), to: "/upload", active: isActive("/upload") }
   ])
 

@@ -173,6 +173,27 @@ func (h *Handler) Library(c ports.HTTPContext) {
 	writeOK(c, payload, err, h.writeError)
 }
 
+func (h *Handler) Notifications(c ports.HTTPContext) {
+	limit, ok := parseIntQuery(c, "limit", 48)
+	if !ok {
+		return
+	}
+	payload, err := h.service.CommunityNotifications(c.RequestContext(), model.CommunityNotificationFilter{
+		ClientID: queryValue(c, "clientId"),
+		Limit:    limit,
+	})
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) MarkNotificationsRead(c ports.HTTPContext) {
+	var req model.CommunityNotificationRequest
+	if !bind(c, &req) {
+		return
+	}
+	payload, err := h.service.MarkCommunityNotificationsRead(c.RequestContext(), req)
+	writeOK(c, payload, err, h.writeError)
+}
+
 func (h *Handler) writeError(c ports.HTTPContext, err error) {
 	switch {
 	case errors.Is(err, context.Canceled):

@@ -308,6 +308,97 @@ func TestServiceCreateVideoReportRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestServiceCommunityNotificationsTrackAnonymousClientActions(t *testing.T) {
+	repo := newFakeRepository()
+	ids := []string{
+		"unit-comment",
+		"unit-comment-notification",
+		"unit-danmaku",
+		"unit-danmaku-notification",
+		"unit-favorite-notification",
+		"unit-report",
+		"unit-report-notification",
+	}
+	nextID := 0
+	svc := New(repo, Config{
+		NewID: func() string {
+			id := ids[nextID]
+			nextID++
+			return id
+		},
+		Now: fixedNow,
+	})
+	req := model.VideoInteractionRequest{ClientID: "browser-client-1"}
+
+	if _, err := svc.CreateVideoComment(context.Background(), "aoi-alpha", model.CreateVideoCommentRequest{
+		AuthorName: "Aoi Viewer",
+		Body:       "A notification worthy comment",
+		ClientID:   " browser-client-1 ",
+	}); err != nil {
+		t.Fatalf("CreateVideoComment() error = %v", err)
+	}
+	if _, err := svc.CreateVideoDanmaku(context.Background(), "aoi-alpha", model.CreateVideoDanmakuRequest{
+		AuthorName:  "Aoi Viewer",
+		Body:        "Notification danmaku",
+		TimeSeconds: 3,
+		Mode:        model.DanmakuModeScroll,
+		Color:       "#ffffff",
+		ClientID:    "browser-client-1",
+	}); err != nil {
+		t.Fatalf("CreateVideoDanmaku() error = %v", err)
+	}
+	if _, err := svc.SetVideoInteraction(context.Background(), "aoi-alpha", model.VideoInteractionKindFavorite, req); err != nil {
+		t.Fatalf("SetVideoInteraction() error = %v", err)
+	}
+	if _, err := svc.CreateVideoReport(context.Background(), "aoi-alpha", model.CreateVideoReportRequest{
+		ClientID: "browser-client-1",
+		Reason:   model.CommunityReportReasonSpam,
+	}); err != nil {
+		t.Fatalf("CreateVideoReport() error = %v", err)
+	}
+
+	payload, err := svc.CommunityNotifications(context.Background(), model.CommunityNotificationFilter{ClientID: " browser-client-1 "})
+	if err != nil {
+		t.Fatalf("CommunityNotifications() error = %v", err)
+	}
+	if payload.ClientID == nil || *payload.ClientID != "browser-client-1" {
+		t.Fatalf("expected normalized client id, got %#v", payload.ClientID)
+	}
+	if payload.UnreadCount != 4 || len(payload.Items.Items) != 4 {
+		t.Fatalf("expected four unread notifications, got %#v", payload)
+	}
+	kinds := map[string]bool{}
+	for _, item := range payload.Items.Items {
+		kinds[item.Kind] = true
+		if item.Link != "/video/aoi-alpha" {
+			t.Fatalf("expected video link in notification, got %#v", item)
+		}
+	}
+	for _, kind := range []string{
+		model.CommunityNotificationKindComment,
+		model.CommunityNotificationKindDanmaku,
+		model.CommunityNotificationKindInteraction,
+		model.CommunityNotificationKindReport,
+	} {
+		if !kinds[kind] {
+			t.Fatalf("missing notification kind %q in %#v", kind, payload.Items.Items)
+		}
+	}
+
+	updated, err := svc.MarkCommunityNotificationsRead(context.Background(), model.CommunityNotificationRequest{ClientID: "browser-client-1"})
+	if err != nil {
+		t.Fatalf("MarkCommunityNotificationsRead() error = %v", err)
+	}
+	if updated.UnreadCount != 0 {
+		t.Fatalf("expected unread count 0 after mark read, got %#v", updated)
+	}
+	for _, item := range updated.Items.Items {
+		if item.ReadAt == nil {
+			t.Fatalf("expected notification read_at after mark read, got %#v", item)
+		}
+	}
+}
+
 type fakeRepository struct {
 	categories    []model.Category
 	creators      []model.Creator
@@ -317,6 +408,7 @@ type fakeRepository struct {
 	danmaku       map[string][]model.VideoDanmakuItem
 	follows       map[string][]model.CreatorFollow
 	interactions  map[string][]model.VideoInteraction
+	notifications []model.CommunityNotification
 	reports       []model.CommunityReport
 	sources       map[string][]model.VideoSourceOption
 	tags          map[string][]string
@@ -483,6 +575,36 @@ func (r *fakeRepository) CreateVideoDanmaku(_ context.Context, item model.VideoD
 
 func (r *fakeRepository) CreateCommunityReport(_ context.Context, report model.CommunityReport) error {
 	r.reports = append(r.reports, report)
+	return nil
+}
+
+func (r *fakeRepository) CreateCommunityNotification(_ context.Context, notification model.CommunityNotification) error {
+	r.notifications = append([]model.CommunityNotification{notification}, r.notifications...)
+	return nil
+}
+
+func (r *fakeRepository) ListCommunityNotifications(_ context.Context, filter model.CommunityNotificationFilter) ([]model.CommunityNotification, error) {
+	items := make([]model.CommunityNotification, 0)
+	for _, notification := range r.notifications {
+		if notification.ClientID != filter.ClientID || notification.DeletedAt != nil {
+			continue
+		}
+		items = append(items, notification)
+	}
+	if filter.Limit > 0 && len(items) > filter.Limit {
+		return items[:filter.Limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) MarkCommunityNotificationsRead(_ context.Context, clientID string, now time.Time) error {
+	for index := range r.notifications {
+		if r.notifications[index].ClientID != clientID || r.notifications[index].DeletedAt != nil || r.notifications[index].ReadAt != nil {
+			continue
+		}
+		r.notifications[index].ReadAt = &now
+		r.notifications[index].UpdatedAt = now
+	}
 	return nil
 }
 

@@ -3,6 +3,8 @@ import type {
   ApiResultEnvelope,
   ApiStatus,
   CategoryTreeNode,
+  CommunityNotificationPayload,
+  CommunityNotificationRequest,
   CommunityReportReceipt,
   CreatorFollowState,
   CreateVideoCommentRequest,
@@ -192,6 +194,19 @@ export function useAoiApi() {
     })
   }
 
+  async function getCommunityNotifications(clientId: string, limit = 48): Promise<CommunityNotificationPayload> {
+    return await request<CommunityNotificationPayload>("/notifications", {
+      query: { clientId, limit }
+    })
+  }
+
+  async function markCommunityNotificationsRead(body: CommunityNotificationRequest): Promise<CommunityNotificationPayload> {
+    return await request<CommunityNotificationPayload>("/notifications/read", {
+      body,
+      method: "POST"
+    })
+  }
+
   async function getCategory(slug: string): Promise<CategoryTreeNode | null> {
     const categories = await listCategories()
 
@@ -208,6 +223,7 @@ export function useAoiApi() {
     getVideoLibrary,
     followCreator,
     getHomePayload,
+    getCommunityNotifications,
     createVideoComment,
     createVideoDanmaku,
     createVideoReport,
@@ -218,6 +234,7 @@ export function useAoiApi() {
     listVideos,
     search,
     searchVideos,
+    markCommunityNotificationsRead,
     setVideoInteraction,
     unfollowCreator,
     unsetVideoInteraction

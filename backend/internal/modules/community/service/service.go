@@ -35,6 +35,8 @@ type Service interface {
 	Search(context.Context, string, int) (model.SearchPayload, error)
 	FollowingFeed(context.Context, model.CreatorFollowRequest) (model.FollowingFeedPayload, error)
 	VideoLibrary(context.Context, model.VideoInteractionRequest) (model.VideoLibraryPayload, error)
+	CommunityNotifications(context.Context, model.CommunityNotificationFilter) (model.CommunityNotificationPayload, error)
+	MarkCommunityNotificationsRead(context.Context, model.CommunityNotificationRequest) (model.CommunityNotificationPayload, error)
 	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	UnfollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	SetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
@@ -54,12 +56,14 @@ type Repository interface {
 	CreateVideoComment(context.Context, model.VideoComment) error
 	CreateVideoDanmaku(context.Context, model.VideoDanmakuItem) error
 	CreateCommunityReport(context.Context, model.CommunityReport) error
+	CreateCommunityNotification(context.Context, model.CommunityNotification) error
 	FollowCreator(context.Context, model.CreatorFollow) error
 	SetVideoInteraction(context.Context, model.VideoInteraction) error
 	ListCategories(context.Context) ([]model.Category, error)
 	ListCategorySlugs(context.Context, string) ([]string, error)
 	ListCreatorFollows(context.Context, string, int) ([]model.CreatorFollow, error)
 	ListVideoInteractions(context.Context, model.VideoInteractionFilter) ([]model.VideoInteraction, error)
+	ListCommunityNotifications(context.Context, model.CommunityNotificationFilter) ([]model.CommunityNotification, error)
 	ListVideoComments(context.Context, string, model.VideoCommentFilter) ([]model.VideoComment, error)
 	ListCreators(context.Context, int) ([]model.Creator, error)
 	ListDanmaku(context.Context, string) ([]model.VideoDanmakuItem, error)
@@ -67,6 +71,7 @@ type Repository interface {
 	ListTags(context.Context, string) ([]string, error)
 	ListVideos(context.Context, model.VideoFilter) ([]model.Video, error)
 	ListVideosByIDs(context.Context, []string) ([]model.Video, error)
+	MarkCommunityNotificationsRead(context.Context, string, time.Time) error
 	UnfollowCreator(context.Context, string, string, time.Time) error
 	UnsetVideoInteraction(context.Context, string, string, string, time.Time) error
 }
@@ -112,6 +117,8 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/videos/:idOrSlug/comments",
 			"/videos/:idOrSlug/danmaku",
 			"/videos/:idOrSlug/reports",
+			"/notifications",
+			"/notifications/read",
 			"/search",
 			"/users/:handle",
 			"/users/:handle/follow-state",
@@ -275,6 +282,23 @@ func (s *service) CreateVideoComment(ctx context.Context, idOrSlug string, req m
 	if err := s.repo.CreateVideoComment(ctx, comment); err != nil {
 		return model.VideoComment{}, mapStorageError(err)
 	}
+	if clientID, err := normalizeOptionalCommunityClientID(req.ClientID); err != nil {
+		return model.VideoComment{}, err
+	} else if clientID != "" {
+		if err := s.createNotification(ctx, model.CommunityNotification{
+			ClientID:   clientID,
+			Kind:       model.CommunityNotificationKindComment,
+			Title:      "评论已发布",
+			Body:       "你在《" + video.Title + "》下发布的评论已经进入公开讨论区。",
+			TargetKind: model.CommunityNotificationTargetVideo,
+			TargetID:   video.ID,
+			VideoID:    video.ID,
+			CreatorID:  video.UploaderID,
+			Link:       videoLink(*video),
+		}); err != nil {
+			return model.VideoComment{}, err
+		}
+	}
 	return comment, nil
 }
 
@@ -303,6 +327,23 @@ func (s *service) CreateVideoDanmaku(ctx context.Context, idOrSlug string, req m
 	}
 	if err := s.repo.CreateVideoDanmaku(ctx, item); err != nil {
 		return model.VideoDanmakuItem{}, mapStorageError(err)
+	}
+	if clientID, err := normalizeOptionalCommunityClientID(req.ClientID); err != nil {
+		return model.VideoDanmakuItem{}, err
+	} else if clientID != "" {
+		if err := s.createNotification(ctx, model.CommunityNotification{
+			ClientID:   clientID,
+			Kind:       model.CommunityNotificationKindDanmaku,
+			Title:      "弹幕已发送",
+			Body:       "你的弹幕已经出现在《" + video.Title + "》的播放时间轴上。",
+			TargetKind: model.CommunityNotificationTargetVideo,
+			TargetID:   video.ID,
+			VideoID:    video.ID,
+			CreatorID:  video.UploaderID,
+			Link:       videoLink(*video),
+		}); err != nil {
+			return model.VideoDanmakuItem{}, err
+		}
 	}
 	return item, nil
 }
@@ -339,6 +380,19 @@ func (s *service) CreateVideoReport(ctx context.Context, idOrSlug string, req mo
 	if err := s.repo.CreateCommunityReport(ctx, report); err != nil {
 		return model.CommunityReportReceipt{}, mapStorageError(err)
 	}
+	if err := s.createNotification(ctx, model.CommunityNotification{
+		ClientID:   clientID,
+		Kind:       model.CommunityNotificationKindReport,
+		Title:      "举报已收到",
+		Body:       "你提交的《" + video.Title + "》举报已进入待处理队列。",
+		TargetKind: model.CommunityNotificationTargetVideo,
+		TargetID:   video.ID,
+		VideoID:    video.ID,
+		CreatorID:  video.UploaderID,
+		Link:       videoLink(*video),
+	}); err != nil {
+		return model.CommunityReportReceipt{}, err
+	}
 	return reportReceipt(report), nil
 }
 
@@ -359,6 +413,10 @@ func (s *service) SetVideoInteraction(ctx context.Context, idOrSlug string, kind
 	if err != nil {
 		return model.VideoInteractionState{}, err
 	}
+	existing, err := s.repo.FindVideoInteraction(ctx, video.ID, clientID, kind)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return model.VideoInteractionState{}, mapStorageError(err)
+	}
 	now := s.now()
 	interaction := model.VideoInteraction{
 		ClientID:     clientID,
@@ -370,6 +428,21 @@ func (s *service) SetVideoInteraction(ctx context.Context, idOrSlug string, kind
 	}
 	if err := s.repo.SetVideoInteraction(ctx, interaction); err != nil {
 		return model.VideoInteractionState{}, mapStorageError(err)
+	}
+	if existing == nil {
+		if err := s.createNotification(ctx, model.CommunityNotification{
+			ClientID:   clientID,
+			Kind:       model.CommunityNotificationKindInteraction,
+			Title:      videoInteractionNotificationTitle(kind),
+			Body:       videoInteractionNotificationBody(kind, video.Title),
+			TargetKind: model.CommunityNotificationTargetVideo,
+			TargetID:   video.ID,
+			VideoID:    video.ID,
+			CreatorID:  video.UploaderID,
+			Link:       videoLink(*video),
+		}); err != nil {
+			return model.VideoInteractionState{}, err
+		}
 	}
 	updated, err := s.repo.FindVideoByIDOrSlug(ctx, video.ID)
 	if err != nil {
@@ -439,6 +512,11 @@ func (s *service) FollowCreator(ctx context.Context, handle string, req model.Cr
 	if err != nil {
 		return model.CreatorFollowState{}, err
 	}
+	existing, err := s.repo.FindCreatorFollow(ctx, creator.ID, clientID)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	wasFollowing := existing != nil
 	now := s.now()
 	follow := model.CreatorFollow{
 		ClientID:   clientID,
@@ -449,6 +527,20 @@ func (s *service) FollowCreator(ctx context.Context, handle string, req model.Cr
 	}
 	if err := s.repo.FollowCreator(ctx, follow); err != nil {
 		return model.CreatorFollowState{}, mapStorageError(err)
+	}
+	if !wasFollowing {
+		if err := s.createNotification(ctx, model.CommunityNotification{
+			ClientID:   clientID,
+			Kind:       model.CommunityNotificationKindFollow,
+			Title:      "已关注创作者",
+			Body:       "你已关注 " + creator.DisplayName + "，新的投稿会进入关注动态。",
+			TargetKind: model.CommunityNotificationTargetCreator,
+			TargetID:   creator.ID,
+			CreatorID:  creator.ID,
+			Link:       creatorLink(*creator),
+		}); err != nil {
+			return model.CreatorFollowState{}, err
+		}
 	}
 	updated, err := s.repo.FindCreatorByHandle(ctx, creator.Handle)
 	if err != nil {
@@ -590,6 +682,67 @@ func (s *service) VideoLibrary(ctx context.Context, req model.VideoInteractionRe
 		WatchLater:      model.PageResult[model.VideoSummary]{Items: watchLaterVideos},
 		Message:         &message,
 	}, nil
+}
+
+func (s *service) CommunityNotifications(ctx context.Context, filter model.CommunityNotificationFilter) (model.CommunityNotificationPayload, error) {
+	if s.repo == nil {
+		return model.CommunityNotificationPayload{}, ErrStorageUnavailable
+	}
+	clientID, err := normalizeCommunityClientID(filter.ClientID)
+	if err != nil {
+		return model.CommunityNotificationPayload{}, err
+	}
+	filter.ClientID = clientID
+	filter.Limit = normalizeLimit(filter.Limit, 48)
+	items, err := s.repo.ListCommunityNotifications(ctx, filter)
+	if err != nil {
+		return model.CommunityNotificationPayload{}, mapStorageError(err)
+	}
+	return notificationPayload(clientID, items), nil
+}
+
+func (s *service) MarkCommunityNotificationsRead(ctx context.Context, req model.CommunityNotificationRequest) (model.CommunityNotificationPayload, error) {
+	if s.repo == nil {
+		return model.CommunityNotificationPayload{}, ErrStorageUnavailable
+	}
+	clientID, err := normalizeCommunityClientID(req.ClientID)
+	if err != nil {
+		return model.CommunityNotificationPayload{}, err
+	}
+	if err := s.repo.MarkCommunityNotificationsRead(ctx, clientID, s.now()); err != nil {
+		return model.CommunityNotificationPayload{}, mapStorageError(err)
+	}
+	return s.CommunityNotifications(ctx, model.CommunityNotificationFilter{ClientID: clientID, Limit: 48})
+}
+
+func (s *service) createNotification(ctx context.Context, notification model.CommunityNotification) error {
+	if s.repo == nil {
+		return ErrStorageUnavailable
+	}
+	clientID, err := normalizeCommunityClientID(notification.ClientID)
+	if err != nil {
+		return err
+	}
+	now := s.now()
+	notification.ID = s.newNotificationID()
+	notification.ClientID = clientID
+	notification.Kind = strings.TrimSpace(notification.Kind)
+	notification.Title = trimRunes(notification.Title, 160)
+	notification.Body = trimRunes(notification.Body, 500)
+	notification.TargetKind = strings.TrimSpace(notification.TargetKind)
+	notification.TargetID = strings.TrimSpace(notification.TargetID)
+	notification.VideoID = strings.TrimSpace(notification.VideoID)
+	notification.CreatorID = strings.TrimSpace(notification.CreatorID)
+	notification.Link = trimRunes(notification.Link, 512)
+	notification.CreatedAt = now
+	notification.UpdatedAt = now
+	if notification.Kind == "" || notification.Title == "" || notification.TargetKind == "" || notification.TargetID == "" {
+		return ErrInvalidInput
+	}
+	if err := s.repo.CreateCommunityNotification(ctx, notification); err != nil {
+		return mapStorageError(err)
+	}
+	return nil
 }
 
 func (s *service) recommendedFollowingFeed(ctx context.Context, clientID *string, messageText string) (model.FollowingFeedPayload, error) {
@@ -972,28 +1125,99 @@ func normalizeVideoInteractionKind(value string) (string, error) {
 	}
 }
 
-func normalizeCommentAuthor(value string) string {
+func normalizeOptionalCommunityClientID(value string) (string, error) {
 	value = strings.TrimSpace(value)
-	if len([]rune(value)) > 24 {
-		value = string([]rune(value)[:24])
+	if value == "" {
+		return "", nil
 	}
-	return value
+	return normalizeCommunityClientID(value)
+}
+
+func videoInteractionNotificationTitle(kind string) string {
+	switch kind {
+	case model.VideoInteractionKindLike:
+		return "已点赞视频"
+	case model.VideoInteractionKindFavorite:
+		return "已加入收藏"
+	case model.VideoInteractionKindWatchLater:
+		return "已加入稍后看"
+	default:
+		return "互动已保存"
+	}
+}
+
+func videoInteractionNotificationBody(kind string, title string) string {
+	switch kind {
+	case model.VideoInteractionKindLike:
+		return "你点赞了《" + title + "》，创作者会在热度统计中看到这次互动。"
+	case model.VideoInteractionKindFavorite:
+		return "《" + title + "》已经保存到收藏列表。"
+	case model.VideoInteractionKindWatchLater:
+		return "《" + title + "》已经保存到稍后看列表。"
+	default:
+		return "你对《" + title + "》的互动已经保存。"
+	}
+}
+
+func videoLink(video model.Video) string {
+	if strings.TrimSpace(video.Slug) != "" {
+		return "/video/" + video.Slug
+	}
+	return "/video/" + video.ID
+}
+
+func creatorLink(creator model.Creator) string {
+	if strings.TrimSpace(creator.Handle) != "" {
+		return "/u/" + creator.Handle
+	}
+	return "/"
+}
+
+func notificationPayload(clientID string, notifications []model.CommunityNotification) model.CommunityNotificationPayload {
+	items := make([]model.CommunityNotificationItem, 0, len(notifications))
+	unreadCount := 0
+	for _, notification := range notifications {
+		if notification.ReadAt == nil {
+			unreadCount++
+		}
+		items = append(items, notificationItem(notification))
+	}
+	message := "通知来自匿名 clientId 的社区动作；接入登录后可迁移到用户消息中心。"
+	return model.CommunityNotificationPayload{
+		Authenticated: false,
+		ClientID:      &clientID,
+		UnreadCount:   unreadCount,
+		Message:       &message,
+		Items:         model.PageResult[model.CommunityNotificationItem]{Items: items},
+	}
+}
+
+func notificationItem(notification model.CommunityNotification) model.CommunityNotificationItem {
+	return model.CommunityNotificationItem{
+		ID:         notification.ID,
+		Kind:       notification.Kind,
+		Title:      notification.Title,
+		Body:       notification.Body,
+		TargetKind: notification.TargetKind,
+		TargetID:   notification.TargetID,
+		VideoID:    notification.VideoID,
+		CreatorID:  notification.CreatorID,
+		Link:       notification.Link,
+		ReadAt:     notification.ReadAt,
+		CreatedAt:  notification.CreatedAt,
+	}
+}
+
+func normalizeCommentAuthor(value string) string {
+	return trimRunes(value, 24)
 }
 
 func normalizeCommentBody(value string) string {
-	value = strings.TrimSpace(value)
-	if len([]rune(value)) > 500 {
-		value = string([]rune(value)[:500])
-	}
-	return value
+	return trimRunes(value, 500)
 }
 
 func normalizeDanmakuBody(value string) string {
-	value = strings.TrimSpace(value)
-	if len([]rune(value)) > 80 {
-		value = string([]rune(value)[:80])
-	}
-	return value
+	return trimRunes(value, 80)
 }
 
 func normalizeDanmakuMode(value string) string {
@@ -1047,11 +1271,7 @@ func normalizeReportReason(value string) (string, error) {
 }
 
 func normalizeReportDetail(value string) string {
-	value = strings.TrimSpace(value)
-	if len([]rune(value)) > 500 {
-		value = string([]rune(value)[:500])
-	}
-	return value
+	return trimRunes(value, 500)
 }
 
 func normalizeCommunityClientID(value string) (string, error) {
@@ -1068,6 +1288,14 @@ func normalizeLimit(value int, fallback int) int {
 	}
 	if value > 100 {
 		return 100
+	}
+	return value
+}
+
+func trimRunes(value string, limit int) string {
+	value = strings.TrimSpace(value)
+	if limit > 0 && len([]rune(value)) > limit {
+		value = string([]rune(value)[:limit])
 	}
 	return value
 }
@@ -1164,4 +1392,15 @@ func (s *service) newReportID() string {
 		return raw
 	}
 	return "report-" + raw
+}
+
+func (s *service) newNotificationID() string {
+	raw := strings.TrimSpace(s.cfg.NewID())
+	if raw == "" {
+		raw = strconv.FormatInt(s.now().UnixNano(), 10)
+	}
+	if strings.HasPrefix(raw, "notification-") {
+		return raw
+	}
+	return "notification-" + raw
 }

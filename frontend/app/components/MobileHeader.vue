@@ -1,8 +1,15 @@
 <script setup lang="ts">
 const { t } = useI18n()
+const route = useRoute()
 const { mobilePrimaryItems, secondaryItems } = useAoiNavigation()
 
 const searchItem = computed(() => mobilePrimaryItems.value.find((item) => item.to === "/search"))
+const notificationsItem = computed(() => ({
+  active: route.path.startsWith("/notifications"),
+  icon: "bell",
+  label: t("nav.notifications"),
+  to: "/notifications"
+}))
 const loginItem = computed(() => secondaryItems.value.find((item) => item.to === "/login"))
 </script>
 
@@ -19,6 +26,12 @@ const loginItem = computed(() => secondaryItems.value.find((item) => item.to ===
         :icon="searchItem.icon"
         :label="searchItem.label"
         :to="searchItem.to"
+      />
+      <AoiIconButton
+        :active="notificationsItem.active"
+        :icon="notificationsItem.icon"
+        :label="notificationsItem.label"
+        :to="notificationsItem.to"
       />
       <AoiIconButton
         v-if="loginItem"

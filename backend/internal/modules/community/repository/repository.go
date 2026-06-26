@@ -306,6 +306,32 @@ func (r *repository) CreateCommunityReport(ctx context.Context, report model.Com
 	return r.db.Create(ctx, &report)
 }
 
+func (r *repository) CreateCommunityNotification(ctx context.Context, notification model.CommunityNotification) error {
+	return r.db.Create(ctx, &notification)
+}
+
+func (r *repository) ListCommunityNotifications(ctx context.Context, filter model.CommunityNotificationFilter) ([]model.CommunityNotification, error) {
+	opts := []database.QueryOption{
+		database.Where("client_id = ?", strings.TrimSpace(filter.ClientID)),
+		alive(),
+		database.Order("created_at DESC, id DESC"),
+	}
+	if filter.Limit > 0 {
+		opts = append(opts, database.Limit(filter.Limit))
+	}
+	var notifications []model.CommunityNotification
+	err := r.db.Find(ctx, &notifications, opts...)
+	return notifications, err
+}
+
+func (r *repository) MarkCommunityNotificationsRead(ctx context.Context, clientID string, now time.Time) error {
+	_, err := r.db.Update(ctx, &model.CommunityNotification{}, map[string]any{
+		"read_at":    now,
+		"updated_at": now,
+	}, database.Where("client_id = ? AND read_at IS NULL", strings.TrimSpace(clientID)), alive())
+	return err
+}
+
 func (r *repository) ListVideoComments(ctx context.Context, videoID string, filter model.VideoCommentFilter) ([]model.VideoComment, error) {
 	order := "created_at DESC, id DESC"
 	if filter.Sort == model.CommentSortOldest {

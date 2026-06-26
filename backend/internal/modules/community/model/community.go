@@ -26,6 +26,15 @@ const (
 	CommunityReportReasonMisleading = "misleading"
 	CommunityReportReasonOther      = "other"
 	CommunityReportStatusPending    = "pending"
+
+	CommunityNotificationKindComment     = "comment"
+	CommunityNotificationKindDanmaku     = "danmaku"
+	CommunityNotificationKindFollow      = "follow"
+	CommunityNotificationKindInteraction = "interaction"
+	CommunityNotificationKindReport      = "report"
+
+	CommunityNotificationTargetVideo   = "video"
+	CommunityNotificationTargetCreator = "creator"
 )
 
 // UserSummary 是社区公开接口中展示创作者的最小视图。
@@ -90,6 +99,26 @@ type CommunityReport struct {
 }
 
 func (CommunityReport) TableName() string { return "community_reports" }
+
+// CommunityNotification 保存匿名社区客户端的轻量站内消息。
+type CommunityNotification struct {
+	ID         string     `gorm:"column:id;primaryKey;size:96" json:"id"`
+	ClientID   string     `gorm:"column:client_id;size:96;not null;index" json:"clientId"`
+	Kind       string     `gorm:"column:kind;size:32;not null;index" json:"kind"`
+	Title      string     `gorm:"column:title;size:160;not null" json:"title"`
+	Body       string     `gorm:"column:body;size:500;not null" json:"body"`
+	TargetKind string     `gorm:"column:target_kind;size:32;not null;index" json:"targetKind"`
+	TargetID   string     `gorm:"column:target_id;size:96;not null;index" json:"targetId"`
+	VideoID    string     `gorm:"column:video_id;size:96;not null;index" json:"videoId"`
+	CreatorID  string     `gorm:"column:creator_id;size:96;not null;index" json:"creatorId"`
+	Link       string     `gorm:"column:link;size:512;not null" json:"link"`
+	ReadAt     *time.Time `gorm:"column:read_at" json:"readAt"`
+	CreatedAt  time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt  time.Time  `gorm:"column:updated_at;not null" json:"-"`
+	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CommunityNotification) TableName() string { return "community_notifications" }
 
 // Category 是社区内容分类的扁平持久化模型。
 type Category struct {
@@ -198,6 +227,7 @@ func (VideoComment) TableName() string { return "community_video_comments" }
 type CreateVideoCommentRequest struct {
 	AuthorName string `json:"authorName"`
 	Body       string `json:"body"`
+	ClientID   string `json:"clientId,omitempty"`
 }
 
 type CreateVideoDanmakuRequest struct {
@@ -206,6 +236,7 @@ type CreateVideoDanmakuRequest struct {
 	TimeSeconds int    `json:"timeSeconds"`
 	Mode        string `json:"mode"`
 	Color       string `json:"color"`
+	ClientID    string `json:"clientId,omitempty"`
 }
 
 type CreateVideoReportRequest struct {
@@ -220,6 +251,37 @@ type CreatorFollowRequest struct {
 
 type VideoInteractionRequest struct {
 	ClientID string `json:"clientId"`
+}
+
+type CommunityNotificationRequest struct {
+	ClientID string `json:"clientId"`
+}
+
+type CommunityNotificationFilter struct {
+	ClientID string
+	Limit    int
+}
+
+type CommunityNotificationItem struct {
+	ID         string     `json:"id"`
+	Kind       string     `json:"kind"`
+	Title      string     `json:"title"`
+	Body       string     `json:"body"`
+	TargetKind string     `json:"targetKind"`
+	TargetID   string     `json:"targetId"`
+	VideoID    string     `json:"videoId"`
+	CreatorID  string     `json:"creatorId"`
+	Link       string     `json:"link"`
+	ReadAt     *time.Time `json:"readAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
+type CommunityNotificationPayload struct {
+	Authenticated bool                                  `json:"authenticated"`
+	ClientID      *string                               `json:"clientId"`
+	UnreadCount   int                                   `json:"unreadCount"`
+	Message       *string                               `json:"message"`
+	Items         PageResult[CommunityNotificationItem] `json:"items"`
 }
 
 type CreatorFollowState struct {

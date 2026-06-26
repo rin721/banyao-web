@@ -171,6 +171,7 @@ async function submitDanmaku(payload: {
   const request: CreateVideoDanmakuRequest = {
     authorName: comments.authorName,
     body: payload.body,
+    clientId: library.ensureClientId(),
     color: payload.color,
     mode: payload.mode,
     timeSeconds: payload.timeSeconds
@@ -194,7 +195,8 @@ async function submitComment(body: string) {
   try {
     const comment = await api.createVideoComment(video.value.id, {
       authorName: comments.authorName,
-      body
+      body,
+      clientId: library.ensureClientId()
     })
     appendServerComment(comment)
     commentSubmitRevision.value += 1

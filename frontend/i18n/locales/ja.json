@@ -38,6 +38,7 @@
     "home": "ホーム",
     "categories": "カテゴリ",
     "following": "フォロー",
+    "notifications": "通知",
     "search": "検索",
     "history": "履歴",
     "collections": "コレクション",
@@ -89,6 +90,35 @@
     "exploreMore": "もっと探す",
     "noContentTitle": "フォロー更新はありません",
     "noContentDescription": "フォロー更新データを取得できませんでした。"
+  },
+  "notifications": {
+    "title": "通知",
+    "description": "このブラウザの匿名コミュニティ操作から生まれたメッセージを、コメント、弾幕、フォロー、保存、通報の単位でまとめます。",
+    "markAllRead": "すべて既読",
+    "errorTitle": "通知の読み込みに失敗しました",
+    "errorDescription": "コミュニティ API から通知データが返されませんでした。",
+    "retry": "再試行",
+    "summaryLabel": "通知サマリー",
+    "unreadLabel": "未読",
+    "unreadStatus": "{count} 件の未読通知",
+    "readStatus": "未読はありません",
+    "defaultMessage": "通知はこのブラウザの匿名 clientId に保存されます。",
+    "listTitle": "メッセージ",
+    "listDescription": "最近のコミュニティ受領通知と状態変更はバックエンドの通知テーブルから取得します。",
+    "openTarget": "開く",
+    "unreadDot": "未読通知",
+    "emptyTitle": "通知はまだありません",
+    "emptyDescription": "コメント、弾幕送信、クリエイターのフォロー、動画保存、通報を行うと、ここにメッセージが表示されます。",
+    "exploreAction": "ホームへ戻る",
+    "noContentTitle": "通知コンテンツはありません",
+    "noContentDescription": "通知データは返されませんでした。",
+    "kind": {
+      "comment": "コメント",
+      "danmaku": "弾幕",
+      "follow": "フォロー",
+      "interaction": "インタラクション",
+      "report": "通報"
+    }
   },
   "docs": {
     "eyebrow": "Aoi Docs",

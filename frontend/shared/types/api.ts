@@ -98,6 +98,7 @@ export interface CreateVideoDanmakuRequest {
   timeSeconds: number
   mode: VideoDanmakuMode
   color: string
+  clientId?: string
 }
 
 export type VideoReportReason = "spam" | "abuse" | "copyright" | "misleading" | "other"
@@ -142,6 +143,7 @@ export interface VideoCommentPayload {
 export interface CreateVideoCommentRequest {
   authorName: string
   body: string
+  clientId?: string
 }
 
 export interface CreatorFollowRequest {
@@ -214,6 +216,36 @@ export interface VideoLibraryPayload {
   message: string | null
   favorites: PageResult<VideoSummary>
   watchLater: PageResult<VideoSummary>
+}
+
+export type CommunityNotificationKind = "comment" | "danmaku" | "follow" | "interaction" | "report"
+
+export type CommunityNotificationTargetKind = "video" | "creator"
+
+export interface CommunityNotificationItem {
+  id: string
+  kind: CommunityNotificationKind
+  title: string
+  body: string
+  targetKind: CommunityNotificationTargetKind
+  targetId: string
+  videoId: string
+  creatorId: string
+  link: string
+  readAt: string | null
+  createdAt: string
+}
+
+export interface CommunityNotificationPayload {
+  authenticated: boolean
+  clientId?: string | null
+  unreadCount: number
+  message: string | null
+  items: PageResult<CommunityNotificationItem>
+}
+
+export interface CommunityNotificationRequest {
+  clientId: string
 }
 
 export interface SearchPayload {

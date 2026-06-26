@@ -2,6 +2,8 @@ import type {
   Announcement,
   Category,
   CategoryTreeNode,
+  CommunityNotificationItem,
+  CommunityNotificationPayload,
   CommunityReportReceipt,
   CreatorFollowState,
   CreatorProfile,
@@ -353,10 +355,22 @@ export function followMockCreator(handle: string, payload: CreatorFollowRequest)
     return null
   }
 
+  const wasFollowing = Boolean(mockCreatorFollows[clientId]?.[creator.id])
   const followedAt = mockCreatorFollows[clientId]?.[creator.id] || new Date().toISOString()
   mockCreatorFollows[clientId] = {
     ...(mockCreatorFollows[clientId] || {}),
     [creator.id]: followedAt
+  }
+  if (!wasFollowing) {
+    pushMockCommunityNotification(clientId, {
+      body: `你已关注 ${creator.displayName}，新的投稿会进入关注动态。`,
+      creatorId: creator.id,
+      kind: "follow",
+      link: `/u/${creator.handle}`,
+      targetId: creator.id,
+      targetKind: "creator",
+      title: "已关注创作者"
+    })
   }
 
   return getMockCreatorFollowState(handle, clientId)
@@ -449,6 +463,18 @@ export function setMockVideoInteraction(idOrSlug: string, kind: VideoInteraction
 
   if (!wasActive && kind === "like") {
     mockVideoLikes[video.id] = getMockVideoLikeCount(video) + 1
+  }
+  if (!wasActive) {
+    pushMockCommunityNotification(clientId, {
+      body: mockInteractionNotificationBody(kind, video.title),
+      creatorId: video.uploader.id,
+      kind: "interaction",
+      link: `/video/${video.slug}`,
+      targetId: video.id,
+      targetKind: "video",
+      title: mockInteractionNotificationTitle(kind),
+      videoId: video.id
+    })
   }
 
   return getMockVideoInteractionState(video.id, clientId)
@@ -679,6 +705,7 @@ const mockVideoComments: Record<string, VideoComment[]> = {
 
 const mockVideoDanmaku: Record<string, VideoDanmakuItem[]> = {}
 const mockVideoReports: CommunityReportReceipt[] = []
+const mockCommunityNotifications: Record<string, CommunityNotificationItem[]> = {}
 
 export function getMockVideoDanmaku(idOrSlug: string): VideoDanmakuPayload | null {
   const video = mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug)
@@ -734,6 +761,19 @@ export function createMockVideoDanmaku(idOrSlug: string, payload: CreateVideoDan
   }
 
   mockVideoDanmaku[video.id] = [...(mockVideoDanmaku[video.id] || []), item]
+  const clientId = normalizeMockClientId(payload.clientId || "")
+  if (clientId) {
+    pushMockCommunityNotification(clientId, {
+      body: `你的弹幕已经出现在《${video.title}》的播放时间轴上。`,
+      creatorId: video.uploader.id,
+      kind: "danmaku",
+      link: `/video/${video.slug}`,
+      targetId: video.id,
+      targetKind: "video",
+      title: "弹幕已发送",
+      videoId: video.id
+    })
+  }
 
   return item
 }
@@ -794,6 +834,19 @@ export function createMockVideoComment(idOrSlug: string, payload: CreateVideoCom
 
   mockVideoComments[video.id] = [comment, ...(mockVideoComments[video.id] || [])]
   video.commentCount = (video.commentCount || 0) + 1
+  const clientId = normalizeMockClientId(payload.clientId || "")
+  if (clientId) {
+    pushMockCommunityNotification(clientId, {
+      body: `你在《${video.title}》下发布的评论已经进入公开讨论区。`,
+      creatorId: video.uploader.id,
+      kind: "comment",
+      link: `/video/${video.slug}`,
+      targetId: video.id,
+      targetKind: "video",
+      title: "评论已发布",
+      videoId: video.id
+    })
+  }
 
   return comment
 }
@@ -824,8 +877,114 @@ export function createMockVideoReport(idOrSlug: string, payload: CreateVideoRepo
   }
 
   mockVideoReports.push(receipt)
+  pushMockCommunityNotification(clientId, {
+    body: `你提交的《${video.title}》举报已进入待处理队列。`,
+    creatorId: video.uploader.id,
+    kind: "report",
+    link: `/video/${video.slug}`,
+    targetId: video.id,
+    targetKind: "video",
+    title: "举报已收到",
+    videoId: video.id
+  })
 
   return receipt
+}
+
+export function getMockCommunityNotifications(clientId: string, limit?: number): CommunityNotificationPayload | null {
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!normalizedClientId) {
+    return null
+  }
+
+  const items = [...(mockCommunityNotifications[normalizedClientId] || [])]
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+  const visibleItems = items.slice(0, Math.min(Math.max(limit || 48, 1), 100))
+  const unreadCount = items.filter((item) => !item.readAt).length
+
+  return {
+    authenticated: false,
+    clientId: normalizedClientId,
+    items: {
+      items: visibleItems,
+      nextCursor: null
+    },
+    message: "通知来自 mock 社区 API；真实模式会写入 Go 后端匿名通知表。",
+    unreadCount
+  }
+}
+
+export function markMockCommunityNotificationsRead(clientId: string): CommunityNotificationPayload | null {
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!normalizedClientId) {
+    return null
+  }
+
+  const now = new Date().toISOString()
+  mockCommunityNotifications[normalizedClientId] = (mockCommunityNotifications[normalizedClientId] || []).map((item) => ({
+    ...item,
+    readAt: item.readAt || now
+  }))
+
+  return getMockCommunityNotifications(normalizedClientId)
+}
+
+function pushMockCommunityNotification(clientId: string, input: {
+  body: string
+  creatorId?: string
+  kind: CommunityNotificationItem["kind"]
+  link: string
+  targetId: string
+  targetKind: CommunityNotificationItem["targetKind"]
+  title: string
+  videoId?: string
+}) {
+  const normalizedClientId = normalizeMockClientId(clientId)
+
+  if (!normalizedClientId) {
+    return
+  }
+
+  const now = new Date().toISOString()
+  const item: CommunityNotificationItem = {
+    body: input.body,
+    createdAt: now,
+    creatorId: input.creatorId || "",
+    id: `notification-${normalizedClientId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    kind: input.kind,
+    link: input.link,
+    readAt: null,
+    targetId: input.targetId,
+    targetKind: input.targetKind,
+    title: input.title,
+    videoId: input.videoId || ""
+  }
+  mockCommunityNotifications[normalizedClientId] = [
+    item,
+    ...(mockCommunityNotifications[normalizedClientId] || [])
+  ]
+}
+
+function mockInteractionNotificationTitle(kind: VideoInteractionKind) {
+  if (kind === "like") {
+    return "已点赞视频"
+  }
+  if (kind === "favorite") {
+    return "已加入收藏"
+  }
+  return "已加入稍后看"
+}
+
+function mockInteractionNotificationBody(kind: VideoInteractionKind, title: string) {
+  if (kind === "like") {
+    return `你点赞了《${title}》，创作者会在热度统计中看到这次互动。`
+  }
+  if (kind === "favorite") {
+    return `《${title}》已经保存到收藏列表。`
+  }
+  return `《${title}》已经保存到稍后看列表。`
 }
 
 function matchesVideo(video: VideoSummary, normalizedQuery: string) {
