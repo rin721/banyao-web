@@ -142,7 +142,7 @@ useHead(() => ({
           </PageHeader>
 
           <p class="creator-profile__source">
-            <AoiIcon name="database" :size="14" decorative />
+            <AoiIcon name="sparkles" :size="14" decorative />
             {{ t("creator.sourceNote") }}
           </p>
         </div>
@@ -217,6 +217,14 @@ useHead(() => ({
     linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 86%, transparent), var(--aoi-surface));
   box-shadow: var(--aoi-shadow-sm);
   padding: 18px;
+}
+
+.creator-profile__hero {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .creator-loading {

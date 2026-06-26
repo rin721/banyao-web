@@ -697,7 +697,7 @@ func (s *service) VideoLibrary(ctx context.Context, req model.VideoInteractionRe
 	if err != nil {
 		return model.VideoLibraryPayload{}, err
 	}
-	message := "收藏和稍后看会按当前浏览器同步；登录后可迁移为账号资料库。"
+	message := "收藏和稍后看会跟随当前会话同步；登录后可进入你的账号资料库。"
 	return model.VideoLibraryPayload{
 		Authenticated:   false,
 		ClientID:        &clientID,
@@ -823,7 +823,7 @@ func (s *service) ListCommunityDynamics(ctx context.Context, filter model.Commun
 	if err != nil {
 		return model.CommunityDynamicPayload{}, err
 	}
-	message := "社区动态会展示创作者短更新；登录后可汇入你的消息流。"
+	message := "社区动态会展示创作者短更新，也会在关注动态里保持轻量阅读节奏。"
 	var client *string
 	if clientID != "" {
 		client = &clientID
@@ -905,7 +905,7 @@ func (s *service) ListCommunitySubmissions(ctx context.Context, filter model.Com
 	if err != nil {
 		return model.CommunitySubmissionPayload{}, err
 	}
-	message := "投稿记录来自社区待审核池；当前只保存文件元数据，不保存文件字节。"
+	message := "投稿记录来自社区审核队列；当前只保存标题、分类、标签和文件信息。"
 	return model.CommunitySubmissionPayload{
 		Authenticated: false,
 		ClientID:      &clientID,
@@ -1095,7 +1095,7 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 			return model.FollowingFeedPayload{}, err
 		}
 	}
-	message := "关注关系会按当前浏览器同步；登录后可迁移到你的账号。"
+	message := "关注关系会跟随当前会话同步；登录后可进入你的社区账号。"
 	return model.FollowingFeedPayload{
 		Authenticated:  false,
 		ClientID:       &clientID,
@@ -1639,7 +1639,7 @@ func creatorLink(creator model.Creator) string {
 }
 
 func videoHistoryPayload(clientID string, items []model.VideoHistoryItem) model.VideoHistoryPayload {
-	message := "观看历史会按当前浏览器同步；登录后可迁移为账号播放记录。"
+	message := "观看历史会跟随当前会话同步；登录后可进入你的播放记录。"
 	return model.VideoHistoryPayload{
 		Authenticated: false,
 		ClientID:      &clientID,
@@ -1658,7 +1658,7 @@ func notificationPayload(clientID string, notifications []model.CommunityNotific
 		}
 		items = append(items, notificationItem(notification))
 	}
-	message := "通知来自匿名 clientId 的社区动作；接入登录后可迁移到用户消息中心。"
+	message := "通知来自你的社区互动；登录后可进入完整消息中心。"
 	return model.CommunityNotificationPayload{
 		Authenticated: false,
 		ClientID:      &clientID,

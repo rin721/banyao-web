@@ -99,7 +99,7 @@ function cancelPendingAction() {
   <div class="settings-page">
     <SettingsPageHeader
       title="高级"
-      description="保留原设置页里的 API 诊断、本地缓存统计和重置操作。"
+      description="查看连接状态、本地缓存统计和重置操作。"
     />
 
     <SettingsPanel
@@ -112,7 +112,7 @@ function cancelPendingAction() {
 
     <SettingsPanel
       icon="cloud"
-      title="API 状态"
+      title="连接状态"
       description="确认当前运行时数据源的可用端点。"
     >
       <template #actions>
@@ -130,8 +130,8 @@ function cancelPendingAction() {
       <PageState
         v-if="!apiStatusPending && apiStatusError"
         icon="cloud-alert"
-        title="API 状态不可用"
-        description="当前 API 状态探测失败。"
+        title="连接状态不可用"
+        description="当前连接状态探测失败。"
         action-icon="refresh-cw"
         action-label="重试"
         @action="refreshApiStatus()"
@@ -140,7 +140,7 @@ function cancelPendingAction() {
       <template v-else-if="!apiStatusPending && apiStatus">
         <AoiStatGrid :items="apiStatusStats" />
 
-        <div v-if="apiStatus.endpoints.length" class="settings-endpoint-list" aria-label="已实现 API endpoints">
+        <div v-if="apiStatus.endpoints.length" class="settings-endpoint-list" aria-label="已实现连接端点">
           <code v-for="endpoint in apiStatus.endpoints" :key="endpoint">{{ endpoint }}</code>
         </div>
       </template>
@@ -148,7 +148,7 @@ function cancelPendingAction() {
 
     <SettingsPanel
       icon="cloud-alert"
-      title="最近 API 错误"
+      title="最近连接错误"
       description="页面请求失败时保留最近 8 条，便于调试。"
     >
       <template #actions>
@@ -176,9 +176,9 @@ function cancelPendingAction() {
     </SettingsPanel>
 
     <SettingsPanel
-      icon="database"
+      icon="archive"
       title="本地数据"
-      description="这些缓存和偏好写入当前浏览器；评论显示名称只会在你发布评论时随社区 API 请求发送。"
+      description="这些缓存和偏好写入当前浏览器；评论显示名称只会在你发布评论时随评论内容一起发送。"
     >
       <div class="settings-data-panels">
         <SettingsDataActionCard

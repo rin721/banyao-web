@@ -151,7 +151,7 @@ const richTextMarkdown = ref([
   "这里集中展示按钮、表单、弹层、播放器、弹幕和业务组件。",
   "",
   "- 保持 Aoi token",
-  "- 业务样本优先读取社区 API",
+  "- 业务样本优先读取社区数据",
   "- 复杂组件延迟渲染"
 ].join("\n"))
 const richTextDocument = ref<AoiRichTextDocument | null>(null)
@@ -398,13 +398,13 @@ const businessPreviewSource = computed(() => {
     return "同步中"
   }
 
-  return businessPreviewError.value ? "本地预览样本" : "社区 API"
+  return businessPreviewError.value ? "本地预览样本" : "社区数据"
 })
 const statItems = computed(() => [
   { icon: "blocks", label: "组件", value: "70+" },
   { icon: "panel-left", label: "分区", value: 8 },
   { icon: "mouse-pointer-click", label: "交互", value: 24 },
-  { icon: "database", label: "业务样本", value: businessPreviewSource.value }
+  { icon: "sparkles", label: "业务样本", value: businessPreviewSource.value }
 ])
 const tagItems = [
   { icon: "hash", label: "components", to: "/search?q=components" },

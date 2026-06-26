@@ -106,7 +106,7 @@ useHead(() => ({
       </PageHeader>
 
       <p class="category-hero__source">
-        <AoiIcon name="database" :size="14" decorative />
+        <AoiIcon name="sparkles" :size="14" decorative />
         {{ sourceLabel }}
       </p>
     </section>
@@ -191,14 +191,11 @@ useHead(() => ({
   display: grid;
   min-width: 0;
   gap: 14px;
-  overflow: hidden;
-  border: 1px solid var(--aoi-surface-border);
-  border-radius: var(--aoi-radius-sm);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-10) 72%, transparent), transparent 46%),
-    linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 88%, transparent), var(--aoi-surface));
-  box-shadow: var(--aoi-shadow-sm);
-  padding: 18px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .category-hero :deep(.page-header) {
@@ -236,7 +233,8 @@ useHead(() => ({
 .category-index-page__map {
   min-width: 0;
   align-items: stretch;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+  justify-content: start;
 }
 
 .category-index-page__map :deep(.category-card) {

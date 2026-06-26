@@ -31,10 +31,6 @@ const recommendedCreators = computed(() => feed.value?.followingCount
 const feedMessage = computed(() => following.syncError || feed.value?.message)
 const dynamicItems = computed(() => feed.value?.dynamics.items || [])
 const latestItems = computed(() => feed.value?.latest.items || [])
-const activeClientId = computed(() => following.clientId || feed.value?.clientId || "")
-const maskedClientId = computed(() => activeClientId.value
-  ? `...${activeClientId.value.slice(-8)}`
-  : t("following.clientPending"))
 const sourceLabel = computed(() => {
   if (isLoadingFeed.value) {
     return t("following.sourceLoading")
@@ -151,12 +147,8 @@ useHead(() => ({
 
       <div class="following-hero__meta">
         <p class="following-hero__source">
-          <AoiIcon name="database" :size="14" decorative />
+          <AoiIcon name="sparkles" :size="14" decorative />
           {{ sourceLabel }}
-        </p>
-        <p class="following-hero__source">
-          <AoiIcon name="fingerprint" :size="14" decorative />
-          {{ t("following.clientLabel", { client: maskedClientId }) }}
         </p>
       </div>
     </section>
@@ -328,13 +320,10 @@ useHead(() => ({
   min-width: 0;
   gap: 14px;
   overflow: hidden;
-  border: 1px solid var(--aoi-surface-border);
-  border-radius: var(--aoi-radius-sm);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-10) 72%, transparent), transparent 46%),
-    linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 88%, transparent), var(--aoi-surface));
-  box-shadow: var(--aoi-shadow-sm);
-  padding: 18px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 .following-hero :deep(.page-header) {

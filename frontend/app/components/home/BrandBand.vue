@@ -24,9 +24,10 @@ const { t } = useI18n()
   overflow: visible;
   width: 100%;
   border: 0;
-  background: none;
+  background: transparent;
+  background-color: transparent;
   box-shadow: none;
-  padding: 4px 0 18px;
+  padding: 0 0 16px;
 }
 
 .brand-band__inner {
@@ -39,7 +40,8 @@ const { t } = useI18n()
   gap: 32px;
   margin: 0;
   border: 0;
-  background: none;
+  background: transparent;
+  background-color: transparent;
   box-shadow: none;
   padding: 0;
   backdrop-filter: none;

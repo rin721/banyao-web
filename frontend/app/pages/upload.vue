@@ -65,18 +65,6 @@ const selectedCategoryName = computed(() => {
 const lastSavedLabel = computed(() => activeDraft.value
   ? formatDate(activeDraft.value.updatedAt)
   : t("upload.emptyValue"))
-const activeClientId = computed(() => {
-  if (library.clientId) {
-    return library.clientId
-  }
-  if (submissions.value[0]?.clientId) {
-    return submissions.value[0].clientId
-  }
-  return ""
-})
-const maskedClientId = computed(() => activeClientId.value
-  ? `...${activeClientId.value.slice(-8)}`
-  : t("upload.clientPending"))
 const canSubmit = computed(() => Boolean(
   activeDraft.value?.source &&
   validation.value.ready &&
@@ -129,7 +117,7 @@ const uploadStats = computed(() => [
   },
   {
     description: t("upload.stats.remoteDescription"),
-    icon: "database",
+    icon: "sparkles",
     label: t("upload.stats.remote"),
     value: formatCount(submissions.value.length)
   }
@@ -402,12 +390,8 @@ useHead(() => ({
 
       <div class="upload-hero__meta">
         <p class="upload-hero__source">
-          <AoiIcon name="database" :size="14" decorative />
+          <AoiIcon name="sparkles" :size="14" decorative />
           {{ sourceLabel }}
-        </p>
-        <p class="upload-hero__source">
-          <AoiIcon name="fingerprint" :size="14" decorative />
-          {{ t("upload.clientLabel", { client: maskedClientId }) }}
         </p>
       </div>
 
@@ -760,14 +744,11 @@ useHead(() => ({
   display: grid;
   min-width: 0;
   gap: 14px;
-  overflow: hidden;
-  border: 1px solid var(--aoi-surface-border);
-  border-radius: var(--aoi-radius-sm);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-10) 72%, transparent), transparent 46%),
-    linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 88%, transparent), var(--aoi-surface));
-  box-shadow: var(--aoi-shadow-sm);
-  padding: 18px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .upload-hero :deep(.page-header) {

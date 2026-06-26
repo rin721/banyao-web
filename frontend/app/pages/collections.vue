@@ -26,9 +26,6 @@ const hasActiveVideos = computed(() => library.hydrated && activeVideos.value.le
 const hasAnyVideos = computed(() => library.hydrated && totalCount.value > 0)
 const canClearActive = computed(() => library.hydrated && activeVideos.value.length > 0 && !syncPending.value)
 const isInitialSync = computed(() => !library.hydrated || (syncPending.value && !collectionSynced.value && !hasAnyVideos.value))
-const maskedClientId = computed(() => library.clientId
-  ? `...${library.clientId.slice(-8)}`
-  : t("collections.clientPending"))
 const tabItems = computed(() => [
   {
     icon: "star",
@@ -182,12 +179,8 @@ useHead(() => ({
 
       <div class="collections-hero__meta">
         <p class="collections-hero__source">
-          <AoiIcon name="database" :size="14" decorative />
+          <AoiIcon name="sparkles" :size="14" decorative />
           {{ sourceLabel }}
-        </p>
-        <p class="collections-hero__source">
-          <AoiIcon name="fingerprint" :size="14" decorative />
-          {{ t("collections.clientLabel", { client: maskedClientId }) }}
         </p>
       </div>
 
@@ -316,13 +309,10 @@ useHead(() => ({
   min-width: 0;
   gap: 14px;
   overflow: hidden;
-  border: 1px solid var(--aoi-surface-border);
-  border-radius: var(--aoi-radius-sm);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-10) 72%, transparent), transparent 46%),
-    linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 88%, transparent), var(--aoi-surface));
-  box-shadow: var(--aoi-shadow-sm);
-  padding: 18px;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 .collections-hero :deep(.page-header) {

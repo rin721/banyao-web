@@ -184,7 +184,7 @@ useHead(() => ({
       </PageHeader>
 
       <p class="search-hero__source">
-        <AoiIcon name="database" :size="14" decorative />
+        <AoiIcon name="sparkles" :size="14" decorative />
         {{ searchSourceLabel }}
       </p>
 
@@ -340,14 +340,11 @@ useHead(() => ({
   display: grid;
   min-width: 0;
   gap: 14px;
-  overflow: hidden;
-  border: 1px solid var(--aoi-surface-border);
-  border-radius: var(--aoi-radius-sm);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--aoi-accent-10) 72%, transparent), transparent 46%),
-    linear-gradient(180deg, color-mix(in srgb, var(--aoi-surface-solid) 88%, transparent), var(--aoi-surface));
-  box-shadow: var(--aoi-shadow-sm);
-  padding: 18px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .search-hero :deep(.page-header) {
