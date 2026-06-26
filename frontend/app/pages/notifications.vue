@@ -3,7 +3,8 @@ import type { CommunityNotificationItem } from "~/types/api"
 
 const api = useAoiApi()
 const library = useLibraryStore()
-const { t } = useI18n()
+const { locale, t } = useI18n()
+const notificationsLoaded = ref(false)
 const markReadPending = ref(false)
 
 const { data: payload, error, pending, refresh } = useAsyncData(
@@ -17,18 +18,37 @@ const { data: payload, error, pending, refresh } = useAsyncData(
 
 const notifications = computed(() => payload.value?.items.items || [])
 const unreadCount = computed(() => payload.value?.unreadCount || 0)
+const totalCount = computed(() => notifications.value.length)
 const hasNotifications = computed(() => notifications.value.length > 0)
 const statusLabel = computed(() => unreadCount.value > 0
   ? t("notifications.unreadStatus", { count: unreadCount.value })
   : t("notifications.readStatus"))
 const sourceMessage = computed(() => payload.value?.message || t("notifications.defaultMessage"))
+const dateLocale = computed(() => {
+  if (locale.value === "ja") {
+    return "ja-JP"
+  }
+  if (locale.value === "en") {
+    return "en-US"
+  }
+  return "zh-CN"
+})
 
 onMounted(async () => {
   if (!library.hydrated) {
     library.restore()
   }
-  await refresh()
+  await loadNotifications()
 })
+
+async function loadNotifications() {
+  notificationsLoaded.value = false
+  try {
+    await refresh()
+  } finally {
+    notificationsLoaded.value = true
+  }
+}
 
 async function markAllRead() {
   if (markReadPending.value || unreadCount.value === 0) {
@@ -61,17 +81,22 @@ function iconFor(item: CommunityNotificationItem) {
 }
 
 function formatCreatedAt(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return t("notifications.unknownTime")
+  }
+
+  return new Intl.DateTimeFormat(dateLocale.value, {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     month: "2-digit"
-  }).format(new Date(value))
+  }).format(date)
 }
 
-useHead({
-  title: "Notifications - Aoi"
-})
+useHead(() => ({
+  title: `${t("notifications.title")} - Aoi`
+}))
 </script>
 
 <template>
@@ -95,25 +120,49 @@ useHead({
       </template>
     </PageHeader>
 
+    <section
+      v-if="pending || !notificationsLoaded"
+      class="notifications-loading"
+      :aria-label="t('notifications.loadingTitle')"
+      aria-live="polite"
+    >
+      <span class="notifications-loading__sr">
+        {{ t("notifications.loadingTitle") }}. {{ t("notifications.loadingDescription") }}
+      </span>
+      <div class="notifications-loading__icon" aria-hidden="true" />
+      <div class="notifications-loading__copy">
+        <span class="notifications-loading__line notifications-loading__line--title" />
+        <span class="notifications-loading__line" />
+        <span class="notifications-loading__line notifications-loading__line--short" />
+      </div>
+    </section>
+
     <PageState
-      v-if="!pending && error"
+      v-else-if="error"
       icon="cloud-alert"
       :title="t('notifications.errorTitle')"
       :description="t('notifications.errorDescription')"
       action-icon="refresh-cw"
       :action-label="t('notifications.retry')"
-      @action="refresh()"
+      @action="loadNotifications"
     />
 
-    <template v-else-if="!pending && payload">
+    <template v-else-if="payload">
       <section class="notifications-summary" :aria-label="t('notifications.summaryLabel')">
-        <div class="notifications-summary__metric">
-          <span class="notifications-summary__value">{{ unreadCount }}</span>
-          <span class="notifications-summary__label">{{ t("notifications.unreadLabel") }}</span>
-        </div>
         <div class="notifications-summary__copy">
+          <span class="notifications-summary__eyebrow">{{ t("notifications.receiptsEyebrow") }}</span>
           <p class="notifications-summary__title">{{ statusLabel }}</p>
           <p class="notifications-summary__message">{{ sourceMessage }}</p>
+        </div>
+        <div class="notifications-summary__metrics" aria-hidden="true">
+          <div class="notifications-summary__metric">
+            <span class="notifications-summary__value">{{ unreadCount }}</span>
+            <span class="notifications-summary__label">{{ t("notifications.unreadLabel") }}</span>
+          </div>
+          <div class="notifications-summary__metric">
+            <span class="notifications-summary__value">{{ totalCount }}</span>
+            <span class="notifications-summary__label">{{ t("notifications.totalLabel") }}</span>
+          </div>
         </div>
         <AoiButton
           class="notifications-summary__mobile-action"
@@ -135,7 +184,7 @@ useHead({
         :count="notifications.length"
         title-id="notifications-list-title"
       >
-        <div class="notifications-list" role="list">
+        <div class="notifications-list" role="list" :aria-label="t('notifications.timelineAria')">
           <article
             v-for="(item, index) in notifications"
             :key="item.id"
@@ -189,7 +238,7 @@ useHead({
       :description="t('notifications.noContentDescription')"
       action-icon="refresh-cw"
       :action-label="t('notifications.retry')"
-      @action="refresh()"
+      @action="loadNotifications"
     />
   </div>
 </template>
@@ -199,10 +248,70 @@ useHead({
   gap: 20px;
 }
 
-.notifications-summary {
+.notifications-loading {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 16px;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--aoi-border);
+  border-radius: var(--aoi-radius-sm);
+  background: var(--aoi-surface);
+  box-shadow: var(--aoi-shadow-sm);
+  padding: 16px;
+}
+
+.notifications-loading__sr {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.notifications-loading__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--aoi-radius-sm);
+  background: linear-gradient(110deg, var(--aoi-accent-10), var(--aoi-surface-muted), var(--aoi-accent-10));
+  background-size: 200% 100%;
+  animation: notifications-loading-shimmer 1.2s var(--aoi-ease-out) infinite;
+}
+
+.notifications-loading__copy {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.notifications-loading__line {
+  display: block;
+  width: min(100%, 520px);
+  height: 10px;
+  border-radius: var(--aoi-radius-round);
+  background: linear-gradient(110deg, var(--aoi-border), var(--aoi-surface-muted), var(--aoi-border));
+  background-size: 200% 100%;
+  animation: notifications-loading-shimmer 1.2s var(--aoi-ease-out) infinite;
+}
+
+.notifications-loading__line--title {
+  width: min(72%, 260px);
+  height: 14px;
+}
+
+.notifications-loading__line--short {
+  width: min(46%, 180px);
+}
+
+.notifications-summary {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
   align-items: center;
   border: 1px solid var(--aoi-state-border-active);
   border-radius: var(--aoi-radius-sm);
@@ -213,12 +322,41 @@ useHead({
   padding: 16px;
 }
 
+.notifications-summary::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--aoi-accent-50);
+  content: "";
+}
+
+.notifications-summary__copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding-left: 6px;
+}
+
+.notifications-summary__eyebrow {
+  color: var(--aoi-accent-60);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.notifications-summary__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(72px, 1fr));
+  gap: 8px;
+}
+
 .notifications-summary__metric {
   display: grid;
-  min-width: 82px;
+  min-width: 74px;
   place-items: center;
-  border-right: 1px solid var(--aoi-border);
-  padding-right: 16px;
+  border: 1px solid color-mix(in srgb, var(--aoi-state-border-active) 60%, transparent);
+  border-radius: var(--aoi-radius-sm);
+  background: color-mix(in srgb, var(--aoi-surface-solid) 72%, transparent);
+  padding: 10px;
 }
 
 .notifications-summary__value {
@@ -233,12 +371,6 @@ useHead({
   color: var(--aoi-text-muted);
   font-size: 12px;
   font-weight: 800;
-}
-
-.notifications-summary__copy {
-  display: grid;
-  min-width: 0;
-  gap: 5px;
 }
 
 .notifications-summary__mobile-action {
@@ -263,6 +395,7 @@ useHead({
 }
 
 .notifications-list {
+  position: relative;
   display: grid;
   gap: 10px;
 }
@@ -278,11 +411,21 @@ useHead({
   background: var(--aoi-surface);
   box-shadow: var(--aoi-shadow-sm);
   padding: 14px;
+  transition:
+    border-color var(--aoi-motion-fast) var(--aoi-ease-out),
+    background-color var(--aoi-motion-fast) var(--aoi-ease-out),
+    transform var(--aoi-motion-fast) var(--aoi-ease-out);
 }
 
 .notification-card--unread {
   border-color: var(--aoi-state-border-active);
   background: color-mix(in srgb, var(--aoi-accent-10) 48%, var(--aoi-surface-solid));
+}
+
+.notification-card:hover,
+.notification-card:focus-within {
+  border-color: var(--aoi-state-border-active);
+  transform: translate3d(0, -1px, 0);
 }
 
 .notification-card__icon {
@@ -353,13 +496,8 @@ useHead({
     grid-template-columns: 1fr;
   }
 
-  .notifications-summary__metric {
-    min-width: 0;
-    justify-items: start;
-    border-right: 0;
-    border-bottom: 1px solid var(--aoi-border);
-    padding-right: 0;
-    padding-bottom: 12px;
+  .notifications-summary__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .notifications-summary__mobile-action {
@@ -373,6 +511,32 @@ useHead({
   .notification-card__icon {
     width: 34px;
     height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notifications-loading__icon,
+  .notifications-loading__line {
+    animation: none;
+  }
+
+  .notification-card {
+    transition: none;
+  }
+
+  .notification-card:hover,
+  .notification-card:focus-within {
+    transform: none;
+  }
+}
+
+@keyframes notifications-loading-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -80% 0;
   }
 }
 </style>
