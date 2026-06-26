@@ -5,6 +5,7 @@ import type {
   CategoryTreeNode,
   CreatorFollowState,
   CreateVideoCommentRequest,
+  CreateVideoDanmakuRequest,
   CreatorFollowRequest,
   CreatorProfile,
   ErrorResponse,
@@ -15,6 +16,7 @@ import type {
   VideoComment,
   VideoCommentPayload,
   VideoCommentSortMode,
+  VideoDanmakuItem,
   VideoDanmakuPayload,
   VideoDetail,
   VideoInteractionKind,
@@ -100,6 +102,13 @@ export function useAoiApi() {
 
   async function getVideoDanmaku(idOrSlug: string): Promise<VideoDanmakuPayload> {
     return await request<VideoDanmakuPayload>(`/videos/${encodeURIComponent(idOrSlug)}/danmaku`)
+  }
+
+  async function createVideoDanmaku(idOrSlug: string, body: CreateVideoDanmakuRequest): Promise<VideoDanmakuItem> {
+    return await request<VideoDanmakuItem>(`/videos/${encodeURIComponent(idOrSlug)}/danmaku`, {
+      body,
+      method: "POST"
+    })
   }
 
   async function getVideoComments(idOrSlug: string, params: {
@@ -191,6 +200,7 @@ export function useAoiApi() {
     followCreator,
     getHomePayload,
     createVideoComment,
+    createVideoDanmaku,
     getVideoDanmaku,
     getVideoComments,
     getVideoDetail,

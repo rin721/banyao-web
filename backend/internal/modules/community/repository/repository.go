@@ -298,6 +298,10 @@ func (r *repository) ListDanmaku(ctx context.Context, videoID string) ([]model.V
 	return items, err
 }
 
+func (r *repository) CreateVideoDanmaku(ctx context.Context, item model.VideoDanmakuItem) error {
+	return r.db.Create(ctx, &item)
+}
+
 func (r *repository) ListVideoComments(ctx context.Context, videoID string, filter model.VideoCommentFilter) ([]model.VideoComment, error) {
 	order := "created_at DESC, id DESC"
 	if filter.Sort == model.CommentSortOldest {

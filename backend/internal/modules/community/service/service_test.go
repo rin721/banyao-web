@@ -118,6 +118,53 @@ func TestServiceCreateVideoCommentRejectsEmptyInput(t *testing.T) {
 	}
 }
 
+func TestServiceCreateVideoDanmakuPersistsAndNormalizesInput(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{
+		NewID: func() string { return "unit-danmaku" },
+		Now:   fixedNow,
+	})
+
+	item, err := svc.CreateVideoDanmaku(context.Background(), "aoi-alpha", model.CreateVideoDanmakuRequest{
+		AuthorName:  "  Aoi Viewer  ",
+		Body:        "  Backend danmaku  ",
+		TimeSeconds: 999,
+		Mode:        "invalid",
+		Color:       "pink",
+	})
+	if err != nil {
+		t.Fatalf("CreateVideoDanmaku() error = %v", err)
+	}
+	if item.ID != "danmaku-unit-danmaku" || item.VideoID != "video-aoi-alpha" {
+		t.Fatalf("unexpected created danmaku: %#v", item)
+	}
+	if item.AuthorName != "Aoi Viewer" || item.Body != "Backend danmaku" {
+		t.Fatalf("expected normalized author and body, got %#v", item)
+	}
+	if item.TimeSeconds != 299 || item.Mode != model.DanmakuModeScroll || item.Color != "#ffffff" {
+		t.Fatalf("expected normalized time, mode and color, got %#v", item)
+	}
+
+	payload, err := svc.GetVideoDanmaku(context.Background(), "aoi-alpha")
+	if err != nil {
+		t.Fatalf("GetVideoDanmaku() error = %v", err)
+	}
+	if payload.VideoID != "video-aoi-alpha" || payload.TotalCount != 2 {
+		t.Fatalf("unexpected danmaku payload: %#v", payload)
+	}
+	if payload.Items[1].ID != item.ID {
+		t.Fatalf("expected created danmaku in persisted list, got %#v", payload.Items)
+	}
+}
+
+func TestServiceCreateVideoDanmakuRejectsEmptyInput(t *testing.T) {
+	svc := New(newFakeRepository(), Config{Now: fixedNow})
+
+	if _, err := svc.CreateVideoDanmaku(context.Background(), "aoi-alpha", model.CreateVideoDanmakuRequest{AuthorName: "Aoi Viewer"}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
 func TestServiceCreatorFollowStatePersistsAndUpdatesFeed(t *testing.T) {
 	repo := newFakeRepository()
 	svc := New(repo, Config{Now: fixedNow})
@@ -388,6 +435,11 @@ func (r *fakeRepository) CreateVideoComment(_ context.Context, comment model.Vid
 			break
 		}
 	}
+	return nil
+}
+
+func (r *fakeRepository) CreateVideoDanmaku(_ context.Context, item model.VideoDanmakuItem) error {
+	r.danmaku[item.VideoID] = append(r.danmaku[item.VideoID], item)
 	return nil
 }
 

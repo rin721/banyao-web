@@ -175,6 +175,14 @@ type CreateVideoCommentRequest struct {
 	Body       string `json:"body"`
 }
 
+type CreateVideoDanmakuRequest struct {
+	AuthorName  string `json:"authorName"`
+	Body        string `json:"body"`
+	TimeSeconds int    `json:"timeSeconds"`
+	Mode        string `json:"mode"`
+	Color       string `json:"color"`
+}
+
 type CreatorFollowRequest struct {
 	ClientID string `json:"clientId"`
 }

@@ -298,6 +298,7 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.videos.list", deps.CommunityHandler.Videos),
 		routeSpecFor("community.videos.get", deps.CommunityHandler.VideoDetail),
 		routeSpecFor("community.videos.danmaku", deps.CommunityHandler.VideoDanmaku),
+		routeSpecFor("community.videos.danmaku.create", deps.CommunityHandler.CreateVideoDanmaku),
 		routeSpecFor("community.videos.comments.list", deps.CommunityHandler.VideoComments),
 		routeSpecFor("community.videos.comments.create", deps.CommunityHandler.CreateVideoComment),
 		routeSpecFor("community.videos.interaction-state", deps.CommunityHandler.VideoInteractionState),

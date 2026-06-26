@@ -9,6 +9,7 @@ import type {
   SearchPayload,
   CreatorFollowRequest,
   CreateVideoCommentRequest,
+  CreateVideoDanmakuRequest,
   VideoInteractionKind,
   VideoInteractionRequest,
   VideoInteractionState,
@@ -673,6 +674,8 @@ const mockVideoComments: Record<string, VideoComment[]> = {
   ]
 }
 
+const mockVideoDanmaku: Record<string, VideoDanmakuItem[]> = {}
+
 export function getMockVideoDanmaku(idOrSlug: string): VideoDanmakuPayload | null {
   const video = mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug)
 
@@ -690,13 +693,45 @@ export function getMockVideoDanmaku(idOrSlug: string): VideoDanmakuPayload | nul
     authorName: index % 3 === 0 ? video.uploader.displayName : "Aoi Viewer",
     createdAt: new Date(Date.parse(video.publishedAt) + index * 90_000).toISOString()
   }))
+  const persistedItems = mockVideoDanmaku[video.id] || []
+  const mergedItems = [...items, ...persistedItems].sort((a, b) => a.timeSeconds - b.timeSeconds)
 
   return {
-    items,
+    items: mergedItems,
     nextCursor: null,
-    totalCount: items.length,
+    totalCount: mergedItems.length,
     videoId: video.id
   }
+}
+
+export function createMockVideoDanmaku(idOrSlug: string, payload: CreateVideoDanmakuRequest): VideoDanmakuItem | null {
+  const video = mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug)
+
+  if (!video) {
+    return null
+  }
+
+  const authorName = payload.authorName.trim().slice(0, 24)
+  const body = payload.body.trim().slice(0, 80)
+
+  if (!authorName || !body) {
+    return null
+  }
+
+  const item: VideoDanmakuItem = {
+    id: `danmaku-${video.id}-${Date.now().toString(36)}`,
+    videoId: video.id,
+    body,
+    timeSeconds: normalizeMockDanmakuTime(payload.timeSeconds, video.durationSeconds),
+    mode: normalizeMockDanmakuMode(payload.mode),
+    color: normalizeMockDanmakuColor(payload.color),
+    authorName,
+    createdAt: new Date().toISOString()
+  }
+
+  mockVideoDanmaku[video.id] = [...(mockVideoDanmaku[video.id] || []), item]
+
+  return item
 }
 
 export function getMockVideoComments(idOrSlug: string, params: {
@@ -778,6 +813,25 @@ function getMockVideo(idOrSlug: string) {
 
 function getMockVideoLikeCount(video: VideoSummary) {
   return mockVideoLikes[video.id] ?? Math.max(24, Math.round(video.viewCount / 12))
+}
+
+function normalizeMockDanmakuMode(value: unknown): VideoDanmakuMode {
+  return value === "top" || value === "bottom" || value === "scroll" ? value : "scroll"
+}
+
+function normalizeMockDanmakuColor(value: string | undefined) {
+  return /^#[\da-f]{6}$/i.test(value || "") ? value! : "#ffffff"
+}
+
+function normalizeMockDanmakuTime(value: unknown, durationSeconds: number) {
+  const next = Number(value)
+  const maxSecond = Math.max(0, durationSeconds - 1)
+
+  if (!Number.isFinite(next)) {
+    return 0
+  }
+
+  return Math.min(maxSecond, Math.max(0, Math.round(next)))
 }
 
 function isMockVideoInteractionKind(value: string): value is VideoInteractionKind {

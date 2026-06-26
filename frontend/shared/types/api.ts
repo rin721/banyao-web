@@ -92,6 +92,14 @@ export interface VideoDanmakuPayload {
   videoId: string
 }
 
+export interface CreateVideoDanmakuRequest {
+  authorName: string
+  body: string
+  timeSeconds: number
+  mode: VideoDanmakuMode
+  color: string
+}
+
 export type VideoCommentSortMode = "newest" | "oldest"
 
 export interface VideoComment {

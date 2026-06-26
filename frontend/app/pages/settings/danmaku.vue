@@ -56,7 +56,7 @@ const hasDanmakuSettings = computed(() => {
     || settings.settingDerivationStrengths.danmaku !== 100
 })
 const danmakuStats = computed(() => [
-  { label: "本地弹幕", value: danmaku.totalCount },
+  { label: "降级弹幕", value: danmaku.totalCount },
   { label: "透明度", value: `${Math.round(settings.effectiveDanmakuRuntimeSettings.opacity * 100)}%` },
   { label: "字号", value: `${Math.round(settings.effectiveDanmakuRuntimeSettings.fontScale * 100)}%` },
   { label: "速度", value: `${Math.round(settings.effectiveDanmakuRuntimeSettings.speed * 100)}%` }
@@ -182,8 +182,8 @@ function setSettingDerivationStrength(key: string, value: number) {
     <SettingsPanel
       v-if="settings.hydrated"
       icon="activity"
-      title="本地弹幕状态"
-      description="这里显示当前浏览器里保存的本地发送弹幕，不包含社区 API 初始弹幕。"
+      title="弹幕降级缓存"
+      description="这里显示社区 API 暂时不可用时保存在当前浏览器里的发送弹幕，不包含后端已持久化弹幕。"
     >
       <AoiStatGrid :items="danmakuStats" />
     </SettingsPanel>

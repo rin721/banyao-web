@@ -2,7 +2,7 @@
 import type { CommentSortMode, CommentView } from "~/types/comments"
 import type { AoiDanmakuMapper, AoiDanmakuMode } from "~/types/danmaku"
 import type { PlayerPlaybackRate } from "~/types/player"
-import type { VideoComment, VideoDanmakuItem } from "~/types/api"
+import type { CreateVideoDanmakuRequest, VideoComment, VideoDanmakuItem } from "~/types/api"
 
 const route = useRoute()
 const api = useAoiApi()
@@ -52,14 +52,14 @@ const { data: watchPayload, error, pending, refresh } = useAsyncData(() => `vide
 const video = computed(() => watchPayload.value?.video || null)
 const creator = computed(() => watchPayload.value?.creator || null)
 const serverCommentPayload = computed(() => watchPayload.value?.commentPayload || null)
-const mockDanmakuItems = computed(() => watchPayload.value?.danmakuItems || [])
+const serverDanmakuItems = computed(() => watchPayload.value?.danmakuItems || [])
 const mergedDanmakuItems = computed(() => {
   if (!video.value) {
-    return mockDanmakuItems.value
+    return serverDanmakuItems.value
   }
 
   return [
-    ...mockDanmakuItems.value,
+    ...serverDanmakuItems.value,
     ...danmaku.danmakuForVideo(video.value.id)
   ].sort((a, b) => a.timeSeconds - b.timeSeconds)
 })
@@ -134,13 +134,28 @@ function onPlayerEnded() {
   }
 }
 
-function submitDanmaku(payload: {
+async function submitDanmaku(payload: {
   body: string
   color: string
   mode: AoiDanmakuMode
   timeSeconds: number
 }) {
-  if (video.value) {
+  if (!video.value) {
+    return
+  }
+
+  const request: CreateVideoDanmakuRequest = {
+    authorName: comments.authorName,
+    body: payload.body,
+    color: payload.color,
+    mode: payload.mode,
+    timeSeconds: payload.timeSeconds
+  }
+
+  try {
+    const item = await api.createVideoDanmaku(video.value.id, request)
+    appendServerDanmaku(item)
+  } catch {
     danmaku.submitDanmaku(video.value.id, payload, comments.authorName)
   }
 }
@@ -181,6 +196,22 @@ function appendServerComment(comment: VideoComment) {
       items,
       totalCount: Math.max(payload.totalCount + 1, items.length)
     }
+  }
+}
+
+function appendServerDanmaku(item: VideoDanmakuItem) {
+  if (!watchPayload.value) {
+    return
+  }
+
+  const items = [
+    ...watchPayload.value.danmakuItems.filter((entry) => entry.id !== item.id),
+    item
+  ].sort((a, b) => a.timeSeconds - b.timeSeconds)
+
+  watchPayload.value = {
+    ...watchPayload.value,
+    danmakuItems: items
   }
 }
 

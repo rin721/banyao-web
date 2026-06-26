@@ -60,6 +60,15 @@ func (h *Handler) VideoDanmaku(c ports.HTTPContext) {
 	writeOK(c, payload, err, h.writeError)
 }
 
+func (h *Handler) CreateVideoDanmaku(c ports.HTTPContext) {
+	var req model.CreateVideoDanmakuRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.CreateVideoDanmaku(c.RequestContext(), c.Param("idOrSlug"), req)
+	writeOK(c, item, err, h.writeError)
+}
+
 func (h *Handler) VideoComments(c ports.HTTPContext) {
 	limit, ok := parseIntQuery(c, "limit", 48)
 	if !ok {

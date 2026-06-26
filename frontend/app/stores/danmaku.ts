@@ -113,7 +113,7 @@ export const useDanmakuStore = defineStore("danmaku", () => {
         itemsByVideoId: itemsByVideoId.value
       } satisfies PersistedDanmakuState))
     } catch {
-      // Local danmaku persistence is optional in the frontend prototype.
+      // Local danmaku persistence is a best-effort fallback when the community API is unavailable.
     }
   }
 
@@ -175,7 +175,7 @@ export const useDanmakuStore = defineStore("danmaku", () => {
       try {
         window.localStorage.removeItem(STORAGE_KEY)
       } catch {
-        // Local danmaku persistence is optional in the frontend prototype.
+        // Local danmaku persistence is a best-effort fallback when the community API is unavailable.
       }
     }
   }

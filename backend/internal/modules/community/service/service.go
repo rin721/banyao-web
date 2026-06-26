@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ var (
 	ErrNotFound           = errors.New("community resource not found")
 	ErrStorageUnavailable = errors.New("community storage unavailable")
 )
+
+var danmakuColorPattern = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
 
 // Service 定义视频社区公开只读能力。
 type Service interface {
@@ -37,6 +40,7 @@ type Service interface {
 	SetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
 	UnsetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
 	CreateVideoComment(context.Context, string, model.CreateVideoCommentRequest) (model.VideoComment, error)
+	CreateVideoDanmaku(context.Context, string, model.CreateVideoDanmakuRequest) (model.VideoDanmakuItem, error)
 }
 
 // Repository 是社区服务需要的最小持久化端口。
@@ -47,6 +51,7 @@ type Repository interface {
 	FindVideoInteraction(context.Context, string, string, string) (*model.VideoInteraction, error)
 	CountVideoComments(context.Context, string) (int, error)
 	CreateVideoComment(context.Context, model.VideoComment) error
+	CreateVideoDanmaku(context.Context, model.VideoDanmakuItem) error
 	FollowCreator(context.Context, model.CreatorFollow) error
 	SetVideoInteraction(context.Context, model.VideoInteraction) error
 	ListCategories(context.Context) ([]model.Category, error)
@@ -268,6 +273,35 @@ func (s *service) CreateVideoComment(ctx context.Context, idOrSlug string, req m
 		return model.VideoComment{}, mapStorageError(err)
 	}
 	return comment, nil
+}
+
+func (s *service) CreateVideoDanmaku(ctx context.Context, idOrSlug string, req model.CreateVideoDanmakuRequest) (model.VideoDanmakuItem, error) {
+	if s.repo == nil {
+		return model.VideoDanmakuItem{}, ErrStorageUnavailable
+	}
+	video, err := s.repo.FindVideoByIDOrSlug(ctx, strings.TrimSpace(idOrSlug))
+	if err != nil {
+		return model.VideoDanmakuItem{}, mapStorageError(err)
+	}
+	authorName := normalizeCommentAuthor(req.AuthorName)
+	body := normalizeDanmakuBody(req.Body)
+	if authorName == "" || body == "" {
+		return model.VideoDanmakuItem{}, ErrInvalidInput
+	}
+	item := model.VideoDanmakuItem{
+		ID:          s.newDanmakuID(),
+		VideoID:     video.ID,
+		Body:        body,
+		TimeSeconds: normalizeDanmakuTime(req.TimeSeconds, video.DurationSeconds),
+		Mode:        normalizeDanmakuMode(req.Mode),
+		Color:       normalizeDanmakuColor(req.Color),
+		AuthorName:  authorName,
+		CreatedAt:   s.now(),
+	}
+	if err := s.repo.CreateVideoDanmaku(ctx, item); err != nil {
+		return model.VideoDanmakuItem{}, mapStorageError(err)
+	}
+	return item, nil
 }
 
 func (s *service) GetVideoInteractionState(ctx context.Context, idOrSlug string, req model.VideoInteractionRequest) (model.VideoInteractionState, error) {
@@ -916,6 +950,47 @@ func normalizeCommentBody(value string) string {
 	return value
 }
 
+func normalizeDanmakuBody(value string) string {
+	value = strings.TrimSpace(value)
+	if len([]rune(value)) > 80 {
+		value = string([]rune(value)[:80])
+	}
+	return value
+}
+
+func normalizeDanmakuMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case model.DanmakuModeTop:
+		return model.DanmakuModeTop
+	case model.DanmakuModeBottom:
+		return model.DanmakuModeBottom
+	default:
+		return model.DanmakuModeScroll
+	}
+}
+
+func normalizeDanmakuColor(value string) string {
+	value = strings.TrimSpace(value)
+	if danmakuColorPattern.MatchString(value) {
+		return value
+	}
+	return "#ffffff"
+}
+
+func normalizeDanmakuTime(value int, durationSeconds int) int {
+	if value < 0 {
+		return 0
+	}
+	maxSecond := durationSeconds - 1
+	if maxSecond < 0 {
+		maxSecond = 0
+	}
+	if value > maxSecond {
+		return maxSecond
+	}
+	return value
+}
+
 func normalizeCommunityClientID(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || len([]rune(value)) > 96 {
@@ -991,4 +1066,15 @@ func (s *service) newCommentID() string {
 		return raw
 	}
 	return "comment-" + raw
+}
+
+func (s *service) newDanmakuID() string {
+	raw := strings.TrimSpace(s.cfg.NewID())
+	if raw == "" {
+		raw = strconv.FormatInt(s.now().UnixNano(), 10)
+	}
+	if strings.HasPrefix(raw, "danmaku-") {
+		return raw
+	}
+	return "danmaku-" + raw
 }

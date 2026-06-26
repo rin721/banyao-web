@@ -8,6 +8,7 @@ export type {
   CreatorFollowRequest,
   CreatorFollowState,
   CreateVideoCommentRequest,
+  CreateVideoDanmakuRequest,
   CreatorProfile,
   ErrorResponse,
   FollowingFeedPayload,
