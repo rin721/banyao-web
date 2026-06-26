@@ -229,7 +229,7 @@ useHead(() => ({
 
       <div
         v-if="following.hydrated && (following.followedList.length || following.latestVideos.length)"
-        class="following-dashboard"
+        class="following-overview"
       >
         <AoiSection
           v-if="following.followedList.length"
@@ -365,7 +365,7 @@ useHead(() => ({
   min-width: 0;
 }
 
-.following-dashboard {
+.following-overview {
   display: grid;
   grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
   align-items: start;
@@ -431,7 +431,7 @@ useHead(() => ({
 }
 
 @media (max-width: 900px) {
-  .following-dashboard,
+  .following-overview,
   .following-loading__cards {
     grid-template-columns: 1fr;
   }

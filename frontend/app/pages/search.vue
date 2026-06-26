@@ -54,7 +54,7 @@ const emptyResult: SearchPayload = {
   }
 }
 
-const { data, error, pending, refresh } = useAsyncData("search-results", () => {
+const { data, error, pending, refresh } = useAsyncData("search-results", (_nuxtApp, { signal }) => {
   if (!hasQuery.value) {
     return Promise.resolve(emptyResult)
   }
@@ -62,8 +62,9 @@ const { data, error, pending, refresh } = useAsyncData("search-results", () => {
   return api.search({
     limit: 24,
     q: submittedQuery.value
-  })
+  }, { signal })
 }, {
+  dedupe: "cancel",
   default: () => emptyResult,
   watch: [submittedQuery]
 })

@@ -45,7 +45,10 @@ type RequestOptions = {
   body?: unknown
   method?: "DELETE" | "GET" | "POST"
   query?: Record<string, unknown>
+  signal?: AbortSignal
 }
+
+type RequestControlOptions = Pick<RequestOptions, "signal">
 
 export function useAoiApi() {
   const config = useRuntimeConfig()
@@ -58,7 +61,8 @@ export function useAoiApi() {
         baseURL: baseURL.value,
         body: options.body as BodyInit | Record<string, unknown> | null | undefined,
         method: options.method,
-        query: options.query
+        query: options.query,
+        signal: options.signal
       })
 
       return unwrapApiResponse<T>(response, endpoint)
@@ -124,17 +128,18 @@ export function useAoiApi() {
   async function search(params: {
     limit?: number
     q: string
-  }): Promise<SearchPayload> {
+  }, options: RequestControlOptions = {}): Promise<SearchPayload> {
     return await request<SearchPayload>("/search", {
-      query: params
+      query: params,
+      signal: options.signal
     })
   }
 
   async function searchVideos(params: {
     limit?: number
     q: string
-  }): Promise<PageResult<VideoSummary>> {
-    const payload = await search(params)
+  }, options: RequestControlOptions = {}): Promise<PageResult<VideoSummary>> {
+    const payload = await search(params, options)
 
     return payload.videos
   }
