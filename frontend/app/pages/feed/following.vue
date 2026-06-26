@@ -9,7 +9,7 @@ const dynamicSubmitting = ref(false)
 
 const { data: feed, error, pending, refresh } = useAsyncData(
   "following-feed",
-  () => api.getFollowingFeed(following.clientId || undefined),
+  () => api.getFollowingFeed(following.ensureClientId()),
   {
     immediate: false,
     server: false
