@@ -52,11 +52,13 @@ export function useAoiAuthApi() {
     })
   }
 
-  async function getSession(options: { suppressTelemetry?: boolean } = {}): Promise<CommunityAuthSession> {
-    return await request<CommunityAuthSession>(`${authPath.value}/session`, {
+  async function getSession(options: { suppressTelemetry?: boolean } = {}): Promise<CommunityAuthSession | null> {
+    const session = await request<CommunityAuthSession | null>(`${authPath.value}/session`, {
       method: "GET",
       suppressTelemetry: options.suppressTelemetry
     })
+
+    return session || null
   }
 
   async function logout(): Promise<boolean> {

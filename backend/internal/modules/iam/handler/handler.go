@@ -504,8 +504,9 @@ func (h *Handler) CommunityLogin(c ports.HTTPContext) {
 }
 
 func (h *Handler) CommunitySession(c ports.HTTPContext) {
-	principal, ok := requirePrincipal(c)
+	principal, ok := h.optionalCommunityPrincipal(c)
 	if !ok {
+		result.OK[*CommunityAuthSessionSnapshot](c, nil)
 		return
 	}
 	session, err := h.service.CurrentSession(c.RequestContext(), principal)
@@ -519,6 +520,33 @@ func (h *Handler) CommunitySession(c ports.HTTPContext) {
 		return
 	}
 	result.OK(c, out)
+}
+
+func (h *Handler) optionalCommunityPrincipal(c ports.HTTPContext) (service.Principal, bool) {
+	token := communityBearerToken(c.GetHeader("Authorization"))
+	if token == "" {
+		cookieValue, err := c.Cookie(h.config.AccessCookieName())
+		if err == nil {
+			token = strings.TrimSpace(cookieValue)
+		}
+	}
+	if token == "" {
+		return service.Principal{}, false
+	}
+	principal, err := h.service.AuthenticateToken(c.RequestContext(), token)
+	if err != nil {
+		h.clearAuthCookies(c)
+		return service.Principal{}, false
+	}
+	return principal, true
+}
+
+func communityBearerToken(header string) string {
+	parts := strings.Fields(header)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	return parts[1]
 }
 
 func (h *Handler) CommunityLogout(c ports.HTTPContext) {

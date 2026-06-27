@@ -7395,10 +7395,11 @@
               "schema":
                 "$ref": "#/components/schemas/ErrorResult"
           "description": "Internal server error"
+      "security": []
       "summary": "查询社区账号会话"
       "tags":
         - "Community"
-      "x-scope": "tenant"
+      "x-scope": "platform"
   "/api/v1/public/community/auth/signup":
     "post":
       "operationId": "community.auth.signup"

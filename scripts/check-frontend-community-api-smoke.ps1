@@ -249,4 +249,9 @@ try {
         Stop-Process -Id $process.Id -Force
         $process.WaitForExit()
     }
+    foreach ($path in @($binaryPath, (Join-Path $workPath "app.db"), (Join-Path $workPath "uploads"), (Join-Path $workPath "app.log"))) {
+        if (Test-Path -LiteralPath $path) {
+            Remove-Item -LiteralPath $path -Recurse -Force
+        }
+    }
 }

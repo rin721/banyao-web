@@ -265,6 +265,7 @@ func registerCommunityAuthRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteCo
 	auth.Use(middleware.RateLimit(middleware.RateLimitConfig{Enabled: true, Limit: 20, Window: time.Minute}))
 	specs := []routeSpec{
 		routeSpecFor("community.auth.login", deps.IAMHandler.CommunityLogin),
+		routeSpecFor("community.auth.session", deps.IAMHandler.CommunitySession),
 		routeSpecFor("community.auth.signup", deps.IAMHandler.CommunitySignup),
 	}
 	registerRouteSpecs(auth, appconstants.APIPath("public", "community", "auth"), specs)
@@ -275,7 +276,6 @@ func registerCommunityAuthRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteCo
 	protected.Use(middleware.CSRF(iamCSRFMiddlewareConfig(deps)))
 	protectedSpecs := []routeSpec{
 		routeSpecFor("community.auth.logout", deps.IAMHandler.CommunityLogout),
-		routeSpecFor("community.auth.session", deps.IAMHandler.CommunitySession),
 	}
 	registerRouteSpecs(protected, appconstants.APIPath("public", "community", "auth"), protectedSpecs)
 	registered = append(registered, routeContractsFromSpecs(protectedSpecs)...)

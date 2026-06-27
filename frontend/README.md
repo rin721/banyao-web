@@ -147,6 +147,7 @@ Nuxt public runtime config 支持以下环境变量：
 | `NUXT_PUBLIC_API_MOCK` | `false` | 设置为 `true` 时内容接口走 `/api/mock/*`，社区账号登录 / 注册 / 会话走 `/api/mock/auth/*`；默认使用后端公开社区接口和社区账号接口并消费 `result` envelope |
 
 社区页面访问公开社区接口时使用 `useAoiApi()`；登录、注册和后续账号接口使用 `useAoiAuthApi()`，并保持与 `useAoiApiTelemetry()` 的错误诊断兼容。
+本地分端口联调社区账号 cookie 时，后端需使用精确前端来源配置 CORS，例如 `APP_CORS_ALLOW_ORIGINS=http://127.0.0.1:3001` 与 `APP_CORS_ALLOW_CREDENTIALS=true`。
 
 ## 开发约定
 
@@ -172,6 +173,7 @@ Nuxt public runtime config 支持以下环境变量：
 - 修改 Nuxt 配置、server route、runtime config 或构建敏感模块后，运行 `pnpm build`。
 - 修改登录、注册、会话、账号状态、shared DTO、mock fixture 或 i18n 后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1`。
 - 修改 `useAoiApi()`、社区 DTO、后端社区模块或联调配置后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1`；脚本会用临时 SQLite 启动后端并验证 `NUXT_PUBLIC_API_BASE_URL` 对应的公开社区数据链路。
+- 修改首页、分类页、内容网格或真实数据展示状态后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-page-smoke.ps1`；脚本会用真实社区 API 启动 Nuxt，并保存桌面与移动端截图。
 - 可见 UI 变更应尽量在浏览器中检查桌面和移动端表现。
 - 除非后续新增脚本或明确提供命令，不要声称已经完成 lint 验证。
 

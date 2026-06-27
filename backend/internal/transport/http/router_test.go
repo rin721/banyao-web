@@ -501,6 +501,16 @@ func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
 		t.Fatalf("community session response should expose community account identity, got %s", session.Body.String())
 	}
 
+	anonymousSession := httptest.NewRecorder()
+	anonymousSessionRequest := httptest.NewRequest(http.MethodGet, "/api/v1/public/community/auth/session", nil)
+	router.ServeHTTP(anonymousSession, anonymousSessionRequest)
+	if anonymousSession.Code != http.StatusOK {
+		t.Fatalf("expected anonymous community session status %d, got %d body %s", http.StatusOK, anonymousSession.Code, anonymousSession.Body.String())
+	}
+	if strings.Contains(anonymousSession.Body.String(), `"account"`) || strings.Contains(anonymousSession.Body.String(), `"sessionId"`) {
+		t.Fatalf("anonymous community session should not expose account fields, got %s", anonymousSession.Body.String())
+	}
+
 	logout := httptest.NewRecorder()
 	logoutRequest := httptest.NewRequest(http.MethodPost, "/api/v1/public/community/auth/logout", nil)
 	logoutRequest.Header.Set("Authorization", "Bearer token")
