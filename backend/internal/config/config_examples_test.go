@@ -197,7 +197,7 @@ func setControlledExampleEnv(t *testing.T, fileName string) {
 		"APP_CORS_ENABLED":                                "true",
 		"APP_CORS_ALLOW_ORIGINS":                          "*",
 		"APP_CORS_ALLOW_METHODS":                          "GET,POST,PUT,DELETE,PATCH,OPTIONS",
-		"APP_CORS_ALLOW_HEADERS":                          "Origin,Content-Type,X-Request-ID,Authorization",
+		"APP_CORS_ALLOW_HEADERS":                          "Origin,Content-Type,X-Request-ID,Authorization,X-Locale,X-Setup-Token,X-CSRF-Token",
 		"APP_CORS_EXPOSE_HEADERS":                         "X-Request-ID",
 		"APP_CORS_ALLOW_CREDENTIALS":                      "false",
 		"APP_CORS_MAX_AGE":                                "3600",

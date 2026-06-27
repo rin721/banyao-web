@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var defaultCORSAllowHeaders = []string{"Origin", "Content-Type", "X-Request-ID", "Authorization", "X-Locale", "X-Setup-Token"}
+var defaultCORSAllowHeaders = []string{"Origin", "Content-Type", "X-Request-ID", "Authorization", "X-Locale", "X-Setup-Token", DefaultAuthCSRFHeaderName}
 
 // CORSConfig 跨域资源共享(CORS)配置
 // 控制浏览器跨域访问策略
@@ -40,7 +40,8 @@ type CORSConfig struct {
 	//   - Origin: 必需,标识请求来源
 	//   - Content-Type: 必需,指定请求体类型
 	//   - X-Request-ID: 用于请求追踪
-	// 示例: ["Origin", "Content-Type", "X-Request-ID"]
+	//   - X-CSRF-Token: Cookie 会话写请求的双提交 CSRF token
+	// 示例: ["Origin", "Content-Type", "X-Request-ID", "X-CSRF-Token"]
 	AllowHeaders []string `mapstructure:"allow_headers" envname:"CORS_ALLOW_HEADERS" json:"allow_headers" yaml:"allow_headers" toml:"allow_headers"`
 
 	// ExposeHeaders 暴露给浏览器的响应头
@@ -133,11 +134,7 @@ func (c *CORSConfig) DefaultConfig() {
 	}
 
 	// 如果未配置允许的请求头,使用常用请求头
-	if len(c.AllowHeaders) == 0 {
-		c.AllowHeaders = append([]string(nil), defaultCORSAllowHeaders...)
-	} else {
-		c.AllowHeaders = ensureCORSHeaders(c.AllowHeaders, defaultCORSAllowHeaders...)
-	}
+	c.EnsureAllowHeaders(defaultCORSAllowHeaders...)
 
 	// 如果未配置暴露的响应头,默认暴露请求追踪ID
 	if len(c.ExposeHeaders) == 0 {
@@ -163,6 +160,16 @@ func (c *CORSConfig) DefaultConfig() {
 //   - CORS_MAX_AGE: 预检缓存时间(秒)
 func (c *CORSConfig) OverrideConfig() {
 	overrideConfigFromEnv(c)
+	c.EnsureAllowHeaders(defaultCORSAllowHeaders...)
+}
+
+// EnsureAllowHeaders 在文件或环境变量显式配置 CORS 请求头后，补齐平台真实联调必需的受控 header。
+func (c *CORSConfig) EnsureAllowHeaders(headers ...string) {
+	if len(c.AllowHeaders) == 0 {
+		c.AllowHeaders = append([]string(nil), headers...)
+		return
+	}
+	c.AllowHeaders = ensureCORSHeaders(c.AllowHeaders, headers...)
 }
 
 func ensureCORSHeaders(headers []string, required ...string) []string {

@@ -2,6 +2,7 @@ package initapp
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/open-console/console-platform/internal/app/adapters"
 	"github.com/open-console/console-platform/internal/config"
@@ -91,6 +92,9 @@ func NewCORS(cfg *config.Config, log logger.Logger) (middleware.CORSConfig, erro
 	corsCfg := cfg.CORS
 	corsCfg.DefaultConfig()
 	corsCfg.OverrideConfig()
+	if csrfHeaderName := strings.TrimSpace(cfg.Auth.CSRF.HeaderName); csrfHeaderName != "" {
+		corsCfg.EnsureAllowHeaders(csrfHeaderName)
+	}
 
 	if err := corsCfg.Validate(); err != nil {
 		return middleware.CORSConfig{}, err

@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 阶段编号：`P6`
-- 阶段主题：社区登录注册与全业务多模态 QA 覆盖
-- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成评论 / 动态本人编辑删除、投稿审核状态流转、审核发布生成社区视频记录和 system media 受控关联；`P4` 已完成少量真实内容视觉节奏与社区前端 Cookie / CSRF 凭证链路；`P5` 已完成后端社区 HTTP 返回面真实数据来源收敛；`P6` 已完成真实 API smoke 的社区登录 / 登出 / 重新登录验证，并扩展页面 smoke 的注册、登录、通知、历史、收藏 / 稍后看和账号态业务截图覆盖。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
-- 影响范围：`scripts/check-frontend-community-api-smoke.ps1`、`scripts/frontend-community-page-smoke.cjs`、`frontend/app/pages/collections.vue`、`frontend/README.md`、`TASK_TREE.md`；不改变 HTTP path、DTO 字段名、OpenAPI schema、数据库迁移、Nuxt mock fixture 或生产业务行为。
+- 阶段编号：`P7`
+- 阶段主题：社区账号 CORS / CSRF 真实联调修复
+- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成评论 / 动态本人编辑删除、投稿审核状态流转、审核发布生成社区视频记录和 system media 受控关联；`P4` 已完成少量真实内容视觉节奏与社区前端 Cookie / CSRF 凭证链路；`P5` 已完成后端社区 HTTP 返回面真实数据来源收敛；`P6` 已完成真实 API smoke 的登录注册与账号态页面覆盖；`P7` 修复分端口直连模式下账号写请求的 CORS 预检缺口，让后端 CORS 允许头由默认平台头和当前 `auth.csrf.header_name` 补齐，避免浏览器在进入真实 handler 前阻断 `X-CSRF-Token`。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
+- 影响范围：`backend/internal/config/app_cors.go`、`backend/internal/app/initapp/transport.go`、后端配置示例、`backend/configs/config.local.yaml` 本地旧配置、配置测试、`frontend/README.md`、`backend/docs/environment/configuration.md`、`TASK_TREE.md`；不改变 HTTP path、DTO 字段名、OpenAPI schema、数据库迁移、Nuxt mock fixture 或生产业务行为。
 
 ## 设计语言蒸馏
 
@@ -98,6 +98,10 @@
       [x] 叶节点 C3.7.a：真实 API smoke 覆盖社区账号登录、登出、登出后匿名 session 和重新登录 session 恢复
       [x] 叶节点 C3.7.b：真实页面 smoke 覆盖注册、登录会话、错误登录、重新登录和账号态截图
       [x] 叶节点 C3.7.c：真实页面 smoke 覆盖关注 / 取消关注 / 再关注、账号动态、收藏、稍后看、历史、通知已读和双端视觉截图
+    [x] 子分支 C3.8：分端口 CORS 与 CSRF 真实联调修复
+      [x] 叶节点 C3.8.a：CORS 默认允许头包含平台真实联调必需头，并复用认证模块默认 CSRF header 名称
+      [x] 叶节点 C3.8.b：HTTP 装配层按当前 `auth.csrf.header_name` 补齐 CORS allow headers，支持自定义 CSRF header
+      [x] 叶节点 C3.8.c：配置示例与本地旧配置补齐 CSRF header，避免分端口直连真实联调时浏览器预检失败
 
 [ ] 主干 D：文档、规则与 Skill 同步
   [x] 分支 D1：任务树入口
@@ -249,3 +253,12 @@
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1` 通过。
 - [x] `node --check scripts/frontend-community-page-smoke.cjs` 通过。
 - [x] `git diff --check` 通过；PowerShell 输出提示 `frontend/README.md` 工作区 CRLF 会在 Git 触碰时按仓库规则转为 LF。
+
+### P7：社区账号 CORS / CSRF 真实联调修复
+
+- [x] `go test ./internal/config -count=1 -mod=readonly` 通过，覆盖环境变量覆盖后 CORS 必需请求头补齐。
+- [x] `go test ./internal/app/initapp -count=1 -mod=readonly` 通过，覆盖自定义 `auth.csrf.header_name` 也会进入 CORS allow headers。
+- [x] `go test ./internal/transport/http -count=1 -mod=readonly` 通过。
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1` 通过，账号注册、登录、登出、账号动态、关注、历史和通知真实后端链路继续可用。
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1` 通过。
+- [x] 临时真实后端预检验证通过：使用用户报告的同类社区账号写请求 CORS 预检场景，后端返回 `204`，响应包含明确来源、凭证允许标记，并在 `Access-Control-Allow-Headers` 中补齐当前 CSRF header。

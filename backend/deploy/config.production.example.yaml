@@ -147,6 +147,9 @@ cors:
     - Content-Type
     - X-Request-ID
     - Authorization
+    - X-Locale
+    - X-Setup-Token
+    - X-CSRF-Token
   expose_headers:
     - X-Request-ID
   allow_credentials: ${APP_CORS_ALLOW_CREDENTIALS:false}

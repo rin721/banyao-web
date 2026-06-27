@@ -149,6 +149,7 @@ cors:
     - Authorization
     - X-Locale
     - X-Setup-Token
+    - X-CSRF-Token
   expose_headers:
     - X-Request-ID
   allow_credentials: true

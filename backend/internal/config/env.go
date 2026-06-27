@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 
 	"github.com/open-console/console-platform/pkg/configloader"
 )
@@ -63,4 +64,8 @@ func OverrideWithEnvExcept(cfg *Config, disabledPaths []string) {
 		return
 	}
 	overrideConfigFromEnvExcept(cfg, disabledPaths)
+	cfg.CORS.EnsureAllowHeaders(defaultCORSAllowHeaders...)
+	if csrfHeaderName := strings.TrimSpace(cfg.Auth.CSRF.HeaderName); csrfHeaderName != "" {
+		cfg.CORS.EnsureAllowHeaders(csrfHeaderName)
+	}
 }
