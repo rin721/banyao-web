@@ -69,7 +69,7 @@ type Creator struct {
 
 func (Creator) TableName() string { return "community_creators" }
 
-// CreatorFollow 保存匿名客户端对创作者的关注关系。
+// CreatorFollow 保存社区账号或匿名客户端对创作者的关注关系。
 type CreatorFollow struct {
 	ClientID   string     `gorm:"column:client_id;primaryKey;size:96" json:"clientId"`
 	CreatorID  string     `gorm:"column:creator_id;primaryKey;size:96" json:"creatorId"`

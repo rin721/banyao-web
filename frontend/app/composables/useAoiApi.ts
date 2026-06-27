@@ -248,10 +248,30 @@ export function useAoiApi() {
     })
   }
 
+  async function getAccountCreatorFollowState(handle: string): Promise<CreatorFollowState> {
+    return await request<CreatorFollowState>(`/account/users/${encodeURIComponent(handle)}/follow-state`)
+  }
+
+  async function followAccountCreator(handle: string): Promise<CreatorFollowState> {
+    return await request<CreatorFollowState>(`/account/users/${encodeURIComponent(handle)}/follow`, {
+      method: "POST"
+    })
+  }
+
+  async function unfollowAccountCreator(handle: string): Promise<CreatorFollowState> {
+    return await request<CreatorFollowState>(`/account/users/${encodeURIComponent(handle)}/follow`, {
+      method: "DELETE"
+    })
+  }
+
   async function getFollowingFeed(clientId?: string): Promise<FollowingFeedPayload> {
     return await request<FollowingFeedPayload>("/feed/following", {
       query: clientId ? { clientId } : undefined
     })
+  }
+
+  async function getAccountFollowingFeed(): Promise<FollowingFeedPayload> {
+    return await request<FollowingFeedPayload>("/account/feed/following")
   }
 
   async function getVideoLibrary(clientId: string): Promise<VideoLibraryPayload> {
@@ -313,6 +333,8 @@ export function useAoiApi() {
 
   return {
     getApiStatus,
+    getAccountCreatorFollowState,
+    getAccountFollowingFeed,
     getCategory,
     getCreatorFollowState,
     getCreatorProfile,
@@ -323,6 +345,7 @@ export function useAoiApi() {
     getVideoHistory,
     getVideoLibrary,
     followCreator,
+    followAccountCreator,
     createCommunityAccountDynamic,
     createCommunityAccountSubmission,
     createCommunityDynamic,
@@ -346,6 +369,7 @@ export function useAoiApi() {
     markCommunityNotificationsRead,
     recordVideoHistory,
     setVideoInteraction,
+    unfollowAccountCreator,
     unfollowCreator,
     unsetVideoInteraction
   }

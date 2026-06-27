@@ -36,6 +36,7 @@ type Service interface {
 	ListVideos(context.Context, model.VideoFilter) (model.PageResult[model.VideoSummary], error)
 	Search(context.Context, string, int) (model.SearchPayload, error)
 	FollowingFeed(context.Context, model.CreatorFollowRequest) (model.FollowingFeedPayload, error)
+	AccountFollowingFeed(context.Context, authtypes.Principal) (model.FollowingFeedPayload, error)
 	VideoLibrary(context.Context, model.VideoInteractionRequest) (model.VideoLibraryPayload, error)
 	VideoHistory(context.Context, model.VideoHistoryFilter) (model.VideoHistoryPayload, error)
 	CommunityNotifications(context.Context, model.CommunityNotificationFilter) (model.CommunityNotificationPayload, error)
@@ -50,7 +51,10 @@ type Service interface {
 	ListCommunityAccountSubmissions(context.Context, authtypes.Principal, int) (model.CommunitySubmissionPayload, error)
 	CreateCommunityAccountSubmission(context.Context, authtypes.Principal, model.CreateCommunityAccountSubmissionRequest) (model.CommunitySubmissionItem, error)
 	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
+	FollowAccountCreator(context.Context, authtypes.Principal, string) (model.CreatorFollowState, error)
 	UnfollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
+	UnfollowAccountCreator(context.Context, authtypes.Principal, string) (model.CreatorFollowState, error)
+	GetAccountCreatorFollowState(context.Context, authtypes.Principal, string) (model.CreatorFollowState, error)
 	SetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
 	UnsetVideoInteraction(context.Context, string, string, model.VideoInteractionRequest) (model.VideoInteractionState, error)
 	RecordVideoHistory(context.Context, string, model.VideoHistoryRequest) (model.VideoHistoryItem, error)
@@ -134,9 +138,12 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/auth/session",
 			"/auth/signup",
 			"/account/dynamics",
+			"/account/feed/following",
 			"/account/notifications",
 			"/account/notifications/read",
 			"/account/submissions",
+			"/account/users/:handle/follow-state",
+			"/account/users/:handle/follow",
 			"/home",
 			"/dynamics",
 			"/submissions",
@@ -603,6 +610,30 @@ func (s *service) UnfollowCreator(ctx context.Context, handle string, req model.
 	return s.creatorFollowState(ctx, *updated, clientID)
 }
 
+func (s *service) GetAccountCreatorFollowState(ctx context.Context, principal authtypes.Principal, handle string) (model.CreatorFollowState, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.CreatorFollowState{}, err
+	}
+	return s.GetCreatorFollowState(ctx, handle, model.CreatorFollowRequest{ClientID: clientID})
+}
+
+func (s *service) FollowAccountCreator(ctx context.Context, principal authtypes.Principal, handle string) (model.CreatorFollowState, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.CreatorFollowState{}, err
+	}
+	return s.FollowCreator(ctx, handle, model.CreatorFollowRequest{ClientID: clientID})
+}
+
+func (s *service) UnfollowAccountCreator(ctx context.Context, principal authtypes.Principal, handle string) (model.CreatorFollowState, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.CreatorFollowState{}, err
+	}
+	return s.UnfollowCreator(ctx, handle, model.CreatorFollowRequest{ClientID: clientID})
+}
+
 func (s *service) Search(ctx context.Context, query string, limit int) (model.SearchPayload, error) {
 	query = strings.TrimSpace(query)
 	limit = normalizeLimit(limit, 24)
@@ -677,6 +708,21 @@ func (s *service) FollowingFeed(ctx context.Context, req model.CreatorFollowRequ
 		return s.recommendedFollowingFeed(ctx, &normalizedClientID, "还没有关注任何创作者，先展示社区推荐。")
 	}
 	return s.recommendedFollowingFeed(ctx, nil, "还没有识别到你的关注列表，先展示社区推荐。")
+}
+
+func (s *service) AccountFollowingFeed(ctx context.Context, principal authtypes.Principal) (model.FollowingFeedPayload, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.FollowingFeedPayload{}, err
+	}
+	payload, err := s.FollowingFeed(ctx, model.CreatorFollowRequest{ClientID: clientID})
+	if err != nil {
+		return model.FollowingFeedPayload{}, err
+	}
+	payload.Authenticated = true
+	message := "社区账号关注动态会跟随当前登录账号同步。"
+	payload.Message = &message
+	return payload, nil
 }
 
 func (s *service) VideoLibrary(ctx context.Context, req model.VideoInteractionRequest) (model.VideoLibraryPayload, error) {

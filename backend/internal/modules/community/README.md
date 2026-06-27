@@ -45,10 +45,14 @@
 - `GET /auth/session`
 - `POST /auth/signup`
 - `POST /account/dynamics`
+- `GET /account/feed/following`
 - `GET /account/notifications`
 - `POST /account/notifications/read`
 - `GET /account/submissions`
 - `POST /account/submissions`
+- `GET /account/users/:handle/follow-state`
+- `POST /account/users/:handle/follow`
+- `DELETE /account/users/:handle/follow`
 - `GET /home`
 - `GET /categories`
 - `GET /videos`

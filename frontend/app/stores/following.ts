@@ -8,6 +8,8 @@ interface PersistedFollowingState {
   followedCreators: Record<string, FollowedCreatorSnapshot>
 }
 
+type FollowScope = "account" | "anonymous"
+
 function emptyState(): PersistedFollowingState {
   return {
     followedCreators: {}
@@ -80,6 +82,10 @@ function normalizeClientId(value: string | null | undefined) {
   return normalized && normalized.length <= 96 ? normalized : ""
 }
 
+function isAccountClientId(value: string) {
+  return value.startsWith("account:")
+}
+
 function errorMessage(error: unknown) {
   const apiError = error as Partial<AoiApiErrorPayload>
 
@@ -87,10 +93,12 @@ function errorMessage(error: unknown) {
 }
 
 export const useFollowingStore = defineStore("following", () => {
+  const authSession = useAuthSessionStore()
   const backendReady = ref(false)
   const clientId = ref("")
   const followedCreators = ref<Record<string, FollowedCreatorSnapshot>>({})
   const hydrated = ref(false)
+  const followScope = ref<FollowScope>("anonymous")
   const pendingCreatorIds = ref<Record<string, boolean>>({})
   const syncError = ref<string | null>(null)
 
@@ -102,6 +110,7 @@ export const useFollowingStore = defineStore("following", () => {
   const latestVideos = computed(() => followedList.value
     .flatMap((creator) => creator.latest.items)
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)))
+  const communityAccountActive = computed(() => authSession.authenticated)
 
   function assignState(state: PersistedFollowingState) {
     followedCreators.value = state.followedCreators
@@ -119,7 +128,7 @@ export const useFollowingStore = defineStore("following", () => {
   }
 
   function persist() {
-    if (!import.meta.client || !hydrated.value) {
+    if (!import.meta.client || !hydrated.value || followScope.value !== "anonymous") {
       return
     }
 
@@ -172,7 +181,9 @@ export const useFollowingStore = defineStore("following", () => {
     }
 
     const normalizedClientId = normalizeClientId(feed.clientId)
-    if (normalizedClientId) {
+    const accountScoped = feed.authenticated || isAccountClientId(normalizedClientId)
+    followScope.value = accountScoped ? "account" : "anonymous"
+    if (normalizedClientId && !accountScoped) {
       clientId.value = normalizedClientId
       persistClientId()
     }
@@ -202,7 +213,12 @@ export const useFollowingStore = defineStore("following", () => {
     const api = useAoiApi()
 
     try {
-      const feed = await api.getFollowingFeed(ensureClientId())
+      if (!authSession.hydrated) {
+        await authSession.refreshSession({ silent: true })
+      }
+      const feed = communityAccountActive.value
+        ? await api.getAccountFollowingFeed()
+        : await api.getFollowingFeed(ensureClientId())
       applyBackendFeed(feed)
       return feed
     } catch (error) {
@@ -246,11 +262,17 @@ export const useFollowingStore = defineStore("following", () => {
     }
 
     const api = useAoiApi()
-    const activeClientId = ensureClientId()
     setPending(creator.id, true)
 
     try {
-      const state = await api.followCreator(creator.handle, { clientId: activeClientId })
+      if (!authSession.hydrated) {
+        await authSession.refreshSession({ silent: true })
+      }
+      const accountScoped = communityAccountActive.value
+      followScope.value = accountScoped ? "account" : "anonymous"
+      const state = accountScoped
+        ? await api.followAccountCreator(creator.handle)
+        : await api.followCreator(creator.handle, { clientId: ensureClientId() })
       backendReady.value = true
       syncError.value = null
       applyFollowState(creator, state)
@@ -279,11 +301,19 @@ export const useFollowingStore = defineStore("following", () => {
     }
 
     const api = useAoiApi()
-    const activeClientId = ensureClientId()
     setPending(creatorId, true)
 
     try {
-      await api.unfollowCreator(handle, activeClientId)
+      if (!authSession.hydrated) {
+        await authSession.refreshSession({ silent: true })
+      }
+      const accountScoped = communityAccountActive.value
+      followScope.value = accountScoped ? "account" : "anonymous"
+      if (accountScoped) {
+        await api.unfollowAccountCreator(handle)
+      } else {
+        await api.unfollowCreator(handle, ensureClientId())
+      }
       backendReady.value = true
       syncError.value = null
       removeLocalCreator(creatorId)
@@ -328,6 +358,7 @@ export const useFollowingStore = defineStore("following", () => {
   }
 
   function resetFollowing() {
+    followScope.value = "anonymous"
     assignState(emptyState())
     backendReady.value = false
     syncError.value = null

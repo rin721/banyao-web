@@ -258,6 +258,42 @@ func (h *Handler) Following(c ports.HTTPContext) {
 	writeOK(c, payload, err, h.writeError)
 }
 
+func (h *Handler) AccountCreatorFollowState(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	state, err := h.service.GetAccountCreatorFollowState(c.RequestContext(), principal, c.Param("handle"))
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) FollowAccountCreator(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	state, err := h.service.FollowAccountCreator(c.RequestContext(), principal, c.Param("handle"))
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) UnfollowAccountCreator(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	state, err := h.service.UnfollowAccountCreator(c.RequestContext(), principal, c.Param("handle"))
+	writeOK(c, state, err, h.writeError)
+}
+
+func (h *Handler) AccountFollowing(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	payload, err := h.service.AccountFollowingFeed(c.RequestContext(), principal)
+	writeOK(c, payload, err, h.writeError)
+}
+
 func (h *Handler) Library(c ports.HTTPContext) {
 	payload, err := h.service.VideoLibrary(c.RequestContext(), model.VideoInteractionRequest{
 		ClientID: queryValue(c, "clientId"),

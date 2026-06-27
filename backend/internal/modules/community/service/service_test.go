@@ -217,6 +217,51 @@ func TestServiceCreatorFollowRejectsMissingClientID(t *testing.T) {
 	}
 }
 
+func TestServiceAccountCreatorFollowUsesPrincipalIdentity(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	principal := authtypes.Principal{
+		UserID:   42,
+		Username: "Rin Creator",
+		Email:    "rin@example.com",
+	}
+
+	state, err := svc.FollowAccountCreator(context.Background(), principal, "rin721")
+	if err != nil {
+		t.Fatalf("FollowAccountCreator() error = %v", err)
+	}
+	if !state.Following || state.ClientID != "account:42" || state.FollowerCount != 43 || state.FollowedAt == nil {
+		t.Fatalf("expected account follow state, got %#v", state)
+	}
+
+	feed, err := svc.AccountFollowingFeed(context.Background(), principal)
+	if err != nil {
+		t.Fatalf("AccountFollowingFeed() error = %v", err)
+	}
+	if !feed.Authenticated || feed.ClientID == nil || *feed.ClientID != "account:42" || feed.FollowingCount != 1 {
+		t.Fatalf("expected account following feed, got %#v", feed)
+	}
+	if len(feed.Creators) != 1 || feed.Creators[0].Handle != "rin721" || feed.Creators[0].FollowedAt == nil {
+		t.Fatalf("expected followed account creator, got %#v", feed.Creators)
+	}
+
+	lookup, err := svc.GetAccountCreatorFollowState(context.Background(), principal, "rin721")
+	if err != nil {
+		t.Fatalf("GetAccountCreatorFollowState() error = %v", err)
+	}
+	if !lookup.Following || lookup.ClientID != "account:42" {
+		t.Fatalf("expected account lookup state, got %#v", lookup)
+	}
+
+	state, err = svc.UnfollowAccountCreator(context.Background(), principal, "rin721")
+	if err != nil {
+		t.Fatalf("UnfollowAccountCreator() error = %v", err)
+	}
+	if state.Following || state.ClientID != "account:42" || state.FollowedAt != nil {
+		t.Fatalf("expected account unfollow state, got %#v", state)
+	}
+}
+
 func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
 	repo := newFakeRepository()
 	svc := New(repo, Config{

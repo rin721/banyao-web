@@ -10,7 +10,7 @@ const dynamicSubmitting = ref(false)
 
 const { data: feed, error, pending, refresh } = useAsyncData(
   "following-feed",
-  () => api.getFollowingFeed(following.ensureClientId()),
+  loadFollowingFeed,
   {
     immediate: false,
     server: false
@@ -141,6 +141,16 @@ async function publishDynamic(body: string) {
   } finally {
     dynamicSubmitting.value = false
   }
+}
+
+async function loadFollowingFeed() {
+  if (!authSession.hydrated) {
+    await authSession.refreshSession({ silent: true })
+  }
+
+  return authSession.authenticated
+    ? await api.getAccountFollowingFeed()
+    : await api.getFollowingFeed(following.ensureClientId())
 }
 
 useHead(() => ({
