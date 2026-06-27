@@ -40,6 +40,27 @@ $checks = @(
         Pattern = '\b(admin|administrator|consoleUser|controlConsole)\b'
     }
 )
+$routeChecks = @(
+    @{
+        Name = "docs page route"
+        Paths = @(
+            "frontend/app/pages/docs.vue",
+            "frontend/app/pages/docs/index.vue",
+            "frontend/app/pages/docs"
+        )
+    },
+    @{
+        Name = "control-console page route"
+        Paths = @(
+            "frontend/app/pages/admin.vue",
+            "frontend/app/pages/admin",
+            "frontend/app/pages/console.vue",
+            "frontend/app/pages/console",
+            "frontend/app/pages/organizations.vue",
+            "frontend/app/pages/organizations"
+        )
+    }
+)
 
 $failures = New-Object System.Collections.Generic.List[string]
 
@@ -48,6 +69,16 @@ function Get-RelativePath {
 
     $relative = [System.IO.Path]::GetRelativePath($repoRoot, $Path)
     return $relative.Replace([char]92, [char]47)
+}
+
+foreach ($routeCheck in $routeChecks) {
+    foreach ($routePath in $routeCheck.Paths) {
+        $absolutePath = Join-Path $repoRoot $routePath
+        if (Test-Path -LiteralPath $absolutePath) {
+            $relativePath = Get-RelativePath -Path $absolutePath
+            $failures.Add("${relativePath} $($routeCheck.Name)") | Out-Null
+        }
+    }
 }
 
 foreach ($scanRoot in $scanRoots) {

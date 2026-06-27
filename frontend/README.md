@@ -158,6 +158,7 @@ Nuxt public runtime config 支持以下环境变量：
 - 样式优先使用 `app/assets/css/tokens.css` 中的 CSS 变量和 `app/assets/css/main.css` 中的共享布局规则。
 - 页面层级以透明表面、低透明边线、轻阴影和稳定媒体比例表达；首页横幅、分类导航、动态卡片和媒体卡片保持轻量边界，贴近清爽的视频社区阅读节奏。
 - 分类入口、动态卡片、通知卡片和设置卡片复用 `AoiSurface` / `AoiInfoCard` 的轻边界；列表型内容按内容宽度和稳定网格排列，不把单个轻入口拉成整行横幅。
+- 页面入口保持视频社区产品流程，围绕首页、分类、搜索、关注、播放、用户、通知、投稿和设置组织导航与路由。
 - 新增共享用户可见文案时，同步维护 `i18n/locales/zh-CN.json`、`i18n/locales/en.json` 和 `i18n/locales/ja.json`。
 - 登录、注册和账号状态使用普通社区账号语义；页面、store、shared DTO、mock fixture 和 i18n 只表达用户资料、会话、创作者、互动、收藏、历史、通知与投稿等社区平台流程。
 - 浏览器侧注册请求只提交用户名、显示名、邮箱和密码；社区公开认证入口返回前端会话需要的最小字段。
@@ -171,7 +172,7 @@ Nuxt public runtime config 支持以下环境变量：
 
 - 修改 TypeScript、Vue、路由、composable 或 store 后，运行 `pnpm typecheck`。
 - 修改 Nuxt 配置、server route、runtime config 或构建敏感模块后，运行 `pnpm build`。
-- 修改登录、注册、会话、账号状态、shared DTO、mock fixture 或 i18n 后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1`。
+- 修改登录、注册、会话、账号状态、页面入口、shared DTO、mock fixture 或 i18n 后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1`。
 - 修改 `useAoiApi()`、社区 DTO、后端社区模块或联调配置后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1`；脚本会用临时 SQLite 启动后端并验证 `NUXT_PUBLIC_API_BASE_URL` 对应的公开社区数据链路。
 - 修改首页、分类页、内容网格或真实数据展示状态后，从仓库根目录运行 `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-page-smoke.ps1`；脚本会用真实社区 API 启动 Nuxt，并保存桌面与移动端截图。
 - 可见 UI 变更应尽量在浏览器中检查桌面和移动端表现。
