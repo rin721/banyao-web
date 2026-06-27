@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 阶段编号：`P4`
-- 阶段主题：少量真实内容下的前端视觉节奏与社区前端会话凭证链路收敛
-- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成 B3.1.a 评论编辑 / 删除、B3.1.b 动态编辑 / 删除、B3.1.c 投稿审核状态流转、B3.1.d.1 审核发布生成社区视频记录、B3.1.d.2 system media / community submission 受控关联和 C3.4/C3.5 真实 API / Mock 边界清理。本轮补充 P4/C1.4：社区前端真实账号接口不配置 API Token，统一使用浏览器 Cookie 会话与 CSRF 双提交凭证链路；API Token 继续只作为后台自动化和机器客户端访问能力。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
-- 影响范围：`AGENTS.md`、`frontend/nuxt.config.ts`、`frontend/app/composables/useAoiApi.ts`、`frontend/app/composables/useAoiAuthApi.ts`、`frontend/app/utils/apiCredentials.ts`、`backend/internal/migrations/**`、`backend/internal/modules/community/**`、`backend/internal/transport/http/**`、`backend/docs/api/openapi.yaml`、`scripts/check-frontend-community-api-smoke.ps1`、`backend/docs/**`、`frontend/README.md`、`frontend/app/pages/upload.vue`、`frontend/shared/**`、`frontend/i18n/locales/**`、`.agents/skills/banyao-community-fullstack/SKILL.md`、`TASK_TREE.md`；既有 P3 投稿审核切片还触碰 `backend/internal/modules/iam/service/service.go`、`frontend/app/**`、`frontend/server/api/mock/**` 和 `scripts/frontend-community-page-smoke.cjs`。
+- 阶段编号：`P5`
+- 阶段主题：后端社区真实业务数据来源收敛
+- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成评论 / 动态本人编辑删除、投稿审核状态流转、审核发布生成社区视频记录和 system media 受控关联；`P4` 已完成少量真实内容视觉节奏与社区前端 Cookie / CSRF 凭证链路。本轮进入 P5：收敛后端社区 HTTP 返回面的硬编码业务数据，`/status` endpoint 清单改由真实 route contract 注册结果注入，`/home.announcement` 改由公告模块已发布数据提供，视频装饰不再猜测分类或伪造 `Unknown` 上传者，投稿发布不再写入演示型创作者简介。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
+- 影响范围：`backend/internal/app/initapp/**`、`backend/internal/modules/community/**`、`backend/internal/transport/http/**`、`backend/internal/modules/announcements/**` 测试协作、`backend/docs/**`、`frontend/README.md`、`TASK_TREE.md`；不改变 HTTP path、DTO 字段名、OpenAPI schema、数据库迁移或 Nuxt mock fixture。
 
 ## 设计语言蒸馏
 
@@ -89,6 +89,11 @@
       [x] 叶节点 C3.5.a：根规则明确前端通过 `NUXT_PUBLIC_API_MOCK` / `NUXT_BACKEND_ORIGIN` 切换 Mock 与真实后端模式
       [x] 叶节点 C3.5.b：真实 API smoke 覆盖 system media multipart 上传、投稿审核发布和 `mediaAssetId` 回写
       [x] 叶节点 C3.5.c：确认社区真实接口不新增硬编码演示内容或后端 Mock 分支
+    [x] 子分支 C3.6：后端社区 HTTP 返回面真实数据来源收敛
+      [x] 叶节点 C3.6.a：`/status` endpoint 清单由真实 route contract 注册结果注入，不在 service 维护静态列表
+      [x] 叶节点 C3.6.b：`/home.announcement` 从公告模块已发布数据读取，无公告时返回 `null`
+      [x] 叶节点 C3.6.c：视频装饰仅使用持久化分类关联和真实创作者，缺失引用暴露数据一致性错误
+      [x] 叶节点 C3.6.d：投稿审核发布生成创作者时不写演示 bio 或默认展示名
 
 [ ] 主干 D：文档、规则与 Skill 同步
   [x] 分支 D1：任务树入口
@@ -159,6 +164,13 @@
 - [x] 实施原则：Nuxt 社区前端不配置 API Token；API Token 继续作为后台自动化 / 机器客户端凭证。浏览器真实模式使用 Cookie 会话，写请求按后端默认 `console_csrf` / `X-CSRF-Token` 做双提交 CSRF。
 - [x] 验证收敛：完成 `pnpm --dir frontend typecheck`、社区边界检查、真实 API smoke、真实页面 smoke、`pnpm --dir frontend build` 和 `git diff --check`。
 
+## P5 实施计划
+
+- [x] 分析现状：社区 status service 维护静态 endpoint 列表，handler 在缺失 setup provider 时默认 `completed=true`；首页公告固定为空；视频装饰会按标题猜分类并用 `Unknown` 上传者掩盖缺失创作者；投稿发布会写入演示型创作者简介。
+- [x] 影响评估：需要调整 community service、handler、HTTP router、initapp 跨模块注入、模块测试、route 测试和文档；不改变 HTTP path、DTO 字段名、OpenAPI schema、数据库迁移或 Nuxt mock fixture。
+- [x] 实施原则：真实 HTTP 返回面只消费 route contract、setup provider、公告模块 service、社区持久化分类关联和真实创作者记录；缺失真实状态或数据引用时暴露错误，不在后端补 Mock fallback。
+- [x] 验证收敛：完成后端聚焦测试、后端全量 `go test ./...`、真实社区 API smoke、错误/result 边界检查、前端社区边界检查和 `git diff --check`；`go test ./internal/migrations` 因 SQL 目录无 Go package 无法作为测试入口，已用 setup center 集成测试补证迁移执行链路。
+
 ## 阶段验证记录
 
 ### P2：真实页面视觉 QA 与移动端导航避让
@@ -209,3 +221,16 @@
 - [x] `frontend/app/composables/useAoiApi.ts` 和 `frontend/app/composables/useAoiAuthApi.ts` 在真实请求中保持 `credentials: "include"`，账号写请求可随 Cookie 会话携带 CSRF header。
 - [x] `frontend/README.md` 明确 API Token 是后台机器访问凭证，不是 Nuxt 社区登录凭证；真实浏览器模式依赖 Cookie、CORS `allow_credentials=true`、一致 host 和 CSRF cookie/header。
 - [x] `pnpm --dir frontend typecheck`、`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1`、`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1`、`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-page-smoke.ps1`、`pnpm --dir frontend build` 和 `git diff --check` 均已通过。
+
+### P5：后端社区真实业务数据来源收敛
+
+- [x] `go test ./internal/modules/community/... -count=1 -mod=readonly` 通过。
+- [x] `go test ./internal/modules/announcements/... -count=1 -mod=readonly` 通过。
+- [x] `go test ./internal/app/initapp -count=1 -mod=readonly` 通过。
+- [x] `go test ./internal/transport/http -count=1 -mod=readonly` 通过。
+- [x] `go test ./internal/app -run TestSetupCenterRunEndpointInitializesSystem -count=1 -mod=readonly` 通过，用于补证迁移执行链路；`go test ./internal/migrations -count=1 -mod=readonly` 因该目录只有 SQL、没有 Go package 而不可用。
+- [x] `go test ./... -count=1 -mod=readonly` 通过。
+- [x] `powershell -ExecutionPolicy Bypass -File backend/scripts/check-error-result-boundaries.ps1` 通过。
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1` 通过。
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1` 通过，真实后端 smoke 输出 `home-initial announcement=False`、审核发布生成视频、system media 上传、评论 / 动态编辑删除、账号路径和通知链路均通过。
+- [x] `git diff --check` 通过；PowerShell 输出提示 `frontend/README.md` 工作区 CRLF 会在 Git 触碰时按仓库规则转为 LF。

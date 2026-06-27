@@ -6,9 +6,9 @@
 
 | 能力 | 路由 | 说明 |
 | --- | --- | --- |
-| API 状态 | `GET /api/v1/public/community/status` | 始终可读，返回数据源模式、base path、端点清单、响应耗时、更新时间和 `setup.required/completed/currentStep` |
+| API 状态 | `GET /api/v1/public/community/status` | 始终可读，返回数据源模式、base path、由真实 route contract 注册结果派生的端点清单、响应耗时、更新时间和 `setup.required/completed/currentStep` |
 | 社区账号 | `POST /auth/signup`、`POST /auth/login`、`GET /auth/session`、`POST /auth/logout` | 使用普通社区账号语义，只向前端暴露 `userId`、`sessionId`、过期时间和 `account.id/handle/displayName` |
-| 首页聚合 | `GET /home` | 返回可选公告、分类树、最新视频和社区动态；无真实公告来源时 `announcement` 为 `null` |
+| 首页聚合 | `GET /home` | 返回公告模块中的真实已发布公告、分类树、最新视频和社区动态；没有已发布公告时 `announcement` 为 `null` |
 | 分类与视频 | `GET /categories`、`GET /videos`、`GET /videos/:idOrSlug` | 支持分类、关键词、游标和数量限制，视频详情包含播放源、标签和相关推荐 |
 | 弹幕 | `GET /videos/:idOrSlug/danmaku`、`POST /videos/:idOrSlug/danmaku` | 读取初始弹幕并支持轻量发布；发布失败时前端可降级到浏览器体验层 |
 | 评论 | `GET /videos/:idOrSlug/comments`、`POST /videos/:idOrSlug/comments`、`PATCH/DELETE /videos/:idOrSlug/comments/:commentId`、`PATCH/DELETE /account/videos/:idOrSlug/comments/:commentId` | 支持 `sort=newest/oldest` 与数量限制；发布、本人编辑和本人删除按匿名或账号 `clientId` 归属校验，删除后同步视频评论数；列表可通过 `clientId` 返回 `ownedByCurrentClient` |
@@ -53,7 +53,8 @@
 - 迁移 `internal/migrations/20260627000100_add_community_submission_review_state.sql` 为投稿元数据补充审核备注、审核人、审核时间、发布视频 ID 和发布时间，用于主系统审核队列与发布状态回写；审核发布生成视频复用既有 `community_videos`、`community_video_sources`、`community_video_categories` 和 `community_video_tags` 表，不为发布链路新增专门表结构。
 - 迁移 `internal/migrations/20260627000200_remove_community_demo_content.sql` 只按固定 demo ID 清理早期演示视频、创作者、动态、评论、弹幕、播放源、标签、视频分类和相关派生记录；不删除社区基础分类 taxonomy。
 - 迁移 `internal/migrations/20260627000300_add_community_submission_media_asset.sql` 为投稿元数据补充 `media_asset_id`，用于记录审核发布时关联的 `system_media_assets` 资产；社区 service 只读取最小媒体资产投影，不复制 system media 上传逻辑。
-- 应用装配位于 `internal/app/initapp`，setup 状态由 `internal/app/initcenter` 适配为社区 `SetupStatus`，HTTP contract 位于 `internal/transport/http/contracts.go`，真实路由注册位于 `internal/transport/http/router.go`。
+- 应用装配位于 `internal/app/initapp`，setup 状态由 `internal/app/initcenter` 适配为社区 `SetupStatus`，首页公告由公告模块已发布列表适配为社区 `Announcement`，HTTP contract 位于 `internal/transport/http/contracts.go`，真实路由注册位于 `internal/transport/http/router.go`。
+- 视频摘要装饰只消费持久化的视频分类关联和真实创作者记录；缺失创作者或指向不存在分类的关联会暴露为后端数据一致性错误，不返回 `Unknown` 上传者或按标题猜测分类。
 - OpenAPI 由 route contract 生成到 `docs/api/openapi.yaml`，不得手写维护。
 
 ## 前后端协作

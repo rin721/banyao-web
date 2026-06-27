@@ -98,6 +98,9 @@ func NewRouter(deps RouterDeps) ports.HTTPRouter {
 		mustRouteContract("probe.ready"),
 		mustRouteContract("openapi.yaml"),
 	}
+	if deps.CommunityHandler != nil {
+		deps.CommunityHandler.UseSetupStatusProvider(deps.CommunitySetupStatusProvider)
+	}
 	v1 := r.Group(appconstants.APIBasePath)
 	if deps.SetupHandler != nil {
 		registeredContracts = append(registeredContracts, registerSetupRoutes(v1, deps)...)
@@ -111,6 +114,7 @@ func NewRouter(deps RouterDeps) ports.HTTPRouter {
 	}
 	if deps.CommunityHandler != nil {
 		registeredContracts = append(registeredContracts, registerCommunityRoutes(v1, deps)...)
+		deps.CommunityHandler.UseStatusEndpoints(communityStatusEndpoints(registeredContracts))
 	}
 	if deps.SystemHandler != nil {
 		registeredContracts = append(registeredContracts, registerSystemRoutes(v1, deps)...)
@@ -415,7 +419,10 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 func communitySetupGate(provider SetupStatusProvider, log ports.Logger) ports.HTTPHandlerFunc {
 	return func(c ports.HTTPContext) {
 		if provider == nil {
-			c.Next()
+			if log != nil {
+				log.Error("community setup status provider missing", "method", c.Method(), "path", c.Path())
+			}
+			c.AbortWithStatusJSON(http.StatusInternalServerError, result.LocalizedError(c, apperrors.ErrInternalServer, result.MessageKeyInternalError, nil, result.GetTraceID(c)))
 			return
 		}
 		setup, err := provider.CommunitySetupStatus(c.RequestContext())
@@ -439,6 +446,27 @@ func communitySetupGate(provider SetupStatusProvider, log ports.Logger) ports.HT
 		}
 		c.Next()
 	}
+}
+
+func communityStatusEndpoints(contracts []RouteContract) []string {
+	basePath := appconstants.APIPath("public", "community")
+	endpoints := make([]string, 0)
+	seen := make(map[string]struct{})
+	for _, contract := range contracts {
+		if contract.Path != basePath && !strings.HasPrefix(contract.Path, basePath+"/") {
+			continue
+		}
+		endpoint := routeRelativePath(basePath, contract.Path)
+		if endpoint == "" {
+			endpoint = "/"
+		}
+		if _, ok := seen[endpoint]; ok {
+			continue
+		}
+		seen[endpoint] = struct{}{}
+		endpoints = append(endpoints, endpoint)
+	}
+	return endpoints
 }
 
 func iamAuthMiddlewareConfig(deps RouterDeps) middleware.AuthConfig {

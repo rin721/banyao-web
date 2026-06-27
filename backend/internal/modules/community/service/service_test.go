@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ func TestServiceHomePayloadBuildsCategoryTreeAndVideos(t *testing.T) {
 		t.Fatalf("GetHomePayload() error = %v", err)
 	}
 	if payload.Announcement != nil {
-		t.Fatalf("expected no hardcoded community announcement, got %#v", payload.Announcement)
+		t.Fatalf("expected no announcement without provider, got %#v", payload.Announcement)
 	}
 	if len(payload.Categories) != 2 {
 		t.Fatalf("expected two root categories, got %#v", payload.Categories)
@@ -43,6 +44,42 @@ func TestServiceHomePayloadBuildsCategoryTreeAndVideos(t *testing.T) {
 	}
 }
 
+func TestServiceHomePayloadUsesAnnouncementProvider(t *testing.T) {
+	announcement := &model.Announcement{
+		ID:       "1001",
+		Title:    "真实公告",
+		Body:     "来自公告模块的发布内容",
+		Severity: "info",
+		StartsAt: fixedNow(),
+	}
+	provider := &fakeHomeAnnouncementProvider{announcement: announcement}
+	svc := New(newFakeRepository(), Config{HomeAnnouncementProvider: provider, Now: fixedNow})
+
+	payload, err := svc.GetHomePayload(context.Background())
+	if err != nil {
+		t.Fatalf("GetHomePayload() error = %v", err)
+	}
+	if provider.calls != 1 {
+		t.Fatalf("expected announcement provider call count 1, got %d", provider.calls)
+	}
+	if payload.Announcement == nil || payload.Announcement.ID != "1001" || payload.Announcement.Body != "来自公告模块的发布内容" {
+		t.Fatalf("expected announcement from provider, got %#v", payload.Announcement)
+	}
+}
+
+func TestServiceHomePayloadReturnsAnnouncementProviderError(t *testing.T) {
+	wantErr := errors.New("announcement provider failed")
+	svc := New(newFakeRepository(), Config{
+		HomeAnnouncementProvider: &fakeHomeAnnouncementProvider{err: wantErr},
+		Now:                      fixedNow,
+	})
+
+	_, err := svc.GetHomePayload(context.Background())
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("GetHomePayload() error = %v, want %v", err, wantErr)
+	}
+}
+
 func TestServiceVideoDetailDecoratesSourcesTagsAndRelated(t *testing.T) {
 	svc := New(newFakeRepository(), Config{Now: fixedNow})
 
@@ -61,6 +98,38 @@ func TestServiceVideoDetailDecoratesSourcesTagsAndRelated(t *testing.T) {
 	}
 	if len(detail.Related) != 1 || detail.Related[0].ID == detail.ID {
 		t.Fatalf("expected one different related video, got %#v", detail.Related)
+	}
+}
+
+func TestServiceListVideosUsesPersistedCategoryLinksOnly(t *testing.T) {
+	repo := newFakeRepository()
+	repo.categorySlugs["video-aoi-alpha"] = nil
+	svc := New(repo, Config{Now: fixedNow})
+
+	payload, err := svc.ListVideos(context.Background(), model.VideoFilter{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListVideos() error = %v", err)
+	}
+	for _, item := range payload.Items {
+		if item.ID != "video-aoi-alpha" {
+			continue
+		}
+		if len(item.Categories) != 0 {
+			t.Fatalf("expected no guessed categories without persisted links, got %#v", item.Categories)
+		}
+		return
+	}
+	t.Fatalf("expected video-aoi-alpha in %#v", payload.Items)
+}
+
+func TestServiceListVideosReturnsDataInconsistentForMissingUploader(t *testing.T) {
+	repo := newFakeRepository()
+	repo.creators = repo.creators[1:]
+	svc := New(repo, Config{Now: fixedNow})
+
+	_, err := svc.ListVideos(context.Background(), model.VideoFilter{Limit: 10})
+	if !errors.Is(err, ErrDataInconsistent) {
+		t.Fatalf("ListVideos() error = %v, want ErrDataInconsistent", err)
 	}
 }
 
@@ -626,6 +695,13 @@ func TestServiceReviewCommunitySubmissionCanGenerateVideoRecord(t *testing.T) {
 	if detail.Uploader.DisplayName != "Aoi Creator" || len(detail.Categories) != 1 || detail.Categories[0].Slug != "design" {
 		t.Fatalf("expected generated creator and category decoration, got %#v", detail)
 	}
+	creator, err := repo.FindCreatorByHandle(context.Background(), detail.Uploader.Handle)
+	if err != nil {
+		t.Fatalf("FindCreatorByHandle(generated) error = %v", err)
+	}
+	if creator.Bio != nil {
+		t.Fatalf("expected generated creator without hardcoded bio, got %#v", creator.Bio)
+	}
 	if len(detail.Tags) != 2 || detail.Tags[0] != "review" || len(detail.Sources) != 1 || detail.Sources[0].MimeType == nil || *detail.Sources[0].MimeType != "video/mp4" {
 		t.Fatalf("expected generated tags and source metadata, got %#v", detail)
 	}
@@ -1106,6 +1182,24 @@ func TestServiceCommunityNotificationsTrackAnonymousClientActions(t *testing.T) 
 			t.Fatalf("expected notification read_at after mark read, got %#v", item)
 		}
 	}
+}
+
+type fakeHomeAnnouncementProvider struct {
+	announcement *model.Announcement
+	err          error
+	calls        int
+}
+
+func (p *fakeHomeAnnouncementProvider) HomeAnnouncement(context.Context) (*model.Announcement, error) {
+	p.calls++
+	if p.err != nil {
+		return nil, p.err
+	}
+	if p.announcement == nil {
+		return nil, nil
+	}
+	announcement := *p.announcement
+	return &announcement, nil
 }
 
 type fakeRepository struct {

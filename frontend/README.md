@@ -155,7 +155,7 @@ Nuxt public runtime config 支持以下环境变量：
 社区页面访问公开社区接口时使用 `useAoiApi()`；登录、注册、会话和账号接口使用 `useAoiAuthApi()`，并保持与 `useAoiApiTelemetry()` 的错误诊断兼容。真实后端若返回 `messageKey=api.setup.required`，错误 payload 的 `setup` 字段会传递给页面；首页和设置高级页必须显示初始化状态，不把该状态降级为静态内容。Nuxt mock `/api/mock/status` 返回 `mode=mock` 与 setup 已完成状态，仅表示本地演示边界。
 API Token 是后台自动化、脚本或机器客户端访问后台接口的凭证，不是 Nuxt 浏览器社区登录凭证，也不要写入 `NUXT_PUBLIC_*`、Pinia store 或 `localStorage`。社区账号真实模式依赖浏览器 Cookie 会话：登录 / 注册接口由后端设置 `console_access` 等会话 Cookie，`useAoiApi()` 和 `useAoiAuthApi()` 使用 `credentials: "include"` 发送 Cookie，`POST` / `PATCH` / `DELETE` 写请求在客户端能读到 CSRF cookie 时自动带上 `X-CSRF-Token`。
 本地分端口联调默认使用浏览器直连 CORS：前端页面使用 `http://localhost:3000` 时，API 地址也使用 `http://localhost:9999`，后端必须使用精确前端来源配置 CORS，例如 `APP_CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` 与 `APP_CORS_ALLOW_CREDENTIALS=true`，不能把凭证请求与 `*` 来源混用。浏览器 Cookie 还要求页面和 API 使用一致主机，避免 `localhost` / `127.0.0.1` 混用；只有明确需要同源代理时才设置 `NUXT_BACKEND_ORIGIN`。
-真实 API 模式只展示后端数据库中的真实内容。新初始化后端保留社区基础分类 taxonomy，但不会写入 `Aoi Alpha`、`Layout Notes`、`Color Note` 等演示视频、创作者、动态、评论或弹幕；这些演示内容只保留在 `NUXT_PUBLIC_API_MOCK=true` 的 Nuxt mock 边界内。
+真实 API 模式只展示后端数据库中的真实内容。新初始化后端保留社区基础分类 taxonomy，但不会写入 `Aoi Alpha`、`Layout Notes`、`Color Note` 等演示视频、创作者、动态、评论或弹幕；首页公告来自后端公告模块的已发布公告，没有已发布公告时显示为空；这些演示内容只保留在 `NUXT_PUBLIC_API_MOCK=true` 的 Nuxt mock 边界内。
 
 ## 开发约定
 

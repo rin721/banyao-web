@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"hash/fnv"
 	"regexp"
 	"sort"
@@ -17,6 +18,7 @@ import (
 
 var (
 	ErrInvalidInput       = errors.New("invalid community input")
+	ErrDataInconsistent   = errors.New("community data inconsistent")
 	ErrNotFound           = errors.New("community resource not found")
 	ErrStorageUnavailable = errors.New("community storage unavailable")
 )
@@ -129,10 +131,15 @@ type Repository interface {
 	ClearVideoHistory(context.Context, string, time.Time) error
 }
 
+type HomeAnnouncementProvider interface {
+	HomeAnnouncement(context.Context) (*model.Announcement, error)
+}
+
 type Config struct {
-	BasePath string
-	NewID    func() string
-	Now      func() time.Time
+	BasePath                 string
+	HomeAnnouncementProvider HomeAnnouncementProvider
+	NewID                    func() string
+	Now                      func() time.Time
 }
 
 type service struct {
@@ -159,52 +166,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 		BasePath:    s.cfg.BasePath,
 		GeneratedAt: s.now(),
 		LatencyMs:   0,
-		Endpoints: []string{
-			"/status",
-			"/auth/login",
-			"/auth/logout",
-			"/auth/session",
-			"/auth/signup",
-			"/account/dynamics",
-			"/account/dynamics/:dynamicId",
-			"/account/feed/following",
-			"/account/history",
-			"/account/history/clear",
-			"/account/library",
-			"/account/notifications",
-			"/account/notifications/read",
-			"/account/submissions",
-			"/account/users/:handle/follow-state",
-			"/account/users/:handle/follow",
-			"/account/videos/:idOrSlug/interaction-state",
-			"/account/videos/:idOrSlug/interactions/:kind",
-			"/account/videos/:idOrSlug/history",
-			"/account/videos/:idOrSlug/comments/:commentId",
-			"/home",
-			"/dynamics",
-			"/dynamics/:dynamicId",
-			"/submissions",
-			"/categories",
-			"/videos",
-			"/videos/:idOrSlug",
-			"/videos/:idOrSlug/interaction-state",
-			"/videos/:idOrSlug/interactions/:kind",
-			"/videos/:idOrSlug/history",
-			"/videos/:idOrSlug/comments",
-			"/videos/:idOrSlug/comments/:commentId",
-			"/videos/:idOrSlug/danmaku",
-			"/videos/:idOrSlug/reports",
-			"/notifications",
-			"/notifications/read",
-			"/search",
-			"/users/:handle",
-			"/users/:handle/follow-state",
-			"/users/:handle/follow",
-			"/feed/following",
-			"/library",
-			"/history",
-			"/history/clear",
-		},
+		Endpoints:   []string{},
 	}
 }
 
@@ -221,12 +183,23 @@ func (s *service) GetHomePayload(ctx context.Context) (model.HomePayload, error)
 	if err != nil {
 		return model.HomePayload{}, err
 	}
+	announcement, err := s.homeAnnouncement(ctx)
+	if err != nil {
+		return model.HomePayload{}, err
+	}
 	return model.HomePayload{
-		Announcement: nil,
+		Announcement: announcement,
 		Categories:   categories,
 		Latest:       latest,
 		Dynamics:     model.PageResult[model.CommunityDynamicItem]{Items: dynamics},
 	}, nil
+}
+
+func (s *service) homeAnnouncement(ctx context.Context) (*model.Announcement, error) {
+	if s.cfg.HomeAnnouncementProvider == nil {
+		return nil, nil
+	}
+	return s.cfg.HomeAnnouncementProvider.HomeAnnouncement(ctx)
 }
 
 func (s *service) ListCategories(ctx context.Context) ([]model.CategoryTreeNode, error) {
@@ -1872,14 +1845,13 @@ func (s *service) decorateVideos(ctx context.Context, videos []model.Video) ([]m
 		for _, slug := range categorySlugs {
 			if category, ok := categoryBySlug[slug]; ok {
 				videoCategories = append(videoCategories, category)
+				continue
 			}
+			return nil, fmt.Errorf("%w: video %s references missing category %s", ErrDataInconsistent, video.ID, slug)
 		}
-		if len(videoCategories) == 0 {
-			videoCategories = categoriesForVideoByTitle(video, categories)
-		}
-		uploader := model.UserSummary{ID: video.UploaderID, Handle: "unknown", DisplayName: "Unknown", AvatarURL: nil}
-		if creator, ok := creatorByID[video.UploaderID]; ok {
-			uploader = creator.UserSummary
+		creator, ok := creatorByID[video.UploaderID]
+		if !ok {
+			return nil, fmt.Errorf("%w: video %s references missing uploader %s", ErrDataInconsistent, video.ID, video.UploaderID)
 		}
 		out = append(out, model.VideoSummary{
 			ID:              video.ID,
@@ -1891,7 +1863,7 @@ func (s *service) decorateVideos(ctx context.Context, videos []model.Video) ([]m
 			ViewCount:       video.ViewCount,
 			CommentCount:    video.CommentCount,
 			PublishedAt:     video.PublishedAt,
-			Uploader:        uploader,
+			Uploader:        creator.UserSummary,
 			Categories:      videoCategories,
 		})
 	}
@@ -1969,20 +1941,6 @@ func sortVideoComments(items []model.VideoComment, sortMode string) {
 		}
 		return left.CreatedAt.After(right.CreatedAt)
 	})
-}
-
-func categoriesForVideoByTitle(video model.Video, categories []model.Category) []model.Category {
-	out := make([]model.Category, 0)
-	title := normalize(video.Title + " " + deref(video.Description))
-	for _, category := range categories {
-		if category.Slug == "home" {
-			continue
-		}
-		if strings.Contains(title, normalize(category.Name)) || strings.Contains(title, normalize(category.Slug)) {
-			out = append(out, category)
-		}
-	}
-	return out
 }
 
 func uniqueCategoriesFromVideos(videos []model.VideoSummary) []model.Category {
@@ -2447,7 +2405,10 @@ func (s *service) resolvePublishedSubmissionVideo(ctx context.Context, submissio
 	if description != "" {
 		descriptionPtr = &description
 	}
-	creator := submissionVideoCreator(submission, now)
+	creator, err := submissionVideoCreator(submission, now)
+	if err != nil {
+		return submissionPublishResult{}, err
+	}
 	video := model.Video{
 		ID:              videoID,
 		Slug:            slug,
@@ -2633,7 +2594,7 @@ func submissionVideoSlug(submission model.CommunitySubmission, value string) str
 	return trimRunes(base+"-"+shortHash(submission.ID), 160)
 }
 
-func submissionVideoCreator(submission model.CommunitySubmission, now time.Time) model.Creator {
+func submissionVideoCreator(submission model.CommunitySubmission, now time.Time) (model.Creator, error) {
 	seed := strings.TrimSpace(submission.ClientID)
 	hash := shortHash(seed + ":" + submission.AuthorName)
 	handleBase := safeASCIIIdentifier(seed)
@@ -2644,9 +2605,8 @@ func submissionVideoCreator(submission model.CommunitySubmission, now time.Time)
 	creatorID := trimRunes("creator-"+hash, 96)
 	displayName := normalizeCommentAuthor(submission.AuthorName)
 	if displayName == "" {
-		displayName = "Community Creator"
+		return model.Creator{}, ErrInvalidInput
 	}
-	bio := "社区投稿自动生成的创作者资料，后续会与登录态和创作者后台归并。"
 	return model.Creator{
 		UserSummary: model.UserSummary{
 			ID:          creatorID,
@@ -2654,12 +2614,11 @@ func submissionVideoCreator(submission model.CommunitySubmission, now time.Time)
 			DisplayName: displayName,
 			AvatarURL:   nil,
 		},
-		Bio:           &bio,
 		FollowerCount: 0,
 		JoinedAt:      now,
 		CreatedAt:     now,
 		UpdatedAt:     now,
-	}
+	}, nil
 }
 
 func safeASCIIIdentifier(value string) string {

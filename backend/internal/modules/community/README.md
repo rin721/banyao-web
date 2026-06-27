@@ -1,10 +1,10 @@
 # Community 模块
 
-`internal/modules/community` 为 `frontend/` Nuxt 视频社区提供公开社区数据接口。当前阶段覆盖社区账号注册入口、首页、分类、视频列表、视频详情、弹幕读取与轻量发布、视频评论读取 / 轻量发布 / 本人编辑删除、视频级举报提交、投稿元数据待审核池、主系统审核队列、发布视频 ID 回写、审核发布时关联 system media 资产并生成社区视频记录、搜索、创作者资料、创作者关注、视频点赞 / 收藏 / 稍后看、观看历史、社区动态流查询 / 发布 / 本人编辑删除、关注动态和通知收件箱。
+`internal/modules/community` 为 `frontend/` Nuxt 视频社区提供公开社区数据接口。当前阶段覆盖社区账号注册入口、首页、分类、视频列表、视频详情、弹幕读取与轻量发布、视频评论读取 / 轻量发布 / 本人编辑删除、视频级举报提交、投稿元数据待审核池、主系统审核队列、发布视频 ID 回写、审核发布时关联 system media 资产并生成社区视频记录、搜索、创作者资料、创作者关注、视频点赞 / 收藏 / 稍后看、观看历史、社区动态流查询 / 发布 / 本人编辑删除、关注动态和通知收件箱。首页公告来自公告模块的真实已发布公告；没有已发布公告时返回 `announcement=null`。
 
 ## 职责
 
-- 提供 `/api/v1/public/community/*` 公开 API，供 Nuxt 前端在关闭 mock 后直接接入。
+- 提供 `/api/v1/public/community/*` 公开 API，供 Nuxt 前端在关闭 mock 后直接接入；`/status` 的 endpoint 清单由真实 route contract 注册结果派生。
 - 提供社区账号注册入口，浏览器提交用户名、显示名、邮箱和密码，响应只暴露社区会话和账号展示需要的最小字段。
 - 维护社区分类、创作者、视频、视频源、标签、弹幕、公开评论、社区动态、关注关系、视频互动关系、观看历史和通知收件箱的持久化模型。
 - 支持视频弹幕列表读取和轻量公开发布。
@@ -40,7 +40,7 @@
 
 公开接口统一位于 `/api/v1/public/community`：
 
-`GET /status` 始终可读，响应包含 `setup.required`、`setup.completed` 和 `setup.currentStep`。社区公开内容、账号接口和社区认证接口在平台初始化未完成时返回 503 result envelope，`messageKey` 为 `api.setup.required`，前端据此显示初始化状态并保留真实数据入口。
+`GET /status` 始终可读，响应包含 `setup.required`、`setup.completed`、`setup.currentStep` 和由真实路由契约注册结果派生的 endpoint 清单。社区公开内容、账号接口和社区认证接口在平台初始化未完成时返回 503 result envelope，`messageKey` 为 `api.setup.required`，前端据此显示初始化状态并保留真实数据入口。
 
 - `GET /status`
 - `POST /auth/login`
@@ -104,7 +104,7 @@
 
 ## 数据
 
-社区数据表覆盖分类、创作者、视频、视频源、标签、弹幕、公开评论、关注关系、视频互动、举报、通知、动态、投稿元数据和观看历史。平台初始化完成后，公开接口读取这些表并返回真实社区内容；平台初始化未完成时，`/status` 只返回接口清单和 setup 状态，内容接口保持统一的初始化响应。真实运行路径只保留中性的社区分类 taxonomy；早期迁移写入的演示视频、创作者、动态、评论、弹幕、播放源、标签和相关派生记录由 `internal/migrations/20260627000200_remove_community_demo_content.sql` 按固定 demo ID 清理，Nuxt mock 继续保留演示内容。社区账号与匿名客户端通过 `client_id` 统一区分数据范围；视频评论和社区动态的 `client_id` 用于本人编辑 / 删除。投稿元数据额外保存 `review_note`、`reviewer_id`、`reviewed_at`、`media_asset_id`、`published_video_id` 和 `published_at`，用于主系统审核队列、system media 资产关联和发布状态回写；审核发布生成视频时会写入 `community_videos`、`community_video_sources`、`community_video_categories`、`community_video_tags` 和自动生成的社区创作者资料。
+社区数据表覆盖分类、创作者、视频、视频源、标签、弹幕、公开评论、关注关系、视频互动、举报、通知、动态、投稿元数据和观看历史。平台初始化完成后，公开接口读取这些表并返回真实社区内容；平台初始化未完成时，`/status` 只返回接口清单和 setup 状态，内容接口保持统一的初始化响应。真实运行路径只保留中性的社区分类 taxonomy；早期迁移写入的演示视频、创作者、动态、评论、弹幕、播放源、标签和相关派生记录由 `internal/migrations/20260627000200_remove_community_demo_content.sql` 按固定 demo ID 清理，Nuxt mock 继续保留演示内容。社区账号与匿名客户端通过 `client_id` 统一区分数据范围；视频评论和社区动态的 `client_id` 用于本人编辑 / 删除。投稿元数据额外保存 `review_note`、`reviewer_id`、`reviewed_at`、`media_asset_id`、`published_video_id` 和 `published_at`，用于主系统审核队列、system media 资产关联和发布状态回写；审核发布生成视频时会写入 `community_videos`、`community_video_sources`、`community_video_categories`、`community_video_tags` 和基于投稿作者名生成的社区创作者资料，不写入演示型 bio 或默认展示名。
 
 ## 验证
 

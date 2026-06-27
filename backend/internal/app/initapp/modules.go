@@ -4,7 +4,9 @@ package initapp
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	announcementrepository "github.com/open-console/console-platform/internal/modules/announcements/repository"
 	announcementservice "github.com/open-console/console-platform/internal/modules/announcements/service"
 	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
+	communitymodel "github.com/open-console/console-platform/internal/modules/community/model"
 	communityrepository "github.com/open-console/console-platform/internal/modules/community/repository"
 	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
@@ -52,7 +55,7 @@ func NewModules(core Core, infra Infrastructure) (Modules, error) {
 	}
 
 	announcementsModule := NewAnnouncementsModule(core, infra)
-	communityModule := NewCommunityModule(core, infra)
+	communityModule := NewCommunityModule(core, infra, announcementsModule.Service)
 	systemModule := NewSystemModule(core, infra, iamModule)
 	return Modules{
 		Announcements: announcementsModule,
@@ -245,19 +248,73 @@ func NewAnnouncementsModule(core Core, infra Infrastructure) AnnouncementsModule
 }
 
 // NewCommunityModule 装配视频社区公开读取模块。
-func NewCommunityModule(core Core, infra Infrastructure) CommunityModule {
+func NewCommunityModule(core Core, infra Infrastructure, announcements announcementservice.Service) CommunityModule {
 	var repo communityrepository.Repository
 	if infra.Database != nil {
 		repo = communityrepository.New(adapters.NewDatabase(infra.Database))
 	}
 	service := communityservice.New(repo, communityservice.Config{
-		BasePath: "/api/v1/public/community",
-		NewID:    core.IDGenerator.NextIDString,
+		BasePath:                 "/api/v1/public/community",
+		HomeAnnouncementProvider: communityHomeAnnouncementProvider{announcements: announcements},
+		NewID:                    core.IDGenerator.NextIDString,
 	})
 	return CommunityModule{
 		Service: service,
 		Handler: communityhandler.New(service, core.Logger),
 	}
+}
+
+type communityHomeAnnouncementProvider struct {
+	announcements announcementservice.Service
+}
+
+func (p communityHomeAnnouncementProvider) HomeAnnouncement(ctx context.Context) (*communitymodel.Announcement, error) {
+	if p.announcements == nil {
+		return nil, nil
+	}
+	page, err := p.announcements.ListPublishedAnnouncements(ctx, announcementservice.AnnouncementFilter{Page: 1, PageSize: 1})
+	if err != nil {
+		switch {
+		case errors.Is(err, announcementservice.ErrStorageUnavailable):
+			return nil, communityservice.ErrStorageUnavailable
+		case errors.Is(err, announcementservice.ErrInvalidInput):
+			return nil, communityservice.ErrInvalidInput
+		default:
+			return nil, err
+		}
+	}
+	if len(page.Items) == 0 {
+		return nil, nil
+	}
+	item := page.Items[0]
+	startsAt := item.UpdatedAt
+	if item.PublishedAt != nil {
+		startsAt = *item.PublishedAt
+	}
+	return &communitymodel.Announcement{
+		ID:       strconv.FormatInt(item.ID, 10),
+		Title:    trimCommunityAnnouncementText(item.Title, 160),
+		Body:     communityAnnouncementBody(item.Summary, item.Content),
+		Href:     nil,
+		Severity: "info",
+		StartsAt: startsAt,
+		EndsAt:   nil,
+	}, nil
+}
+
+func communityAnnouncementBody(summary string, content string) string {
+	if body := trimCommunityAnnouncementText(summary, 280); body != "" {
+		return body
+	}
+	return trimCommunityAnnouncementText(content, 280)
+}
+
+func trimCommunityAnnouncementText(value string, limit int) string {
+	value = strings.TrimSpace(value)
+	if limit > 0 && len([]rune(value)) > limit {
+		value = string([]rune(value)[:limit])
+	}
+	return value
 }
 
 // NewSystemModule 装配系统管理模块，并按配置执行默认数据种子。

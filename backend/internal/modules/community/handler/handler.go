@@ -20,6 +20,7 @@ type Handler struct {
 	logger              ports.Logger
 	service             service.Service
 	setupStatusProvider SetupStatusProvider
+	statusEndpoints     []string
 }
 
 type SetupStatusProvider interface {
@@ -34,20 +35,29 @@ func (h *Handler) UseSetupStatusProvider(provider SetupStatusProvider) {
 	h.setupStatusProvider = provider
 }
 
+func (h *Handler) UseStatusEndpoints(endpoints []string) {
+	h.statusEndpoints = append([]string(nil), endpoints...)
+}
+
 func (h *Handler) Status(c ports.HTTPContext) {
 	status := h.service.CommunityStatus(c.RequestContext())
-	status.Setup = model.SetupStatus{Completed: true}
-	if h.setupStatusProvider != nil {
-		setup, err := h.setupStatusProvider.CommunitySetupStatus(c.RequestContext())
-		if err != nil {
-			if h.logger != nil {
-				h.logger.Error("community setup status failed", "error", err)
-			}
-			result.InternalError(c, result.MessageKeyInternalError)
-			return
+	status.Endpoints = append([]string(nil), h.statusEndpoints...)
+	if h.setupStatusProvider == nil {
+		if h.logger != nil {
+			h.logger.Error("community setup status provider missing")
 		}
-		status.Setup = setup
+		result.InternalError(c, result.MessageKeyInternalError)
+		return
 	}
+	setup, err := h.setupStatusProvider.CommunitySetupStatus(c.RequestContext())
+	if err != nil {
+		if h.logger != nil {
+			h.logger.Error("community setup status failed", "error", err)
+		}
+		result.InternalError(c, result.MessageKeyInternalError)
+		return
+	}
+	status.Setup = setup
 	result.OK(c, status)
 }
 
@@ -565,6 +575,8 @@ func (h *Handler) writeError(c ports.HTTPContext, err error) {
 		result.Fail(c, http.StatusRequestTimeout, "api.common.requestCanceled")
 	case errors.Is(err, service.ErrInvalidInput):
 		result.BadRequest(c, result.MessageKeyInvalidRequest)
+	case errors.Is(err, service.ErrDataInconsistent):
+		result.InternalError(c, result.MessageKeyInternalError)
 	case errors.Is(err, service.ErrNotFound):
 		result.NotFound(c, result.MessageKeyNotFound)
 	case errors.Is(err, service.ErrStorageUnavailable):

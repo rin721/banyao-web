@@ -446,10 +446,12 @@ func TestNewRouterSignupEndpointIsPublic(t *testing.T) {
 
 func TestNewRouterCommunitySignupEndpointUsesCommunityPayload(t *testing.T) {
 	iamSvc := &fakeIAMService{}
+	setupProvider := &fakeCommunitySetupProvider{status: communitymodel.SetupStatus{Completed: true}}
 	router := newTestRouter(RouterDeps{
-		IAMHandler: iamhandler.New(iamSvc, nil),
-		IAMAuth:    iamSvc,
-		IAMAuthz:   iamSvc,
+		CommunitySetupStatusProvider: setupProvider,
+		IAMHandler:                   iamhandler.New(iamSvc, nil),
+		IAMAuth:                      iamSvc,
+		IAMAuthz:                     iamSvc,
 	})
 
 	recorder := performJSONRouterRequest(router, http.MethodPost, "/api/v1/public/community/auth/signup", `{"username":"Rin 721","displayName":"Rin","email":"rin@example.com","password":"password123"}`)
@@ -476,10 +478,12 @@ func TestNewRouterCommunitySignupEndpointUsesCommunityPayload(t *testing.T) {
 
 func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
 	iamSvc := &fakeIAMService{}
+	setupProvider := &fakeCommunitySetupProvider{status: communitymodel.SetupStatus{Completed: true}}
 	router := newTestRouter(RouterDeps{
-		IAMHandler: iamhandler.New(iamSvc, nil),
-		IAMAuth:    iamSvc,
-		IAMAuthz:   iamSvc,
+		CommunitySetupStatusProvider: setupProvider,
+		IAMHandler:                   iamhandler.New(iamSvc, nil),
+		IAMAuth:                      iamSvc,
+		IAMAuthz:                     iamSvc,
 	})
 
 	login := performJSONRouterRequest(router, http.MethodPost, "/api/v1/public/community/auth/login", `{"identifier":"rin@example.com","password":"password123"}`)
@@ -542,7 +546,6 @@ func TestNewRouterCommunityStatusIncludesSetupState(t *testing.T) {
 		CurrentStep: "storage.configure",
 	}}
 	handler := communityhandler.New(communityservice.New(nil, communityservice.Config{}), nil)
-	handler.UseSetupStatusProvider(provider)
 	router := newTestRouter(RouterDeps{
 		CommunityHandler:             handler,
 		CommunitySetupStatusProvider: provider,
@@ -564,6 +567,36 @@ func TestNewRouterCommunityStatusIncludesSetupState(t *testing.T) {
 	if provider.calls != 1 {
 		t.Fatalf("expected setup provider call count 1, got %d", provider.calls)
 	}
+	assertEndpointListContains(t, body.Data, "/home")
+	assertEndpointListContains(t, body.Data, "/videos/:idOrSlug/comments/:commentId")
+	assertEndpointListContains(t, body.Data, "/account/dynamics/:dynamicId")
+	assertEndpointListMissing(t, body.Data, "/community/submissions")
+}
+
+func TestNewRouterCommunityStatusRequiresSetupProvider(t *testing.T) {
+	handler := communityhandler.New(communityservice.New(nil, communityservice.Config{}), nil)
+	router := newTestRouter(RouterDeps{
+		CommunityHandler: handler,
+	})
+
+	recorder, _ := performRouterRequest(t, router, http.MethodGet, "/api/v1/public/community/status")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected missing setup provider status %d, got %d body %s", http.StatusInternalServerError, recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestNewRouterCommunityContentRequiresSetupProvider(t *testing.T) {
+	handler := communityhandler.New(communityservice.New(nil, communityservice.Config{}), nil)
+	router := newTestRouter(RouterDeps{
+		CommunityHandler: handler,
+	})
+
+	recorder, _ := performRouterRequest(t, router, http.MethodGet, "/api/v1/public/community/home")
+
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected missing setup provider status %d, got %d body %s", http.StatusInternalServerError, recorder.Code, recorder.Body.String())
+	}
 }
 
 func TestNewRouterCommunityContentRequiresCompletedSetup(t *testing.T) {
@@ -573,7 +606,6 @@ func TestNewRouterCommunityContentRequiresCompletedSetup(t *testing.T) {
 		CurrentStep: "storage.configure",
 	}}
 	handler := communityhandler.New(communityservice.New(nil, communityservice.Config{}), nil)
-	handler.UseSetupStatusProvider(provider)
 	router := newTestRouter(RouterDeps{
 		CommunityHandler:             handler,
 		CommunitySetupStatusProvider: provider,
@@ -599,7 +631,6 @@ func TestNewRouterCommunityContentContinuesWhenSetupCompleted(t *testing.T) {
 		Completed: true,
 	}}
 	handler := communityhandler.New(communityservice.New(nil, communityservice.Config{}), nil)
-	handler.UseSetupStatusProvider(provider)
 	router := newTestRouter(RouterDeps{
 		CommunityHandler:             handler,
 		CommunitySetupStatusProvider: provider,
@@ -1710,4 +1741,33 @@ func assertDataValue(t *testing.T, data map[string]any, key string, want string)
 	if got != want {
 		t.Fatalf("expected data.%s %q, got %q", key, want, got)
 	}
+}
+
+func assertEndpointListContains(t *testing.T, data map[string]any, want string) {
+	t.Helper()
+
+	if !endpointListContains(data, want) {
+		t.Fatalf("expected endpoints to contain %q, got %#v", want, data["endpoints"])
+	}
+}
+
+func assertEndpointListMissing(t *testing.T, data map[string]any, want string) {
+	t.Helper()
+
+	if endpointListContains(data, want) {
+		t.Fatalf("expected endpoints to omit %q, got %#v", want, data["endpoints"])
+	}
+}
+
+func endpointListContains(data map[string]any, want string) bool {
+	raw, ok := data["endpoints"].([]any)
+	if !ok {
+		return false
+	}
+	for _, item := range raw {
+		if value, ok := item.(string); ok && value == want {
+			return true
+		}
+	}
+	return false
 }
