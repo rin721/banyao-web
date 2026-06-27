@@ -178,10 +178,11 @@ function formatCount(value: number) {
         :level="3"
         :reveal="false"
       >
-        <AoiContentGrid max-width="260px" min-width="220px" gap="compact" :mobile-columns="1">
+        <AoiContentGrid class="category-detail-page__children" max-width="260px" min-width="220px" gap="compact" :mobile-columns="1">
           <AoiReveal
             v-for="(child, index) in childCategories"
             :key="child.id"
+            class="category-detail-page__child"
             :index="index"
           >
             <CategoryCard
@@ -262,6 +263,19 @@ function formatCount(value: number) {
 .category-detail-page__stats,
 .category-detail-page__videos {
   min-width: 0;
+}
+
+.category-detail-page__children {
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 260px));
+  align-items: stretch;
+  justify-content: start;
+}
+
+.category-detail-page__child,
+.category-detail-page__children :deep(.category-card) {
+  min-width: 0;
+  justify-self: start;
 }
 
 .category-loading {

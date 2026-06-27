@@ -190,8 +190,8 @@ const hasMeta = computed(() => Boolean(slots.meta))
 }
 
 .aoi-info-card.aoi-surface--interactive:hover {
-  box-shadow: var(--aoi-shadow-md);
-  transform: translate3d(0, -4px, 0);
+  box-shadow: var(--aoi-shadow-sm);
+  transform: translate3d(0, -1px, 0);
 }
 
 .aoi-info-card--density-compact.aoi-surface--interactive:hover {

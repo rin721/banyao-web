@@ -11,6 +11,7 @@ defineProps<{
   <AoiInfoCard
     class="category-card"
     :to="`/category/${category.slug}`"
+    density="compact"
     layout="inline"
     interactive
   >
@@ -28,9 +29,11 @@ defineProps<{
 <style scoped>
 .category-card {
   --aoi-info-card-media-size: 30px;
-  width: min(100%, 260px);
+  width: 100%;
+  max-width: 260px;
   min-height: 78px;
   height: 100%;
+  justify-self: start;
 }
 
 .category-card :deep(.aoi-info-card__main) {

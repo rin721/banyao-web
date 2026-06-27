@@ -233,14 +233,15 @@ useHead(() => ({
 
 .category-index-page__map {
   min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 260px));
   align-items: stretch;
   justify-content: start;
 }
 
 .category-index-page__map :deep(.category-card) {
+  justify-self: start;
   align-self: stretch;
   min-width: 0;
-  max-width: 100%;
 }
 
 .category-loading {
