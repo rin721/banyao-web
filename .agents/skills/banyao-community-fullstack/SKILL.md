@@ -19,6 +19,7 @@ description: "Repository-specific workflow for banyao-web community frontend/bac
 - 不复制 kirakira 的品牌标识、专有文案、图片、固定布局或真实数据。
 - 前端实现必须继续使用 `frontend/app/assets/css/tokens.css`、`frontend/app/assets/css/main.css`、Aoi wrapper、`AoiLink`、`AoiButton`、`AoiIconButton`。
 - 可见 UI 修改后至少检查 1440x900 与 390x844，无法检查时在任务树和最终输出说明原因。
+- 真实后端少量内容是常态；首页、搜索、创作者页和关注流在 1-2 条真实视频时必须保持稳定媒体比例、可读卡片宽度和移动端单列/双列节奏，不得只按 mock 满屏数据调样式。
 
 ## 数据接入规则
 

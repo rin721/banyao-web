@@ -4,9 +4,9 @@
 
 ## 当前阶段
 
-- 阶段编号：`P3`
-- 阶段主题：真实 API 注册联调、真实数据边界清理与投稿媒体资产关联
-- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成 B3.1.a 评论编辑 / 删除、B3.1.b 动态编辑 / 删除、B3.1.c 投稿审核状态流转、B3.1.d.1 审核发布生成社区视频记录、B3.1.d.2 system media / community submission 受控关联和 C3.4/C3.5 真实 API / Mock 边界清理。本轮页面 smoke 已改为通过真实 API 播种内容，不再依赖后端演示数据。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
+- 阶段编号：`P4`
+- 阶段主题：少量真实内容下的前端视觉节奏与组件边界收敛
+- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成 B3.1.a 评论编辑 / 删除、B3.1.b 动态编辑 / 删除、B3.1.c 投稿审核状态流转、B3.1.d.1 审核发布生成社区视频记录、B3.1.d.2 system media / community submission 受控关联和 C3.4/C3.5 真实 API / Mock 边界清理。本轮进入 P4/A2.2.a：真实 API 初始库通常只有少量内容，视频网格、搜索结果和创作者最新投稿需要在 1-2 条数据时保持可读卡片宽度与移动端单列节奏，避免旧多列网格造成大片空白和过窄卡片。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
 - 影响范围：`AGENTS.md`、`frontend/nuxt.config.ts`、`backend/internal/migrations/**`、`backend/internal/modules/community/**`、`backend/internal/transport/http/**`、`backend/docs/api/openapi.yaml`、`scripts/check-frontend-community-api-smoke.ps1`、`backend/docs/**`、`frontend/README.md`、`frontend/app/pages/upload.vue`、`frontend/shared/**`、`frontend/i18n/locales/**`、`.agents/skills/banyao-community-fullstack/SKILL.md`、`TASK_TREE.md`；既有 P3 投稿审核切片还触碰 `backend/internal/modules/iam/service/service.go`、`frontend/app/**`、`frontend/server/api/mock/**` 和 `scripts/frontend-community-page-smoke.cjs`。
 
 ## 设计语言蒸馏
@@ -36,6 +36,7 @@
   [ ] 分支 A2：首页与内容流润色
     [x] 子分支 A2.1：首页接入 setup 阻塞态与真实数据错误态
     [ ] 子分支 A2.2：统一首页分类、公告、动态、视频网格的轻边界与移动端间距
+      [x] 叶节点 A2.2.a：少量真实视频时 `VideoGrid` 使用稀疏布局，PC 端保持较宽卡片，Mobile 单条视频改为单列展示
     [ ] 子分支 A2.3：补齐空状态、加载状态、错误状态的视觉一致性
   [x] 分支 A3：核心页面响应式 QA
     [x] 子分支 A3.1：桌面 1440x900 截图检查首页、搜索、播放、设置
@@ -144,6 +145,13 @@
 - [x] 实施原则：匿名或账号投稿创建不允许直接声明任意 `mediaAssetId`；媒体资产关联只在主系统审核发布接口中发生，并继续受 `community_submission:review` 与 system media 上传权限保护。社区模块只读取 `system_media_assets` 最小投影，不复制 system media 上传逻辑；`sourceUrl` 保留为过渡路径。
 - [x] 验证收敛：完成 Go 测试、OpenAPI 同步、前端 typecheck、真实 API smoke、真实页面 smoke、社区边界检查、错误/result 边界检查、agent skill 检查和 `git diff --check`。
 
+## P4 实施计划
+
+- [x] 分析现状：真实页面 smoke 通过真实 API 播种 1 条视频后，首页、搜索结果和创作者最新投稿仍沿用多列 `auto-fill` 网格，PC 端卡片约 224px 且右侧出现大面积空白；自动生成创作者 handle 在窄身份列中会折成多行。
+- [x] 影响评估：需要调整共享 `AoiContentGrid` 的可选网格模式、`VideoGrid` 的少量内容布局、视频网格 token、创作者页 handle 展示，以及前端 README / fullstack skill / 任务树记录；不改变 API、DTO、Mock 数据和业务状态。
+- [x] 实施原则：默认网格继续保持既有 `auto-fill` 行为，只有视频列表在 1-2 条真实数据时启用 `auto-fit` 与受控最大卡片宽度；移动端单条视频使用单列，避免右侧空洞；超长 handle 视觉上省略但保留 `title` 可查看完整值。
+- [x] 验证收敛：完成 `pnpm --dir frontend typecheck`、真实页面 smoke、截图复核、社区边界检查、agent skill 检查和 `git diff --check`。
+
 ## 阶段验证记录
 
 ### P2：真实页面视觉 QA 与移动端导航避让
@@ -178,3 +186,11 @@
 - [x] `backend/internal/migrations/20260627000300_add_community_submission_media_asset.sql` 为投稿审核发布补充受控 `media_asset_id`，普通投稿创建仍只保存文件元数据。
 - [x] `scripts/check-frontend-community-api-smoke.ps1` 通过 system media multipart 上传创建媒体资产，再用 `mediaAssetId` 审核发布投稿；输出包含 `[media-upload] asset=2070794123463364608, source=upload` 与 `[submissions] status=published, video=video-2070794123161374720, mediaAsset=2070794123463364608`。
 - [x] `scripts/frontend-community-page-smoke.cjs` 在启动 Nuxt 前通过真实 API 创建投稿、审核发布、评论和动态，并用返回的 `videoSlug` / `creatorHandle` 验证首页、搜索、播放页和创作者页；桌面输出 `home videos=1, dynamics=1`，移动输出 `home videos=1, dynamics=2`。
+
+### P4：少量真实内容下的视频网格与身份栏视觉节奏
+
+- [x] `frontend/app/components/aoi/AoiContentGrid.vue` 新增 `mode="fit"` 可选模式，默认仍为 `fill`，避免影响分类、设置和普通内容网格。
+- [x] `frontend/app/components/home/VideoGrid.vue` 在 1-2 条视频时启用稀疏布局，PC 端卡片最大宽度由 `--aoi-video-grid-sparse-card-width` 控制；移动端单条视频使用单列。
+- [x] `frontend/app/pages/u/[handle].vue` 的长 `@handle` 改为单行省略并保留 `title`，避免自动生成 handle 在桌面身份栏中折成多行。
+- [x] `pnpm --dir frontend typecheck` 通过。
+- [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-page-smoke.ps1` 通过；真实 API 播种 1 条视频后，桌面首页 / 搜索 / 创作者页截图中视频卡片宽度提升到稀疏布局，移动端继续通过 `390x844` 验证。

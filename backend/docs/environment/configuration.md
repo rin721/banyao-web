@@ -43,7 +43,7 @@ $env:APP_SYSTEM_MAINTENANCE_CLEANUP_BATCH_SIZE="100"
 
 常用变量清单见根目录 `.env.example`。新增配置项时，不得只改 Go 结构或 YAML 示例，必须同步 `.env.example`、部署脚本和验证文档。
 
-本地 Nuxt 前端联调社区账号登录 / 注册时，默认建议通过前端 `NUXT_BACKEND_ORIGIN` 让 Nuxt / Nitro 代理 `/api/v1/**` 到后端，浏览器侧保持同源请求。若绕过代理并让浏览器直接跨端口请求后端，同时请求携带 cookie 或 CSRF 凭证，`cors.allow_origins` / `APP_CORS_ALLOW_ORIGINS` 必须配置为明确前端来源，例如 `http://localhost:3000`，并将 `cors.allow_credentials` / `APP_CORS_ALLOW_CREDENTIALS` 设为 `true`；凭证请求不能与 `*` 来源配置混用。
+本地 Nuxt 前端联调社区账号登录 / 注册时，默认采用浏览器直连 CORS。前端页面使用 `http://localhost:3000` 时，API 地址也使用 `http://localhost:9999`，避免 `localhost` / `127.0.0.1` 混用影响 Cookie SameSite；同时 `cors.allow_origins` / `APP_CORS_ALLOW_ORIGINS` 必须配置为明确前端来源，例如 `http://localhost:3000,http://127.0.0.1:3000`，并将 `cors.allow_credentials` / `APP_CORS_ALLOW_CREDENTIALS` 设为 `true`。凭证请求不能与 `*` 来源配置混用；只有明确需要同源代理时才在前端设置 `NUXT_BACKEND_ORIGIN`。
 
 新增配置项时必须同步：
 

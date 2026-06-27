@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AoiContentGridGap, AoiRevealProp } from "~/types/ui"
+import type { AoiContentGridGap, AoiContentGridMode, AoiRevealProp } from "~/types/ui"
 
 const props = withDefaults(defineProps<{
   as?: string
@@ -7,6 +7,7 @@ const props = withDefaults(defineProps<{
   maxWidth?: string
   minWidth?: string
   mobileColumns?: 1 | 2
+  mode?: AoiContentGridMode
   reveal?: AoiRevealProp
 }>(), {
   as: "div",
@@ -14,6 +15,7 @@ const props = withDefaults(defineProps<{
   maxWidth: "1fr",
   minWidth: "224px",
   mobileColumns: 1,
+  mode: "fill",
   reveal: false
 })
 
@@ -30,6 +32,7 @@ const gridStyle = computed(() => ({
     class="aoi-content-grid"
     :class="[
       `aoi-content-grid--gap-${props.gap}`,
+      `aoi-content-grid--mode-${props.mode}`,
       `aoi-content-grid--mobile-${props.mobileColumns}`
     ]"
     :style="gridStyle"
@@ -43,6 +46,10 @@ const gridStyle = computed(() => ({
   display: grid;
   min-width: 0;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--aoi-content-grid-min-width)), var(--aoi-content-grid-max-width)));
+}
+
+.aoi-content-grid--mode-fit {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aoi-content-grid-min-width)), var(--aoi-content-grid-max-width)));
 }
 
 .aoi-content-grid--gap-normal {

@@ -8,6 +8,7 @@ export type AoiFieldAppearance = "filled" | "outlined"
 export type AoiSurfaceKind = "plain" | "panel" | "card" | "state" | "code" | "toolbar"
 export type AoiSurfacePadding = "none" | "sm" | "md" | "lg"
 export type AoiContentGridGap = "normal" | "compact" | "video"
+export type AoiContentGridMode = "fill" | "fit"
 export type AoiInfoCardDensity = "default" | "compact"
 export type AoiInfoCardLayout = "inline" | "stack"
 

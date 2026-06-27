@@ -114,7 +114,7 @@ useHead(() => ({
           <div class="creator-profile__avatar" aria-hidden="true">
             {{ creator.displayName.slice(0, 1).toUpperCase() }}
           </div>
-          <span class="creator-profile__handle">@{{ creator.handle }}</span>
+          <span class="creator-profile__handle" :title="`@${creator.handle}`">@{{ creator.handle }}</span>
         </div>
 
         <div class="creator-profile__content">
@@ -280,7 +280,7 @@ useHead(() => ({
 }
 
 .creator-profile__hero {
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: minmax(112px, 136px) minmax(0, 1fr);
   align-items: start;
 }
 
@@ -314,10 +314,14 @@ useHead(() => ({
 }
 
 .creator-profile__handle {
+  width: 100%;
+  overflow: hidden;
   color: var(--aoi-accent-60);
   font-size: 12px;
   font-weight: 850;
   text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .creator-profile__content {

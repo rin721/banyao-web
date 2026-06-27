@@ -145,13 +145,13 @@ Nuxt public runtime config 支持以下环境变量：
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `NUXT_BACKEND_ORIGIN` | 开发模式默认为 `http://localhost:9999` | Nuxt / Nitro 同源代理目标；真实 API 模式下客户端继续请求 `/api/v1/**`，由 Nuxt 转发到后端，避免社区账号 cookie 请求触发浏览器跨源凭证拦截；直连 CORS 模式需显式设为空以关闭代理 |
-| `NUXT_PUBLIC_API_BASE_URL` | `/api/v1/public/community` | `useAoiApi()` 使用的后端社区 API 基础路径；启用 `NUXT_BACKEND_ORIGIN` 代理时保持相对路径，只有明确关闭代理并采用直连 CORS 时才设置为绝对后端地址 |
-| `NUXT_PUBLIC_AUTH_API_BASE_URL` | 从 `NUXT_PUBLIC_API_BASE_URL` 派生到 `/api/v1` | `useAoiAuthApi()` 使用的社区账号 API 基础路径；启用 `NUXT_BACKEND_ORIGIN` 代理时保持 `/api/v1`，直连 CORS 模式才显式设置为绝对后端地址 |
+| `NUXT_BACKEND_ORIGIN` | 空 | 可选 Nuxt / Nitro 代理目标；默认不启用同源代理，只有显式填写后才把 `/api/v1/**` 转发到后端 |
+| `NUXT_PUBLIC_API_BASE_URL` | 开发模式默认为 `http://localhost:9999/api/v1/public/community` | `useAoiApi()` 使用的后端社区 API 基础路径；本地直连 CORS 时使用绝对后端地址，启用 `NUXT_BACKEND_ORIGIN` 代理时由 Nuxt 自动改为相对路径 |
+| `NUXT_PUBLIC_AUTH_API_BASE_URL` | 从 `NUXT_PUBLIC_API_BASE_URL` 派生到 `/api/v1` | `useAoiAuthApi()` 使用的社区账号 API 基础路径；本地直连 CORS 时建议与页面同用 `localhost` 主机，避免 `localhost` / `127.0.0.1` 混用影响 Cookie SameSite |
 | `NUXT_PUBLIC_API_MOCK` | `false` | 设置为 `true` 时内容接口走 `/api/mock/*`，社区账号登录 / 注册 / 会话走 `/api/mock/auth/*`；默认使用后端公开社区接口和社区账号接口并消费 `result` envelope |
 
 社区页面访问公开社区接口时使用 `useAoiApi()`；登录、注册和后续账号接口使用 `useAoiAuthApi()`，并保持与 `useAoiApiTelemetry()` 的错误诊断兼容。真实后端若返回 `messageKey=api.setup.required`，错误 payload 的 `setup` 字段会传递给页面；首页和设置高级页必须显示初始化状态，不把该状态降级为静态内容。Nuxt mock `/api/mock/status` 返回 `mode=mock` 与 setup 已完成状态，仅表示本地演示边界。
-本地分端口联调优先使用 `NUXT_BACKEND_ORIGIN` 同源代理；如果显式把 `NUXT_PUBLIC_API_BASE_URL` / `NUXT_PUBLIC_AUTH_API_BASE_URL` 设为绝对后端地址并绕过代理，后端必须使用精确前端来源配置 CORS，例如 `APP_CORS_ALLOW_ORIGINS=http://localhost:3000` 与 `APP_CORS_ALLOW_CREDENTIALS=true`，不能把凭证请求与 `*` 来源混用。
+本地分端口联调默认使用浏览器直连 CORS：前端页面使用 `http://localhost:3000` 时，API 地址也使用 `http://localhost:9999`，后端必须使用精确前端来源配置 CORS，例如 `APP_CORS_ALLOW_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` 与 `APP_CORS_ALLOW_CREDENTIALS=true`，不能把凭证请求与 `*` 来源混用。只有明确需要同源代理时才设置 `NUXT_BACKEND_ORIGIN`。
 真实 API 模式只展示后端数据库中的真实内容。新初始化后端保留社区基础分类 taxonomy，但不会写入 `Aoi Alpha`、`Layout Notes`、`Color Note` 等演示视频、创作者、动态、评论或弹幕；这些演示内容只保留在 `NUXT_PUBLIC_API_MOCK=true` 的 Nuxt mock 边界内。
 
 ## 开发约定
@@ -163,7 +163,7 @@ Nuxt public runtime config 支持以下环境变量：
 - 样式优先使用 `app/assets/css/tokens.css` 中的 CSS 变量和 `app/assets/css/main.css` 中的共享布局规则。
 - 页面层级以透明表面、低透明边线、轻阴影和稳定媒体比例表达；首页横幅、分类导航、动态卡片和媒体卡片保持轻量边界，贴近清爽的视频社区阅读节奏。
 - 参考 `kirakira.moe` 时只吸收设计语言：白底、粉色强调、轻公告条、清晰分类导航、稳定 16:9 媒体卡片、紧凑元信息、短促 hover/focus 状态和桌面 / 移动双端网格节奏；不要复制其品牌图形、文案、图片或固定布局。
-- 分类入口、动态卡片、通知卡片和设置卡片复用 `AoiSurface` / `AoiInfoCard` 的轻边界；列表型内容按内容宽度和稳定网格排列，不把单个轻入口拉成整行横幅。
+- 分类入口、动态卡片、通知卡片和设置卡片复用 `AoiSurface` / `AoiInfoCard` 的轻边界；列表型内容按内容宽度和稳定网格排列，不把单个轻入口拉成整行横幅。视频列表在真实数据较少时使用 `VideoGrid` 的稀疏布局，PC 端保持可读卡片宽度，Mobile 单条视频使用单列，避免空库联调或刚发布一条内容时出现过窄卡片和大片空白。
 - 移动端底部主导航使用轻量浮动 dock；页面、表单、按钮、链接和长内容区必须保留底部避让与 `scroll-margin`，避免导航遮挡尾部内容或输入区域。
 - 页面入口保持视频社区产品流程，围绕首页、分类、搜索、关注、播放、用户、通知、投稿和设置组织导航与路由。
 - 新增共享用户可见文案时，同步维护 `i18n/locales/zh-CN.json`、`i18n/locales/en.json` 和 `i18n/locales/ja.json`。

@@ -1,14 +1,15 @@
 const apiMock = process.env.NUXT_PUBLIC_API_MOCK === "true"
-const configuredBackendOrigin = process.env.NUXT_BACKEND_ORIGIN
+const configuredBackendOrigin = process.env.NUXT_BACKEND_ORIGIN || ""
 const backendOrigin = (
-  configuredBackendOrigin === undefined
-    ? (process.env.NODE_ENV === "development" ? "http://localhost:9999" : "")
-    : configuredBackendOrigin
+  configuredBackendOrigin
 ).trim().replace(/\/+$/, "")
 const shouldProxyBackend = !apiMock && backendOrigin.length > 0
+const developmentCommunityApiBaseURL = process.env.NODE_ENV === "development"
+  ? "http://localhost:9999/api/v1/public/community"
+  : "/api/v1/public/community"
 const communityApiBaseURL = shouldProxyBackend
   ? "/api/v1/public/community"
-  : process.env.NUXT_PUBLIC_API_BASE_URL || "/api/v1/public/community"
+  : process.env.NUXT_PUBLIC_API_BASE_URL || developmentCommunityApiBaseURL
 const authApiBaseURL = shouldProxyBackend
   ? "/api/v1"
   : process.env.NUXT_PUBLIC_AUTH_API_BASE_URL || communityApiBaseURL.replace(/\/public\/community\/?$/, "")
