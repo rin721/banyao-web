@@ -1996,6 +1996,336 @@
       "tags":
         - "IAM 账号"
       "x-scope": "tenant"
+  "/api/v1/community/submissions":
+    "get":
+      "operationId": "community.submissions.review-list"
+      "parameters":
+        -
+          "in": "query"
+          "name": "status"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "limit"
+          "required": false
+          "schema":
+            "format": "int32"
+            "type": "integer"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "authenticated":
+                        "type": "boolean"
+                      "clientId":
+                        "type": "string"
+                      "items":
+                        "properties":
+                          "items":
+                            "items":
+                              "properties":
+                                "allowComments":
+                                  "type": "boolean"
+                                "authorName":
+                                  "type": "string"
+                                "category":
+                                  "properties":
+                                    "accentColor":
+                                      "type": "string"
+                                    "description":
+                                      "type": "string"
+                                    "id":
+                                      "type": "string"
+                                    "name":
+                                      "type": "string"
+                                    "order":
+                                      "format": "int32"
+                                      "type": "integer"
+                                    "parentSlug":
+                                      "type": "string"
+                                    "slug":
+                                      "type": "string"
+                                  "type": "object"
+                                "categorySlug":
+                                  "type": "string"
+                                "clientId":
+                                  "type": "string"
+                                "createdAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "description":
+                                  "type": "string"
+                                "id":
+                                  "type": "string"
+                                "mediaAssetId":
+                                  "format": "int64"
+                                  "type": "integer"
+                                "publishedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "publishedVideoId":
+                                  "type": "string"
+                                "reviewNote":
+                                  "type": "string"
+                                "reviewedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "reviewerId":
+                                  "type": "string"
+                                "sensitive":
+                                  "type": "boolean"
+                                "sourceName":
+                                  "type": "string"
+                                "sourceSize":
+                                  "format": "int64"
+                                  "type": "integer"
+                                "sourceType":
+                                  "type": "string"
+                                "status":
+                                  "type": "string"
+                                "tags":
+                                  "items":
+                                    "type": "string"
+                                  "type": "array"
+                                "title":
+                                  "type": "string"
+                                "updatedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "visibility":
+                                  "type": "string"
+                              "type": "object"
+                            "type": "array"
+                          "nextCursor":
+                            "type": "string"
+                        "type": "object"
+                      "message":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询社区投稿审核队列"
+      "tags":
+        - "Community"
+      "x-permission": "community_submission:review"
+      "x-scope": "tenant"
+  "/api/v1/community/submissions/{submissionId}/review":
+    "patch":
+      "operationId": "community.submissions.review"
+      "parameters":
+        -
+          "in": "path"
+          "name": "submissionId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "durationSeconds":
+                  "format": "int32"
+                  "type": "integer"
+                "mediaAssetId":
+                  "format": "int64"
+                  "type": "integer"
+                "publishedVideoId":
+                  "type": "string"
+                "reviewNote":
+                  "type": "string"
+                "slug":
+                  "type": "string"
+                "sourceUrl":
+                  "type": "string"
+                "status":
+                  "type": "string"
+                "thumbnailUrl":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "allowComments":
+                        "type": "boolean"
+                      "authorName":
+                        "type": "string"
+                      "category":
+                        "properties":
+                          "accentColor":
+                            "type": "string"
+                          "description":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                          "name":
+                            "type": "string"
+                          "order":
+                            "format": "int32"
+                            "type": "integer"
+                          "parentSlug":
+                            "type": "string"
+                          "slug":
+                            "type": "string"
+                        "type": "object"
+                      "categorySlug":
+                        "type": "string"
+                      "clientId":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "description":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "publishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "publishedVideoId":
+                        "type": "string"
+                      "reviewNote":
+                        "type": "string"
+                      "reviewedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "reviewerId":
+                        "type": "string"
+                      "sensitive":
+                        "type": "boolean"
+                      "sourceName":
+                        "type": "string"
+                      "sourceSize":
+                        "format": "int64"
+                        "type": "integer"
+                      "sourceType":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "tags":
+                        "items":
+                          "type": "string"
+                        "type": "array"
+                      "title":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "visibility":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "审核社区投稿并回写发布状态"
+      "tags":
+        - "Community"
+      "x-permission": "community_submission:review"
+      "x-scope": "tenant"
   "/api/v1/iam/notification-outbox":
     "get":
       "operationId": "iam.notification-outbox.list"
@@ -5039,6 +5369,11 @@
                         "type": "string"
                       "kind":
                         "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
                       "video":
                         "properties":
                           "categories":
@@ -5143,6 +5478,247 @@
                 "$ref": "#/components/schemas/ErrorResult"
           "description": "Internal server error"
       "summary": "发布社区账号动态"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+  "/api/v1/public/community/account/dynamics/{dynamicId}":
+    "delete":
+      "operationId": "community.account.dynamics.delete"
+      "parameters":
+        -
+          "in": "path"
+          "name": "dynamicId"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "deleted":
+                        "type": "boolean"
+                      "dynamicId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "删除社区账号动态"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+    "patch":
+      "operationId": "community.account.dynamics.update"
+      "parameters":
+        -
+          "in": "path"
+          "name": "dynamicId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "body":
+                  "type": "string"
+                "clientId":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "author":
+                        "properties":
+                          "avatarUrl":
+                            "type": "string"
+                          "displayName":
+                            "type": "string"
+                          "handle":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                        "type": "object"
+                      "authorName":
+                        "type": "string"
+                      "body":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "kind":
+                        "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "video":
+                        "properties":
+                          "categories":
+                            "items":
+                              "properties":
+                                "accentColor":
+                                  "type": "string"
+                                "description":
+                                  "type": "string"
+                                "id":
+                                  "type": "string"
+                                "name":
+                                  "type": "string"
+                                "order":
+                                  "format": "int32"
+                                  "type": "integer"
+                                "parentSlug":
+                                  "type": "string"
+                                "slug":
+                                  "type": "string"
+                              "type": "object"
+                            "type": "array"
+                          "commentCount":
+                            "format": "int64"
+                            "type": "integer"
+                          "description":
+                            "type": "string"
+                          "durationSeconds":
+                            "format": "int32"
+                            "type": "integer"
+                          "id":
+                            "type": "string"
+                          "publishedAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "slug":
+                            "type": "string"
+                          "thumbnailUrl":
+                            "type": "string"
+                          "title":
+                            "type": "string"
+                          "uploader":
+                            "properties":
+                              "avatarUrl":
+                                "type": "string"
+                              "displayName":
+                                "type": "string"
+                              "handle":
+                                "type": "string"
+                              "id":
+                                "type": "string"
+                            "type": "object"
+                          "viewCount":
+                            "format": "int64"
+                            "type": "integer"
+                        "type": "object"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "更新社区账号动态"
       "tags":
         - "Community"
       "x-scope": "tenant"
@@ -5303,6 +5879,11 @@
                                 "id":
                                   "type": "string"
                                 "kind":
+                                  "type": "string"
+                                "ownedByCurrentClient":
+                                  "type": "boolean"
+                                "updatedAt":
+                                  "format": "date-time"
                                   "type": "string"
                                 "video":
                                   "properties":
@@ -6265,6 +6846,21 @@
                                   "type": "string"
                                 "id":
                                   "type": "string"
+                                "mediaAssetId":
+                                  "format": "int64"
+                                  "type": "integer"
+                                "publishedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "publishedVideoId":
+                                  "type": "string"
+                                "reviewNote":
+                                  "type": "string"
+                                "reviewedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "reviewerId":
+                                  "type": "string"
                                 "sensitive":
                                   "type": "boolean"
                                 "sourceName":
@@ -6281,6 +6877,9 @@
                                     "type": "string"
                                   "type": "array"
                                 "title":
+                                  "type": "string"
+                                "updatedAt":
+                                  "format": "date-time"
                                   "type": "string"
                                 "visibility":
                                   "type": "string"
@@ -6416,6 +7015,21 @@
                         "type": "string"
                       "id":
                         "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "publishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "publishedVideoId":
+                        "type": "string"
+                      "reviewNote":
+                        "type": "string"
+                      "reviewedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "reviewerId":
+                        "type": "string"
                       "sensitive":
                         "type": "boolean"
                       "sourceName":
@@ -6432,6 +7046,9 @@
                           "type": "string"
                         "type": "array"
                       "title":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
                         "type": "string"
                       "visibility":
                         "type": "string"
@@ -6732,6 +7349,194 @@
                 "$ref": "#/components/schemas/ErrorResult"
           "description": "Internal server error"
       "summary": "查询社区账号关注状态"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+  "/api/v1/public/community/account/videos/{idOrSlug}/comments/{commentId}":
+    "delete":
+      "operationId": "community.account.videos.comments.delete"
+      "parameters":
+        -
+          "in": "path"
+          "name": "idOrSlug"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "path"
+          "name": "commentId"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "commentId":
+                        "type": "string"
+                      "deleted":
+                        "type": "boolean"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "删除社区账号视频评论"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+    "patch":
+      "operationId": "community.account.videos.comments.update"
+      "parameters":
+        -
+          "in": "path"
+          "name": "idOrSlug"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "path"
+          "name": "commentId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "body":
+                  "type": "string"
+                "clientId":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "authorName":
+                        "type": "string"
+                      "body":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
+                      "status":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "更新社区账号视频评论"
       "tags":
         - "Community"
       "x-scope": "tenant"
@@ -7669,6 +8474,11 @@
                                   "type": "string"
                                 "kind":
                                   "type": "string"
+                                "ownedByCurrentClient":
+                                  "type": "boolean"
+                                "updatedAt":
+                                  "format": "date-time"
+                                  "type": "string"
                                 "video":
                                   "properties":
                                     "categories":
@@ -7834,6 +8644,11 @@
                         "type": "string"
                       "kind":
                         "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
                       "video":
                         "properties":
                           "categories":
@@ -7939,6 +8754,255 @@
           "description": "Internal server error"
       "security": []
       "summary": "发布社区匿名动态"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+  "/api/v1/public/community/dynamics/{dynamicId}":
+    "delete":
+      "operationId": "community.dynamics.delete"
+      "parameters":
+        -
+          "in": "path"
+          "name": "dynamicId"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "clientId"
+          "required": false
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "deleted":
+                        "type": "boolean"
+                      "dynamicId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "删除社区匿名动态"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+    "patch":
+      "operationId": "community.dynamics.update"
+      "parameters":
+        -
+          "in": "path"
+          "name": "dynamicId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "body":
+                  "type": "string"
+                "clientId":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "author":
+                        "properties":
+                          "avatarUrl":
+                            "type": "string"
+                          "displayName":
+                            "type": "string"
+                          "handle":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                        "type": "object"
+                      "authorName":
+                        "type": "string"
+                      "body":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "kind":
+                        "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "video":
+                        "properties":
+                          "categories":
+                            "items":
+                              "properties":
+                                "accentColor":
+                                  "type": "string"
+                                "description":
+                                  "type": "string"
+                                "id":
+                                  "type": "string"
+                                "name":
+                                  "type": "string"
+                                "order":
+                                  "format": "int32"
+                                  "type": "integer"
+                                "parentSlug":
+                                  "type": "string"
+                                "slug":
+                                  "type": "string"
+                              "type": "object"
+                            "type": "array"
+                          "commentCount":
+                            "format": "int64"
+                            "type": "integer"
+                          "description":
+                            "type": "string"
+                          "durationSeconds":
+                            "format": "int32"
+                            "type": "integer"
+                          "id":
+                            "type": "string"
+                          "publishedAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "slug":
+                            "type": "string"
+                          "thumbnailUrl":
+                            "type": "string"
+                          "title":
+                            "type": "string"
+                          "uploader":
+                            "properties":
+                              "avatarUrl":
+                                "type": "string"
+                              "displayName":
+                                "type": "string"
+                              "handle":
+                                "type": "string"
+                              "id":
+                                "type": "string"
+                            "type": "object"
+                          "viewCount":
+                            "format": "int64"
+                            "type": "integer"
+                        "type": "object"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "更新社区匿名动态"
       "tags":
         - "Community"
       "x-scope": "platform"
@@ -8106,6 +9170,11 @@
                                 "id":
                                   "type": "string"
                                 "kind":
+                                  "type": "string"
+                                "ownedByCurrentClient":
+                                  "type": "boolean"
+                                "updatedAt":
+                                  "format": "date-time"
                                   "type": "string"
                                 "video":
                                   "properties":
@@ -8688,6 +9757,11 @@
                                 "id":
                                   "type": "string"
                                 "kind":
+                                  "type": "string"
+                                "ownedByCurrentClient":
+                                  "type": "boolean"
+                                "updatedAt":
+                                  "format": "date-time"
                                   "type": "string"
                                 "video":
                                   "properties":
@@ -9757,6 +10831,21 @@
                                   "type": "string"
                                 "id":
                                   "type": "string"
+                                "mediaAssetId":
+                                  "format": "int64"
+                                  "type": "integer"
+                                "publishedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "publishedVideoId":
+                                  "type": "string"
+                                "reviewNote":
+                                  "type": "string"
+                                "reviewedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "reviewerId":
+                                  "type": "string"
                                 "sensitive":
                                   "type": "boolean"
                                 "sourceName":
@@ -9773,6 +10862,9 @@
                                     "type": "string"
                                   "type": "array"
                                 "title":
+                                  "type": "string"
+                                "updatedAt":
+                                  "format": "date-time"
                                   "type": "string"
                                 "visibility":
                                   "type": "string"
@@ -9913,6 +11005,21 @@
                         "type": "string"
                       "id":
                         "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "publishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "publishedVideoId":
+                        "type": "string"
+                      "reviewNote":
+                        "type": "string"
+                      "reviewedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "reviewerId":
+                        "type": "string"
                       "sensitive":
                         "type": "boolean"
                       "sourceName":
@@ -9929,6 +11036,9 @@
                           "type": "string"
                         "type": "array"
                       "title":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
                         "type": "string"
                       "visibility":
                         "type": "string"
@@ -10808,6 +11918,12 @@
             "type": "string"
         -
           "in": "query"
+          "name": "clientId"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
           "name": "sort"
           "required": false
           "schema":
@@ -10842,6 +11958,8 @@
                               "type": "string"
                             "id":
                               "type": "string"
+                            "ownedByCurrentClient":
+                              "type": "boolean"
                             "status":
                               "type": "string"
                             "updatedAt":
@@ -10952,6 +12070,8 @@
                         "type": "string"
                       "id":
                         "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
                       "status":
                         "type": "string"
                       "updatedAt":
@@ -11006,6 +12126,202 @@
           "description": "Internal server error"
       "security": []
       "summary": "发布社区视频评论"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+  "/api/v1/public/community/videos/{idOrSlug}/comments/{commentId}":
+    "delete":
+      "operationId": "community.videos.comments.delete"
+      "parameters":
+        -
+          "in": "path"
+          "name": "idOrSlug"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "path"
+          "name": "commentId"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "clientId"
+          "required": false
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "commentId":
+                        "type": "string"
+                      "deleted":
+                        "type": "boolean"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "删除社区视频评论"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
+    "patch":
+      "operationId": "community.videos.comments.update"
+      "parameters":
+        -
+          "in": "path"
+          "name": "idOrSlug"
+          "required": true
+          "schema":
+            "type": "string"
+        -
+          "in": "path"
+          "name": "commentId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "body":
+                  "type": "string"
+                "clientId":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "authorName":
+                        "type": "string"
+                      "body":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "ownedByCurrentClient":
+                        "type": "boolean"
+                      "status":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "更新社区视频评论"
       "tags":
         - "Community"
       "x-scope": "platform"

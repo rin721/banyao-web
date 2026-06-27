@@ -11,6 +11,7 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
   const hydrated = ref(false)
   const pending = ref(false)
   const session = ref<CommunityAuthSession | null>(null)
+  let refreshPromise: Promise<CommunityAuthSession | null> | null = null
 
   const authenticated = computed(() => Boolean(session.value?.sessionId))
 
@@ -35,6 +36,10 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
       return session.value
     }
 
+    if (refreshPromise) {
+      return await refreshPromise
+    }
+
     const authApi = useAoiAuthApi()
 
     if (!options.silent) {
@@ -42,23 +47,28 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
       error.value = null
     }
 
-    try {
-      const currentSession = await authApi.getSession({ suppressTelemetry: options.silent })
+    refreshPromise = (async () => {
+      try {
+        const currentSession = await authApi.getSession({ suppressTelemetry: options.silent })
 
-      acceptSession(currentSession)
+        acceptSession(currentSession)
 
-      return currentSession
-    } catch (refreshError) {
-      session.value = null
-      if (!options.silent) {
-        error.value = errorMessage(refreshError)
+        return currentSession
+      } catch (refreshError) {
+        session.value = null
+        if (!options.silent) {
+          error.value = errorMessage(refreshError)
+        }
+
+        return null
+      } finally {
+        pending.value = false
+        hydrated.value = true
+        refreshPromise = null
       }
+    })()
 
-      return null
-    } finally {
-      pending.value = false
-      hydrated.value = true
-    }
+    return await refreshPromise
   }
 
   async function logout() {

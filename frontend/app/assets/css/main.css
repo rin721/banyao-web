@@ -598,6 +598,8 @@ a {
 @media (max-width: 639px) {
   :root {
     --aoi-settings-anchor-offset: calc(var(--aoi-settings-mobile-sticky-top) + var(--aoi-control-height-lg) + var(--aoi-grid-gap));
+    scroll-padding-block-end: var(--aoi-mobile-content-bottom-space);
+    scroll-padding-block-start: var(--aoi-mobile-nav-height);
   }
 
   .aoi-shell {
@@ -606,6 +608,8 @@ a {
     overflow-x: clip;
     margin-left: 0;
     padding-top: var(--aoi-mobile-nav-height);
+    scroll-padding-block-end: var(--aoi-mobile-content-bottom-space);
+    scroll-padding-block-start: var(--aoi-mobile-nav-height);
   }
 
   .aoi-shell::before,
@@ -618,7 +622,7 @@ a {
   }
 
   .aoi-shell::after {
-    bottom: var(--aoi-mobile-bottom-nav-height);
+    bottom: var(--aoi-mobile-bottom-nav-outer-height);
   }
 
   .aoi-page {
@@ -627,6 +631,15 @@ a {
     overflow-x: clip;
     padding: var(--aoi-page-padding-mobile);
     padding-bottom: var(--aoi-mobile-content-bottom-space);
+  }
+
+  .aoi-page :where(a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])) {
+    scroll-margin-block-end: var(--aoi-mobile-content-bottom-space);
+    scroll-margin-block-start: calc(var(--aoi-mobile-nav-height) + 12px);
+  }
+
+  .aoi-page :where(section, form, article, .aoi-surface, .search-results, .comment-thread) {
+    scroll-margin-block-end: var(--aoi-mobile-content-bottom-space);
   }
 
   .settings-stat-grid {

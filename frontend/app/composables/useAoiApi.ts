@@ -17,16 +17,20 @@ import type {
   CreateCommunityDynamicRequest,
   CreateCommunitySubmissionRequest,
   RecordAccountVideoHistoryRequest,
+  DeleteCommunityDynamicResult,
   CreateVideoCommentRequest,
   CreateVideoDanmakuRequest,
   CreateVideoReportRequest,
   CreatorFollowRequest,
   CreatorProfile,
+  DeleteVideoCommentResult,
   ErrorResponse,
   FollowingFeedPayload,
   HomePayload,
   PageResult,
   SearchPayload,
+  UpdateCommunityDynamicRequest,
+  UpdateVideoCommentRequest,
   VideoComment,
   VideoCommentPayload,
   VideoCommentSortMode,
@@ -47,7 +51,7 @@ import { findCategoryInTree } from "~~/shared/utils/categories"
 
 type RequestOptions = {
   body?: unknown
-  method?: "DELETE" | "GET" | "POST"
+  method?: "DELETE" | "GET" | "PATCH" | "POST"
   query?: Record<string, unknown>
   signal?: AbortSignal
 }
@@ -106,6 +110,33 @@ export function useAoiApi() {
     return await request<CommunityDynamicItem>("/account/dynamics", {
       body,
       method: "POST"
+    })
+  }
+
+  async function updateCommunityDynamic(dynamicId: string, body: UpdateCommunityDynamicRequest): Promise<CommunityDynamicItem> {
+    return await request<CommunityDynamicItem>(`/dynamics/${encodeURIComponent(dynamicId)}`, {
+      body,
+      method: "PATCH"
+    })
+  }
+
+  async function updateCommunityAccountDynamic(dynamicId: string, body: UpdateCommunityDynamicRequest): Promise<CommunityDynamicItem> {
+    return await request<CommunityDynamicItem>(`/account/dynamics/${encodeURIComponent(dynamicId)}`, {
+      body,
+      method: "PATCH"
+    })
+  }
+
+  async function deleteCommunityDynamic(dynamicId: string, clientId: string): Promise<DeleteCommunityDynamicResult> {
+    return await request<DeleteCommunityDynamicResult>(`/dynamics/${encodeURIComponent(dynamicId)}`, {
+      method: "DELETE",
+      query: { clientId }
+    })
+  }
+
+  async function deleteCommunityAccountDynamic(dynamicId: string): Promise<DeleteCommunityDynamicResult> {
+    return await request<DeleteCommunityDynamicResult>(`/account/dynamics/${encodeURIComponent(dynamicId)}`, {
+      method: "DELETE"
     })
   }
 
@@ -191,6 +222,7 @@ export function useAoiApi() {
   }
 
   async function getVideoComments(idOrSlug: string, params: {
+    clientId?: string
     limit?: number
     sort?: VideoCommentSortMode
   } = {}): Promise<VideoCommentPayload> {
@@ -203,6 +235,20 @@ export function useAoiApi() {
     return await request<VideoComment>(`/videos/${encodeURIComponent(idOrSlug)}/comments`, {
       body,
       method: "POST"
+    })
+  }
+
+  async function updateVideoComment(idOrSlug: string, commentId: string, body: UpdateVideoCommentRequest): Promise<VideoComment> {
+    return await request<VideoComment>(`/videos/${encodeURIComponent(idOrSlug)}/comments/${encodeURIComponent(commentId)}`, {
+      body,
+      method: "PATCH"
+    })
+  }
+
+  async function deleteVideoComment(idOrSlug: string, commentId: string, clientId: string): Promise<DeleteVideoCommentResult> {
+    return await request<DeleteVideoCommentResult>(`/videos/${encodeURIComponent(idOrSlug)}/comments/${encodeURIComponent(commentId)}`, {
+      method: "DELETE",
+      query: { clientId }
     })
   }
 
@@ -395,16 +441,22 @@ export function useAoiApi() {
     createCommunityAccountSubmission,
     createCommunityDynamic,
     createCommunitySubmission,
+    deleteCommunityAccountDynamic,
+    deleteCommunityDynamic,
     getHomePayload,
     getCommunityAccountNotifications,
     getCommunityAccountSubmissions,
     getCommunityNotifications,
     getCommunitySubmissions,
     createVideoComment,
+    deleteVideoComment,
     createVideoDanmaku,
     createVideoReport,
     getVideoDanmaku,
     getVideoComments,
+    updateCommunityAccountDynamic,
+    updateCommunityDynamic,
+    updateVideoComment,
     getVideoDetail,
     listCategories,
     listVideos,

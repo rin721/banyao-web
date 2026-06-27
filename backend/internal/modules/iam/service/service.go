@@ -4150,6 +4150,7 @@ var builtinPermissions = []permissionSeed{
 	{Code: "media:delete", Scope: model.PermissionScopePlatform, Name: "Delete media", Description: "Delete media assets"},
 	{Code: "notification:read", Scope: model.PermissionScopePlatform, Name: "Read notification outbox", Description: "Read sanitized IAM notification delivery tasks"},
 	{Code: "notification:retry", Scope: model.PermissionScopePlatform, Name: "Retry notification outbox", Description: "Retry pending or failed IAM notification delivery tasks"},
+	{Code: "community_submission:review", Scope: model.PermissionScopeTenant, Name: "Review community submissions", Description: "Review community video submission metadata and update publish status"},
 	{Code: "permission:read", Scope: model.PermissionScopeTenant, Name: "Read tenant permissions", Description: "Read tenant permissions"},
 	{Code: "permission:read", Scope: model.PermissionScopePlatform, Name: "Read platform permissions", Description: "Read platform API and permission catalog"},
 	{Code: "permission:sync", Scope: model.PermissionScopePlatform, Name: "Sync permissions", Description: "Sync permissions from registered APIs"},

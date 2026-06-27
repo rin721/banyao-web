@@ -2,7 +2,9 @@
 import type { CommentSortMode, CommentView } from "~/types/comments"
 
 const props = withDefaults(defineProps<{
+  actionError?: string
   comments: CommentView[]
+  deletingCommentId?: string
   description?: string
   emptyDescription?: string
   emptyTitle?: string
@@ -10,17 +12,23 @@ const props = withDefaults(defineProps<{
   sortLabel?: string
   sortMode?: CommentSortMode
   title?: string
+  updatingCommentId?: string
 }>(), {
+  actionError: undefined,
   description: undefined,
+  deletingCommentId: "",
   emptyDescription: undefined,
   emptyTitle: undefined,
   hydrated: false,
   sortLabel: undefined,
   sortMode: "newest",
-  title: undefined
+  title: undefined,
+  updatingCommentId: ""
 })
 
 const emit = defineEmits<{
+  delete: [comment: CommentView]
+  update: [comment: CommentView, body: string]
   "update:sortMode": [value: CommentSortMode]
 }>()
 
@@ -62,6 +70,12 @@ const sectionDescription = computed(() => props.description || t("comments.threa
       </template>
     </AoiSection>
 
+    <AoiStatusMessage
+      v-if="actionError"
+      intent="danger"
+      :message="actionError"
+    />
+
     <PageState
       v-if="hydrated && comments.length === 0"
       icon="message-circle"
@@ -79,6 +93,11 @@ const sectionDescription = computed(() => props.description || t("comments.threa
       >
         <CommentItem
           :comment="comment"
+          :can-manage="Boolean(comment.ownedByCurrentClient)"
+          :deleting="deletingCommentId === comment.id"
+          :updating="updatingCommentId === comment.id"
+          @delete="emit('delete', $event)"
+          @update="(comment, body) => emit('update', comment, body)"
         />
       </AoiReveal>
     </AoiContentGrid>

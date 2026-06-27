@@ -1,18 +1,77 @@
 <script setup lang="ts">
 import type { CommentView } from "~/types/comments"
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  canManage?: boolean
   comment: CommentView
+  deleting?: boolean
+  updating?: boolean
+}>(), {
+  canManage: false,
+  deleting: false,
+  updating: false
+})
+
+const emit = defineEmits<{
+  delete: [comment: CommentView]
+  update: [comment: CommentView, body: string]
 }>()
 
 const isEdited = computed(() => props.comment.updatedAt !== props.comment.createdAt)
 const { locale, t } = useI18n()
+const editing = ref(false)
+const draftBody = ref(props.comment.body)
+const trimmedDraftBody = computed(() => draftBody.value.trim())
+const draftBodyLength = computed(() => draftBody.value.length)
+const draftTooLong = computed(() => draftBodyLength.value > 500)
+const canSave = computed(() => {
+  return props.canManage
+    && !props.updating
+    && !props.deleting
+    && trimmedDraftBody.value.length > 0
+    && !draftTooLong.value
+    && trimmedDraftBody.value !== props.comment.body
+})
+
+watch(() => props.comment.body, (body) => {
+  if (!editing.value) {
+    draftBody.value = body
+  }
+})
 
 function formatTime(value: string) {
   return new Date(value).toLocaleString(locale.value, {
     dateStyle: "medium",
     timeStyle: "short"
   })
+}
+
+function startEditing() {
+  if (!props.canManage || props.deleting || props.updating) {
+    return
+  }
+  draftBody.value = props.comment.body
+  editing.value = true
+}
+
+function cancelEditing() {
+  draftBody.value = props.comment.body
+  editing.value = false
+}
+
+function saveEditing() {
+  if (!canSave.value) {
+    return
+  }
+  emit("update", props.comment, trimmedDraftBody.value)
+  editing.value = false
+}
+
+function deleteComment() {
+  if (!props.canManage || props.deleting || props.updating) {
+    return
+  }
+  emit("delete", props.comment)
 }
 </script>
 
@@ -29,9 +88,65 @@ function formatTime(value: string) {
           <span>{{ formatTime(comment.createdAt) }}</span>
           <small v-if="isEdited">{{ t("comments.item.edited") }}</small>
         </div>
+        <div v-if="canManage" class="comment-item__actions">
+          <AoiIconButton
+            v-if="!editing"
+            icon="pencil"
+            :label="t('comments.item.editLabel')"
+            size="sm"
+            variant="plain"
+            :disabled="updating || deleting"
+            :loading="updating"
+            @click="startEditing"
+          />
+          <AoiIconButton
+            v-if="!editing"
+            icon="trash-2"
+            :label="t('comments.item.deleteLabel')"
+            size="sm"
+            variant="plain"
+            :disabled="updating || deleting"
+            :loading="deleting"
+            @click="deleteComment"
+          />
+        </div>
       </header>
 
-      <p class="comment-item__body">{{ comment.body }}</p>
+      <form v-if="editing" class="comment-item__editor" @submit.prevent="saveEditing">
+        <AoiTextField
+          v-model="draftBody"
+          appearance="outlined"
+          :label="t('comments.item.editBodyLabel')"
+          :max-length="500"
+          :supporting-text="`${draftBodyLength}/500`"
+          :error-text="draftTooLong ? t('comments.item.bodyTooLong') : undefined"
+          :disabled="updating || deleting"
+          multiline
+          :rows="3"
+        />
+        <AoiActionBar align="end" class="comment-item__editor-actions">
+          <AoiButton
+            size="sm"
+            variant="plain"
+            :disabled="updating"
+            @click="cancelEditing"
+          >
+            {{ t("comments.item.cancel") }}
+          </AoiButton>
+          <AoiButton
+            size="sm"
+            tone="accent"
+            variant="filled"
+            type="submit"
+            icon="check"
+            :disabled="!canSave"
+            :loading="updating"
+          >
+            {{ t("comments.item.save") }}
+          </AoiButton>
+        </AoiActionBar>
+      </form>
+      <p v-else class="comment-item__body">{{ comment.body }}</p>
     </div>
   </AoiSurface>
 </template>
@@ -85,12 +200,28 @@ function formatTime(value: string) {
   font-size: 12px;
 }
 
+.comment-item__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
 .comment-item__body {
   margin: 0;
   color: var(--aoi-text);
   line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.comment-item__editor {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-item__editor-actions {
+  min-width: 0;
 }
 
 @media (max-width: 620px) {
@@ -100,6 +231,12 @@ function formatTime(value: string) {
 
   .comment-item__header {
     flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .comment-item__actions {
+    justify-content: flex-start;
   }
 
 }

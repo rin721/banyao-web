@@ -1,9 +1,32 @@
-const communityApiBaseURL = process.env.NUXT_PUBLIC_API_BASE_URL || "/api/v1/public/community"
-const authApiBaseURL = process.env.NUXT_PUBLIC_AUTH_API_BASE_URL || communityApiBaseURL.replace(/\/public\/community\/?$/, "")
+const apiMock = process.env.NUXT_PUBLIC_API_MOCK === "true"
+const configuredBackendOrigin = process.env.NUXT_BACKEND_ORIGIN
+const backendOrigin = (
+  configuredBackendOrigin === undefined
+    ? (process.env.NODE_ENV === "development" ? "http://localhost:9999" : "")
+    : configuredBackendOrigin
+).trim().replace(/\/+$/, "")
+const shouldProxyBackend = !apiMock && backendOrigin.length > 0
+const communityApiBaseURL = shouldProxyBackend
+  ? "/api/v1/public/community"
+  : process.env.NUXT_PUBLIC_API_BASE_URL || "/api/v1/public/community"
+const authApiBaseURL = shouldProxyBackend
+  ? "/api/v1"
+  : process.env.NUXT_PUBLIC_AUTH_API_BASE_URL || communityApiBaseURL.replace(/\/public\/community\/?$/, "")
+const backendRouteRules = shouldProxyBackend
+  ? {
+      "/api/v1/**": { proxy: `${backendOrigin}/api/v1/**` },
+      "/openapi.yaml": { proxy: `${backendOrigin}/openapi.yaml` },
+      "/setup": { proxy: `${backendOrigin}/setup` },
+      "/setup/**": { proxy: `${backendOrigin}/setup/**` },
+      "/uploads/**": { proxy: `${backendOrigin}/uploads/**` }
+    }
+  : {}
 
 export default defineNuxtConfig({
   compatibilityDate: "2026-06-03",
   devtools: { enabled: false },
+
+  routeRules: backendRouteRules,
 
   modules: [
     "@nuxt/icon",
@@ -27,7 +50,7 @@ export default defineNuxtConfig({
     public: {
       apiBaseURL: communityApiBaseURL,
       authApiBaseURL,
-      apiMock: process.env.NUXT_PUBLIC_API_MOCK === "true"
+      apiMock
     }
   },
 

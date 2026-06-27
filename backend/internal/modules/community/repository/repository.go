@@ -72,6 +72,18 @@ func (e communityExecutor) HasTable(ctx context.Context, model any) (bool, error
 	return ok, mapStorageError(err)
 }
 
+func (e communityExecutor) WithTx(ctx context.Context, fn database.TxFunc) error {
+	tx, ok := e.inner.(interface {
+		WithTx(context.Context, database.TxFunc) error
+	})
+	if !ok {
+		return fn(ctx, e)
+	}
+	return mapStorageError(tx.WithTx(ctx, func(ctx context.Context, executor database.Executor) error {
+		return fn(ctx, communityExecutor{inner: executor})
+	}))
+}
+
 func (r *repository) ListCategories(ctx context.Context) ([]model.Category, error) {
 	var categories []model.Category
 	err := r.db.Find(ctx, &categories, alive(), database.Order("display_order ASC, slug ASC"))
@@ -288,6 +300,15 @@ func (r *repository) FindVideoByIDOrSlug(ctx context.Context, idOrSlug string) (
 	return &video, nil
 }
 
+func (r *repository) FindVideoComment(ctx context.Context, videoID string, commentID string) (*model.VideoComment, error) {
+	var comment model.VideoComment
+	err := r.db.First(ctx, &comment, database.Where("video_id = ? AND id = ? AND status = ?", strings.TrimSpace(videoID), strings.TrimSpace(commentID), model.CommentStatusVisible), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &comment, nil
+}
+
 func (r *repository) ListSources(ctx context.Context, videoID string) ([]model.VideoSourceOption, error) {
 	var sources []model.VideoSourceOption
 	err := r.db.Find(ctx, &sources, database.Where("video_id = ?", videoID), database.Order("display_order ASC, id ASC"))
@@ -340,8 +361,123 @@ func (r *repository) CreateCommunityDynamic(ctx context.Context, dynamic model.C
 	return r.db.Create(ctx, &dynamic)
 }
 
+func (r *repository) FindCommunityDynamic(ctx context.Context, dynamicID string) (*model.CommunityDynamic, error) {
+	var dynamic model.CommunityDynamic
+	err := r.db.First(ctx, &dynamic, database.Where("id = ? AND status = ?", strings.TrimSpace(dynamicID), model.CommunityDynamicStatusVisible), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &dynamic, nil
+}
+
+func (r *repository) UpdateCommunityDynamic(ctx context.Context, dynamic model.CommunityDynamic) error {
+	result, err := r.db.Update(ctx, &model.CommunityDynamic{}, map[string]any{
+		"body":       dynamic.Body,
+		"updated_at": dynamic.UpdatedAt,
+	}, communityDynamicWhere(dynamic.ID, dynamic.ClientID), alive(), database.Where("status = ?", model.CommunityDynamicStatusVisible))
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) DeleteCommunityDynamic(ctx context.Context, dynamicID string, clientID string, now time.Time) error {
+	result, err := r.db.Update(ctx, &model.CommunityDynamic{}, map[string]any{
+		"updated_at": now,
+		"deleted_at": now,
+	}, communityDynamicWhere(dynamicID, clientID), alive(), database.Where("status = ?", model.CommunityDynamicStatusVisible))
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
 func (r *repository) CreateCommunitySubmission(ctx context.Context, submission model.CommunitySubmission) error {
 	return r.db.Create(ctx, &submission)
+}
+
+func (r *repository) CreateVideoFromSubmission(ctx context.Context, creator model.Creator, video model.Video, source model.VideoSourceOption, categorySlugs []string, tags []string) error {
+	return r.withTx(ctx, func(ctx context.Context, exec database.Executor) error {
+		if err := upsertSubmissionCreator(ctx, exec, creator); err != nil {
+			return err
+		}
+		if err := exec.Create(ctx, &video); err != nil {
+			return err
+		}
+		if err := exec.Create(ctx, &source); err != nil {
+			return err
+		}
+		for _, slug := range categorySlugs {
+			slug = strings.TrimSpace(slug)
+			if slug == "" {
+				continue
+			}
+			if err := exec.Create(ctx, &model.VideoCategory{
+				VideoID:      video.ID,
+				CategorySlug: slug,
+			}); err != nil {
+				return err
+			}
+		}
+		for index, tag := range tags {
+			tag = strings.TrimSpace(tag)
+			if tag == "" {
+				continue
+			}
+			if err := exec.Create(ctx, &model.VideoTag{
+				VideoID: video.ID,
+				Tag:     tag,
+				Order:   (index + 1) * 10,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *repository) FindCommunitySubmission(ctx context.Context, submissionID string) (*model.CommunitySubmission, error) {
+	var submission model.CommunitySubmission
+	err := r.db.First(ctx, &submission, database.Where("id = ?", strings.TrimSpace(submissionID)), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &submission, nil
+}
+
+func (r *repository) FindMediaAssetByID(ctx context.Context, id int64) (*model.CommunityMediaAsset, error) {
+	var asset model.CommunityMediaAsset
+	err := r.db.First(ctx, &asset, database.Where("id = ?", id), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}
+
+func (r *repository) UpdateCommunitySubmissionReview(ctx context.Context, submission model.CommunitySubmission) error {
+	result, err := r.db.Update(ctx, &model.CommunitySubmission{}, map[string]any{
+		"status":             submission.Status,
+		"review_note":        submission.ReviewNote,
+		"reviewer_id":        submission.ReviewerID,
+		"reviewed_at":        submission.ReviewedAt,
+		"media_asset_id":     submission.MediaAssetID,
+		"published_video_id": submission.PublishedVideoID,
+		"published_at":       submission.PublishedAt,
+		"updated_at":         submission.UpdatedAt,
+	}, database.Where("id = ?", strings.TrimSpace(submission.ID)), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
 }
 
 func (r *repository) ListCommunityNotifications(ctx context.Context, filter model.CommunityNotificationFilter) ([]model.CommunityNotification, error) {
@@ -377,9 +513,14 @@ func (r *repository) ListCommunityDynamics(ctx context.Context, filter model.Com
 
 func (r *repository) ListCommunitySubmissions(ctx context.Context, filter model.CommunitySubmissionFilter) ([]model.CommunitySubmission, error) {
 	opts := []database.QueryOption{
-		database.Where("client_id = ?", strings.TrimSpace(filter.ClientID)),
 		alive(),
 		database.Order("created_at DESC, id DESC"),
+	}
+	if !filter.AllClients {
+		opts = append(opts, database.Where("client_id = ?", strings.TrimSpace(filter.ClientID)))
+	}
+	if strings.TrimSpace(filter.Status) != "" {
+		opts = append(opts, database.Where("status = ?", strings.TrimSpace(filter.Status)))
 	}
 	if filter.Limit > 0 {
 		opts = append(opts, database.Limit(filter.Limit))
@@ -456,6 +597,35 @@ func (r *repository) CreateVideoComment(ctx context.Context, comment model.Video
 		return err
 	}
 	_, err := r.db.Exec(ctx, "UPDATE community_videos SET comment_count = comment_count + 1, updated_at = ? WHERE id = ?", comment.UpdatedAt, comment.VideoID)
+	return err
+}
+
+func (r *repository) UpdateVideoComment(ctx context.Context, comment model.VideoComment) error {
+	result, err := r.db.Update(ctx, &model.VideoComment{}, map[string]any{
+		"body":       comment.Body,
+		"updated_at": comment.UpdatedAt,
+	}, videoCommentWhere(comment.VideoID, comment.ID, comment.ClientID), alive(), database.Where("status = ?", model.CommentStatusVisible))
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) DeleteVideoComment(ctx context.Context, videoID string, commentID string, clientID string, now time.Time) error {
+	result, err := r.db.Update(ctx, &model.VideoComment{}, map[string]any{
+		"updated_at": now,
+		"deleted_at": now,
+	}, videoCommentWhere(videoID, commentID, clientID), alive(), database.Where("status = ?", model.CommentStatusVisible))
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	_, err = r.db.Exec(ctx, "UPDATE community_videos SET comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END, updated_at = ? WHERE id = ?", now, videoID)
 	return err
 }
 
@@ -562,6 +732,14 @@ func videoHistoryWhere(videoID string, clientID string) database.QueryOption {
 	return database.Where("video_id = ? AND client_id = ?", videoID, clientID)
 }
 
+func videoCommentWhere(videoID string, commentID string, clientID string) database.QueryOption {
+	return database.Where("video_id = ? AND id = ? AND client_id = ?", strings.TrimSpace(videoID), strings.TrimSpace(commentID), strings.TrimSpace(clientID))
+}
+
+func communityDynamicWhere(dynamicID string, clientID string) database.QueryOption {
+	return database.Where("id = ? AND client_id = ?", strings.TrimSpace(dynamicID), strings.TrimSpace(clientID))
+}
+
 func alive() database.QueryOption {
 	return database.Where("deleted_at IS NULL")
 }
@@ -570,6 +748,33 @@ func withDeleted() database.QueryOption {
 	return func(q *database.Query) {
 		q.WithDeleted = true
 	}
+}
+
+func (r *repository) withTx(ctx context.Context, fn database.TxFunc) error {
+	tx, ok := r.db.(interface {
+		WithTx(context.Context, database.TxFunc) error
+	})
+	if !ok {
+		return fn(ctx, r.db)
+	}
+	return tx.WithTx(ctx, fn)
+}
+
+func upsertSubmissionCreator(ctx context.Context, exec database.Executor, creator model.Creator) error {
+	var existing model.Creator
+	err := exec.First(ctx, &existing, database.Where("id = ?", strings.TrimSpace(creator.ID)), alive())
+	if err == nil {
+		_, updateErr := exec.Update(ctx, &model.Creator{}, map[string]any{
+			"display_name": creator.DisplayName,
+			"bio":          creator.Bio,
+			"updated_at":   creator.UpdatedAt,
+		}, database.Where("id = ?", strings.TrimSpace(creator.ID)), alive())
+		return updateErr
+	}
+	if !errors.Is(err, communityservice.ErrNotFound) {
+		return err
+	}
+	return exec.Create(ctx, &creator)
 }
 
 func mapStorageError(err error) error {

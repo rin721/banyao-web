@@ -95,6 +95,42 @@ func (h *Handler) CreateAccountDynamic(c ports.HTTPContext) {
 	writeOK(c, item, err, h.writeError)
 }
 
+func (h *Handler) UpdateDynamic(c ports.HTTPContext) {
+	var req model.UpdateCommunityDynamicRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.UpdateCommunityDynamic(c.RequestContext(), c.Param("dynamicId"), req)
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) UpdateAccountDynamic(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.UpdateCommunityDynamicRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.UpdateCommunityAccountDynamic(c.RequestContext(), principal, c.Param("dynamicId"), req)
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) DeleteDynamic(c ports.HTTPContext) {
+	payload, err := h.service.DeleteCommunityDynamic(c.RequestContext(), c.Param("dynamicId"), queryValue(c, "clientId"))
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) DeleteAccountDynamic(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	payload, err := h.service.DeleteCommunityAccountDynamic(c.RequestContext(), principal, c.Param("dynamicId"))
+	writeOK(c, payload, err, h.writeError)
+}
+
 func (h *Handler) Submissions(c ports.HTTPContext) {
 	limit, ok := parseIntQuery(c, "limit", 24)
 	if !ok {
@@ -113,6 +149,34 @@ func (h *Handler) CreateSubmission(c ports.HTTPContext) {
 		return
 	}
 	item, err := h.service.CreateCommunitySubmission(c.RequestContext(), req)
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) ReviewSubmissions(c ports.HTTPContext) {
+	if _, ok := requirePrincipal(c); !ok {
+		return
+	}
+	limit, ok := parseIntQuery(c, "limit", 24)
+	if !ok {
+		return
+	}
+	payload, err := h.service.ListCommunityReviewSubmissions(c.RequestContext(), model.CommunitySubmissionFilter{
+		Status: queryValue(c, "status"),
+		Limit:  limit,
+	})
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) ReviewSubmission(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.ReviewCommunitySubmissionRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.ReviewCommunitySubmission(c.RequestContext(), principal, c.Param("submissionId"), req)
 	writeOK(c, item, err, h.writeError)
 }
 
@@ -189,8 +253,9 @@ func (h *Handler) VideoComments(c ports.HTTPContext) {
 		return
 	}
 	payload, err := h.service.GetVideoComments(c.RequestContext(), c.Param("idOrSlug"), model.VideoCommentFilter{
-		Limit: limit,
-		Sort:  queryValue(c, "sort"),
+		ClientID: queryValue(c, "clientId"),
+		Limit:    limit,
+		Sort:     queryValue(c, "sort"),
 	})
 	writeOK(c, payload, err, h.writeError)
 }
@@ -202,6 +267,42 @@ func (h *Handler) CreateVideoComment(c ports.HTTPContext) {
 	}
 	comment, err := h.service.CreateVideoComment(c.RequestContext(), c.Param("idOrSlug"), req)
 	writeOK(c, comment, err, h.writeError)
+}
+
+func (h *Handler) UpdateVideoComment(c ports.HTTPContext) {
+	var req model.UpdateVideoCommentRequest
+	if !bind(c, &req) {
+		return
+	}
+	comment, err := h.service.UpdateVideoComment(c.RequestContext(), c.Param("idOrSlug"), c.Param("commentId"), req)
+	writeOK(c, comment, err, h.writeError)
+}
+
+func (h *Handler) UpdateAccountVideoComment(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.UpdateVideoCommentRequest
+	if !bind(c, &req) {
+		return
+	}
+	comment, err := h.service.UpdateAccountVideoComment(c.RequestContext(), principal, c.Param("idOrSlug"), c.Param("commentId"), req)
+	writeOK(c, comment, err, h.writeError)
+}
+
+func (h *Handler) DeleteVideoComment(c ports.HTTPContext) {
+	payload, err := h.service.DeleteVideoComment(c.RequestContext(), c.Param("idOrSlug"), c.Param("commentId"), queryValue(c, "clientId"))
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) DeleteAccountVideoComment(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	payload, err := h.service.DeleteAccountVideoComment(c.RequestContext(), principal, c.Param("idOrSlug"), c.Param("commentId"))
+	writeOK(c, payload, err, h.writeError)
 }
 
 func (h *Handler) VideoInteractionState(c ports.HTTPContext) {

@@ -19,9 +19,11 @@ const timeoutMs = Number(options["timeout-seconds"] || 90) * 1000
 const backendBaseUrl = `http://127.0.0.1:${backendPort}`
 const communityApiBaseUrl = `${backendBaseUrl}/api/v1/public/community`
 const frontendBaseUrl = `http://127.0.0.1:${frontendPort}`
+const runId = Date.now()
 
 let backendProcess = null
 let frontendProcess = null
+let seededCommunity = null
 
 main().catch(async (error) => {
   console.error(error.stack || error.message || String(error))
@@ -33,6 +35,7 @@ main().catch(async (error) => {
 async function main() {
   ensurePrerequisites()
   fs.mkdirSync(screenshotsPath, { recursive: true })
+  const adminSession = createCookieSession()
 
   console.log("Building backend community smoke server...")
   const build = spawnSync("go", ["build", "-mod=readonly", "-o", backendBinaryPath, "./cmd/console"], {
@@ -65,19 +68,45 @@ async function main() {
     }),
     logFile: path.join(workPath, "backend.log")
   })
-  await waitForJson(`${communityApiBaseUrl}/status`, (json) =>
+  let status = await waitForJson(`${communityApiBaseUrl}/status`, (json) =>
     json.code === 0 &&
     json.data &&
     json.data.mode === "go" &&
     Array.isArray(json.data.endpoints) &&
-    json.data.endpoints.includes("/home")
+    json.data.endpoints.includes("/home") &&
+    json.data.setup
   )
+  if (status.data.setup.required === true && status.data.setup.completed !== true) {
+    const setupUsername = `community_page_owner_${runId}`
+    await postJson(`${backendBaseUrl}/api/v1/auth/setup/initial-admin`, {
+      displayName: "Community Page Owner",
+      email: `community-page-owner-${runId}@example.com`,
+      orgCode: "community-page-smoke",
+      orgName: "Community Page Smoke",
+      password: "Password123!",
+      username: setupUsername
+    }, adminSession)
+    status = await waitForJson(`${communityApiBaseUrl}/status`, (json) =>
+      json.code === 0 &&
+      json.data &&
+      json.data.mode === "go" &&
+      Array.isArray(json.data.endpoints) &&
+      json.data.endpoints.includes("/home") &&
+      json.data.setup &&
+      json.data.setup.required === false &&
+      json.data.setup.completed === true
+    )
+    console.log(`Initialized backend setup for page smoke: ${setupUsername}`)
+  }
+  seededCommunity = await seedCommunityPageSmokeData(adminSession)
+  console.log(`Seeded page smoke community video: ${seededCommunity.videoSlug}`)
 
   frontendProcess = startProcess(process.execPath, [nuxtEntryPath, "dev", "--host", "127.0.0.1", "--port", String(frontendPort)], {
     cwd: frontendPath,
     env: normalizedEnv({
       BROWSER: "none",
       CI: "1",
+      NUXT_IGNORE_LOCK: "1",
       NUXT_PUBLIC_API_BASE_URL: communityApiBaseUrl,
       NUXT_PUBLIC_AUTH_API_BASE_URL: `${backendBaseUrl}/api/v1`,
       NUXT_PUBLIC_API_MOCK: "false"
@@ -105,7 +134,7 @@ async function main() {
       })
       page.on("requestfailed", (request) => {
         const url = request.url()
-        if (!url.includes("/__nuxt") && (url.startsWith(frontendBaseUrl) || url.startsWith(backendBaseUrl))) {
+        if (!url.includes("/__nuxt") && !url.includes("/_nuxt/") && (url.startsWith(frontendBaseUrl) || url.startsWith(backendBaseUrl))) {
           failedRequests.push(`${request.method()} ${url}: ${request.failure()?.errorText || "failed"}`)
         }
       })
@@ -113,7 +142,11 @@ async function main() {
       const home = await checkHomePage(page, viewport)
       const category = await checkCategoryPage(page, viewport)
       const search = await checkSearchPage(page, viewport)
+      const following = await checkFollowingPage(page, viewport)
       const video = await checkVideoPage(page, viewport)
+      const creator = await checkCreatorPage(page, viewport)
+      const upload = await checkUploadPage(page, viewport)
+      const settings = await checkSettingsPage(page, viewport)
       await page.close()
 
       if (consoleErrors.length > 0) {
@@ -123,11 +156,11 @@ async function main() {
         throw new Error(`Failed requests on ${viewport.name}: ${failedRequests.join(" | ")}`)
       }
 
-      results.push({ viewport: viewport.name, home, category, search, video })
+      results.push({ viewport: viewport.name, home, category, search, following, video, creator, upload, settings })
     }
 
     for (const result of results) {
-      console.log(`[${result.viewport}] home videos=${result.home.videoCards}, dynamics=${result.home.dynamicCards}; category cards=${result.category.categoryCards}, maxCardWidth=${result.category.maxCategoryCardWidth}px; search videos=${result.search.videoCards}, creators=${result.search.creatorCards}; video comments=${result.video.commentItems}, danmaku=${result.video.danmakuItems}`)
+      console.log(`[${result.viewport}] home videos=${result.home.videoCards}, dynamics=${result.home.dynamicCards}; category cards=${result.category.categoryCards}, maxCardWidth=${result.category.maxCategoryCardWidth}px; search videos=${result.search.videoCards}, creators=${result.search.creatorCards}; following dynamics=${result.following.dynamicCards}, actions=${result.following.ownerActions}; video comments=${result.video.commentItems}, danmaku=${result.video.danmakuItems}; creator videos=${result.creator.videoCards}, stats=${result.creator.statCards}; upload panels=${result.upload.panels}, stats=${result.upload.statCards}; settings panels=${result.settings.panels}, endpoints=${result.settings.endpoints}`)
     }
     console.log(`Frontend community page smoke passed. Screenshots: ${screenshotsPath}`)
   } finally {
@@ -137,12 +170,129 @@ async function main() {
   }
 }
 
+async function seedCommunityPageSmokeData(adminSession) {
+  const apiRoot = `${backendBaseUrl}/api/v1`
+  const clientId = `page-smoke-client-${runId}`
+  const title = `Aoi page smoke real video ${runId}`
+  const sourceUrl = `https://example.invalid/page-smoke-${runId}.mp4`
+  const initialHome = await requestJson(`${communityApiBaseUrl}/home`)
+
+  if (!Array.isArray(initialHome.data?.categories) || initialHome.data.categories.length < 1) {
+    throw new Error("Community home endpoint returned no category taxonomy before page smoke seeding")
+  }
+  if ((initialHome.data?.latest?.items || []).length !== 0 || (initialHome.data?.dynamics?.items || []).length !== 0) {
+    throw new Error("Fresh page smoke database should not contain videos or dynamics before API seeding")
+  }
+  if (!csrfToken(adminSession)) {
+    throw new Error("Page smoke requires an admin session from initial setup before reviewing seeded submissions")
+  }
+
+  const submission = await requestJson(`${communityApiBaseUrl}/submissions`, {
+    method: "POST",
+    body: {
+      allowComments: true,
+      authorName: "Page Smoke Creator",
+      categorySlug: "design",
+      clientId,
+      description: "Real API seeded submission for frontend page smoke verification",
+      sensitive: false,
+      sourceName: "page-smoke-real-video.mp4",
+      sourceSize: 2048000,
+      sourceType: "video/mp4",
+      tags: ["page-smoke", "real-api"],
+      title,
+      visibility: "public"
+    }
+  })
+
+  if (submission.data?.status !== "pending_review" || !submission.data?.id) {
+    throw new Error(`Community submission seed did not enter pending review: ${JSON.stringify(submission)}`)
+  }
+
+  const reviewQueue = await requestJson(`${apiRoot}/community/submissions?status=pending_review&limit=8`, {
+    session: adminSession
+  })
+  const queued = reviewQueue.data?.items?.items?.find((item) => item.id === submission.data.id)
+  if (!queued) {
+    throw new Error("Community review queue did not include the page smoke submission")
+  }
+
+  await requestJson(`${apiRoot}/community/submissions/${encodeURIComponent(submission.data.id)}/review`, {
+    method: "PATCH",
+    session: adminSession,
+    headers: csrfHeaders(adminSession),
+    body: {
+      reviewNote: "Page smoke approved",
+      status: "approved"
+    }
+  })
+
+  const published = await requestJson(`${apiRoot}/community/submissions/${encodeURIComponent(submission.data.id)}/review`, {
+    method: "PATCH",
+    session: adminSession,
+    headers: csrfHeaders(adminSession),
+    body: {
+      durationSeconds: 128,
+      sourceUrl,
+      status: "published",
+      thumbnailUrl: "gradient:page-smoke-real-video"
+    }
+  })
+
+  if (published.data?.status !== "published" || !published.data?.publishedVideoId) {
+    throw new Error(`Community submission seed did not publish a video: ${JSON.stringify(published)}`)
+  }
+
+  const detail = await requestJson(`${communityApiBaseUrl}/videos/${encodeURIComponent(published.data.publishedVideoId)}`)
+  if (detail.data?.title !== title || !detail.data?.slug || !detail.data?.uploader?.handle) {
+    throw new Error(`Seeded video detail did not match the published submission: ${JSON.stringify(detail)}`)
+  }
+
+  await requestJson(`${communityApiBaseUrl}/videos/${encodeURIComponent(detail.data.slug)}/comments`, {
+    method: "POST",
+    body: {
+      authorName: "Page Smoke Viewer",
+      body: "Page smoke seeded comment",
+      clientId
+    }
+  })
+
+  await requestJson(`${communityApiBaseUrl}/dynamics`, {
+    method: "POST",
+    body: {
+      authorName: "Page Smoke Creator",
+      body: "Page smoke seeded dynamic",
+      clientId,
+      videoId: detail.data.id
+    }
+  })
+
+  return {
+    clientId,
+    creatorHandle: detail.data.uploader.handle,
+    creatorName: detail.data.uploader.displayName,
+    searchQuery: "Aoi",
+    sourceUrl,
+    videoId: detail.data.id,
+    videoSlug: detail.data.slug,
+    videoTitle: title
+  }
+}
+
+function requireSeededCommunity() {
+  if (!seededCommunity) {
+    throw new Error("Page smoke community data has not been seeded")
+  }
+  return seededCommunity
+}
+
 async function checkHomePage(page, viewport) {
   await page.goto(frontendBaseUrl, { waitUntil: "networkidle" })
   await page.waitForSelector(".brand-band", { timeout: timeoutMs })
   await page.waitForSelector(".video-card", { timeout: timeoutMs })
   await stabilizeScreenshotState(page)
-  await page.screenshot({ path: path.join(screenshotsPath, `home-${viewport.name}.png`), fullPage: true })
+  await capturePageScreenshot(page, viewport, "home")
+  await verifySharedLayout(page, viewport, "home")
 
   return await page.evaluate(() => {
     const brandBand = document.querySelector(".brand-band")
@@ -165,7 +315,7 @@ async function checkHomePage(page, viewport) {
     if (document.querySelector(".page-state__title")?.textContent?.includes("失败")) {
       throw new Error("Home page rendered an API failure state")
     }
-    if (home.videoCards < 4 || home.dynamicCards < 1) {
+    if (home.videoCards < 1 || home.dynamicCards < 1) {
       throw new Error(`Home page did not render backend feed data: ${JSON.stringify(home)}`)
     }
     if (
@@ -187,7 +337,8 @@ async function checkCategoryPage(page, viewport) {
   await page.goto(`${frontendBaseUrl}/category`, { waitUntil: "networkidle" })
   await page.waitForSelector(".category-card", { timeout: timeoutMs })
   await stabilizeScreenshotState(page)
-  await page.screenshot({ path: path.join(screenshotsPath, `category-${viewport.name}.png`), fullPage: true })
+  await capturePageScreenshot(page, viewport, "category")
+  await verifySharedLayout(page, viewport, "category")
 
   return await page.evaluate(() => {
     const text = document.body.innerText
@@ -220,22 +371,24 @@ async function checkCategoryPage(page, viewport) {
 }
 
 async function checkSearchPage(page, viewport) {
+  const seed = requireSeededCommunity()
   await page.goto(`${frontendBaseUrl}/search`, { waitUntil: "networkidle" })
   await page.waitForSelector(".search-toolbar input", { timeout: timeoutMs })
-  await page.fill(".search-toolbar input", "Aoi")
+  await page.fill(".search-toolbar input", seed.searchQuery)
   await page.press(".search-toolbar input", "Enter")
-  await page.waitForURL((url) => new URL(url).searchParams.get("q") === "Aoi", { timeout: timeoutMs })
+  await page.waitForURL((url) => new URL(url).searchParams.get("q") === seed.searchQuery, { timeout: timeoutMs })
   await page.waitForSelector(".search-results .video-card", { timeout: timeoutMs })
   await page.waitForLoadState("networkidle")
   await stabilizeScreenshotState(page)
-  await page.screenshot({ path: path.join(screenshotsPath, `search-${viewport.name}.png`), fullPage: true })
+  await capturePageScreenshot(page, viewport, "search")
+  await verifySharedLayout(page, viewport, "search")
 
-  return await page.evaluate(() => {
+  return await page.evaluate((seeded) => {
     const text = document.body.innerText
     const search = {
       categoryCards: document.querySelectorAll(".search-results .category-card").length,
       creatorCards: document.querySelectorAll(".search-results .creator-card").length,
-      hasBackendResult: text.includes("Aoi Alpha") || text.includes("清透社区首页"),
+      hasBackendResult: text.includes(seeded.videoTitle),
       videoCards: document.querySelectorAll(".search-results .video-card").length
     }
 
@@ -247,10 +400,57 @@ async function checkSearchPage(page, viewport) {
     }
 
     return search
+  }, seed)
+}
+
+async function checkFollowingPage(page, viewport) {
+  await page.goto(`${frontendBaseUrl}/feed/following`, { waitUntil: "networkidle" })
+  await page.waitForSelector(".following-page", { timeout: timeoutMs })
+  await page.waitForSelector(".comment-composer", { timeout: timeoutMs })
+  await page.evaluate(() => {
+    const fields = Array.from(document.querySelectorAll(".comment-composer .aoi-text-field"))
+    const bodyField = fields[1]
+
+    if (!bodyField) {
+      throw new Error("Following dynamic composer body field was not rendered")
+    }
+    bodyField.value = "Page smoke owned dynamic"
+    bodyField.dispatchEvent(new Event("input", { bubbles: true }))
+    bodyField.dispatchEvent(new Event("change", { bubbles: true }))
+    document.querySelector(".comment-composer")?.requestSubmit()
+  })
+  await page.waitForFunction(() => {
+    return Array.from(document.querySelectorAll(".community-pulse__card")).some((card) =>
+      card.textContent?.includes("Page smoke owned dynamic") &&
+      card.querySelector(".community-pulse__actions")
+    )
+  }, null, { timeout: timeoutMs })
+  await stabilizeScreenshotState(page)
+  await capturePageScreenshot(page, viewport, "following")
+  await verifySharedLayout(page, viewport, "following")
+
+  return await page.evaluate(() => {
+    const following = {
+      dynamicCards: document.querySelectorAll(".following-page .community-pulse__card").length,
+      hasOwnedDynamic: Array.from(document.querySelectorAll(".following-page .community-pulse__card")).some((card) =>
+        card.textContent?.includes("Page smoke owned dynamic")
+      ),
+      ownerActions: document.querySelectorAll(".following-page .community-pulse__actions .aoi-icon-button").length
+    }
+
+    if (document.querySelector(".page-state__title")?.textContent?.includes("失败")) {
+      throw new Error("Following page rendered an API failure state")
+    }
+    if (following.dynamicCards < 1 || !following.hasOwnedDynamic || following.ownerActions < 2) {
+      throw new Error(`Following page did not render an owned dynamic action surface: ${JSON.stringify(following)}`)
+    }
+
+    return following
   })
 }
 
 async function checkVideoPage(page, viewport) {
+  const seed = requireSeededCommunity()
   // Keep this smoke focused on community data and page layout; media byte availability belongs to player/media checks.
   await page.route(/https?:\/\/.*\.mp4(\?.*)?$/i, async (route) => {
     await route.fulfill({
@@ -263,23 +463,24 @@ async function checkVideoPage(page, viewport) {
       status: 200
     })
   })
-  await page.goto(`${frontendBaseUrl}/video/aoi-alpha`, { waitUntil: "networkidle" })
+  await page.goto(`${frontendBaseUrl}/video/${encodeURIComponent(seed.videoSlug)}`, { waitUntil: "networkidle" })
   await page.waitForSelector(".video-watch", { timeout: timeoutMs })
   await page.waitForSelector(".aoi-video-player", { timeout: timeoutMs })
   await page.waitForSelector(".creator-card", { timeout: timeoutMs })
   await page.waitForSelector(".comment-thread", { timeout: timeoutMs })
   await page.waitForSelector(".comment-thread__item", { timeout: timeoutMs })
   await stabilizeScreenshotState(page)
-  await page.screenshot({ path: path.join(screenshotsPath, `video-${viewport.name}.png`), fullPage: true })
+  await capturePageScreenshot(page, viewport, "video")
+  await verifySharedLayout(page, viewport, "video")
 
-  return await page.evaluate(() => {
+  return await page.evaluate((seeded) => {
     const text = document.body.innerText
     const playerBox = document.querySelector(".aoi-video-player")?.getBoundingClientRect()
     const video = {
       commentItems: document.querySelectorAll(".comment-thread__item").length,
       creatorCards: document.querySelectorAll(".creator-card").length,
       danmakuItems: document.querySelectorAll(".aoi-danmaku-layer__item").length,
-      hasBackendVideo: text.includes("Aoi Alpha") || text.includes("清透社区首页"),
+      hasBackendVideo: text.includes(seeded.videoTitle),
       playerHeight: Math.round(playerBox?.height || 0),
       playerWidth: Math.round(playerBox?.width || 0)
     }
@@ -295,6 +496,193 @@ async function checkVideoPage(page, viewport) {
     }
 
     return video
+  }, seed)
+}
+
+async function checkCreatorPage(page, viewport) {
+  const seed = requireSeededCommunity()
+  await page.goto(`${frontendBaseUrl}/u/${encodeURIComponent(seed.creatorHandle)}`, { waitUntil: "networkidle" })
+  await page.waitForSelector(".creator-profile", { timeout: timeoutMs })
+  await page.waitForSelector(".creator-profile__stats", { timeout: timeoutMs })
+  await page.waitForSelector(".video-card", { timeout: timeoutMs })
+  await stabilizeScreenshotState(page)
+  await capturePageScreenshot(page, viewport, "creator")
+  await verifySharedLayout(page, viewport, "creator")
+
+  return await page.evaluate((seeded) => {
+    const text = document.body.innerText
+    const creator = {
+      hasBackendCreator: text.includes(seeded.creatorName) || text.includes(`@${seeded.creatorHandle}`),
+      statCards: document.querySelectorAll(".creator-profile__stats .aoi-stat-grid__item").length,
+      tagItems: document.querySelectorAll(".aoi-tag-list a, .aoi-tag-list button").length,
+      videoCards: document.querySelectorAll(".creator-page .video-card").length
+    }
+
+    if (!creator.hasBackendCreator || creator.statCards < 3 || creator.videoCards < 1) {
+      throw new Error(`Creator page did not render backend creator data: ${JSON.stringify(creator)}`)
+    }
+
+    return creator
+  }, seed)
+}
+
+async function checkUploadPage(page, viewport) {
+  await page.goto(`${frontendBaseUrl}/upload`, { waitUntil: "networkidle" })
+  await page.waitForSelector(".upload-page", { timeout: timeoutMs })
+  await page.waitForSelector(".upload-drop-zone", { timeout: timeoutMs })
+  await page.waitForSelector(".upload-workspace", { timeout: timeoutMs })
+  await page.setInputFiles("input[type=file]", {
+    buffer: Buffer.alloc(32 * 1024),
+    mimeType: "video/mp4",
+    name: "aoi-community-draft-with-extra-long-mobile-title-and-readable-boundary.mp4"
+  })
+  await page.waitForFunction(() => document.body.innerText.includes("aoi-community-draft-with-extra-long-mobile-title"), { timeout: timeoutMs })
+  await stabilizeScreenshotState(page)
+  await capturePageScreenshot(page, viewport, "upload")
+  await verifySharedLayout(page, viewport, "upload")
+
+  return await page.evaluate(() => {
+    const fileName = document.querySelector(".upload-drop-zone__copy strong")
+    const fileNameStyle = fileName ? window.getComputedStyle(fileName) : null
+    const upload = {
+      fileNameWhiteSpace: fileNameStyle?.whiteSpace || "",
+      hasLongFileName: document.body.innerText.includes("aoi-community-draft-with-extra-long-mobile-title"),
+      panels: document.querySelectorAll(".upload-panel").length,
+      statCards: document.querySelectorAll(".upload-page__stats .aoi-stat-grid__item").length,
+      submissionCards: document.querySelectorAll(".upload-submission-list__item").length
+    }
+
+    if (!upload.hasLongFileName || upload.panels < 3 || upload.statCards < 4) {
+      throw new Error(`Upload page did not render draft workspace and API-backed categories: ${JSON.stringify(upload)}`)
+    }
+    if (window.innerWidth < 640 && upload.fileNameWhiteSpace === "nowrap") {
+      throw new Error(`Upload page long file name is still forced to one line on mobile: ${JSON.stringify(upload)}`)
+    }
+
+    return upload
+  })
+}
+
+async function checkSettingsPage(page, viewport) {
+  await page.evaluate(() => {
+    window.localStorage.setItem("aoi.appSettings.v1", JSON.stringify({ settingsDisplayDepth: "all" }))
+  })
+  await page.goto(`${frontendBaseUrl}/settings/advanced`, { waitUntil: "networkidle" })
+  await page.waitForURL((url) => new URL(url).pathname === "/settings/advanced", { timeout: timeoutMs })
+  await page.waitForSelector(".settings-shell", { timeout: timeoutMs })
+  await page.waitForSelector(".settings-page", { timeout: timeoutMs })
+  await page.waitForSelector(".settings-endpoint-list code", { timeout: timeoutMs })
+  await stabilizeScreenshotState(page)
+  await capturePageScreenshot(page, viewport, "settings")
+  await verifySharedLayout(page, viewport, "settings")
+
+  return await page.evaluate(() => {
+    const text = document.body.innerText
+    const settings = {
+      dataCards: document.querySelectorAll(".settings-data-action-card").length,
+      endpoints: document.querySelectorAll(".settings-endpoint-list code").length,
+      hasGoStatus: text.includes("go"),
+      panels: document.querySelectorAll(".settings-panel").length
+    }
+
+    if (!settings.hasGoStatus || settings.endpoints < 4 || settings.panels < 4 || settings.dataCards < 4) {
+      throw new Error(`Settings advanced page did not render real API status and local data panels: ${JSON.stringify(settings)}`)
+    }
+
+    return settings
+  })
+}
+
+async function verifySharedLayout(page, viewport, pageName) {
+  const layout = await page.evaluate(() => {
+    const documentElement = document.documentElement
+    const body = document.body
+    const scrollWidth = Math.max(documentElement.scrollWidth, body.scrollWidth)
+    const pageStateTitles = Array.from(document.querySelectorAll(".page-state__title"))
+      .map((item) => item.textContent?.trim() || "")
+      .filter(Boolean)
+
+    return {
+      pageStateTitles,
+      scrollWidth,
+      viewportWidth: window.innerWidth
+    }
+  })
+
+  if (layout.scrollWidth > layout.viewportWidth + 2) {
+    throw new Error(`${pageName} page has horizontal overflow: ${JSON.stringify(layout)}`)
+  }
+
+  const failedState = layout.pageStateTitles.find((title) => /失败|不可用|failed|error/i.test(title))
+  if (failedState) {
+    throw new Error(`${pageName} page rendered a failure state: ${failedState}`)
+  }
+
+  if (viewport.width < 640) {
+    await verifyMobileBottomClearance(page, pageName)
+  }
+}
+
+async function verifyMobileBottomClearance(page, pageName) {
+  const originalScrollY = await page.evaluate(() => window.scrollY)
+
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+  await delay(100)
+
+  const clearance = await page.evaluate(() => {
+    const dock = document.querySelector(".bottom-nav")
+
+    if (!dock) {
+      return { skipped: true }
+    }
+
+    const dockRect = dock.getBoundingClientRect()
+    const candidates = Array.from(document.querySelectorAll([
+      ".brand-band",
+      ".category-card",
+      ".search-results",
+      ".video-watch",
+      ".comment-thread",
+      ".creator-profile",
+      ".creator-page .video-grid",
+      ".upload-workspace",
+      ".upload-panel",
+      ".settings-page",
+      ".settings-panel"
+    ].join(",")))
+      .map((element) => {
+        const rect = element.getBoundingClientRect()
+        const style = window.getComputedStyle(element)
+
+        return {
+          bottom: rect.bottom,
+          height: rect.height,
+          position: style.position,
+          top: rect.top
+        }
+      })
+      .filter((item) => item.height > 0 && item.position !== "fixed")
+
+    const lastBottom = candidates.reduce((max, item) => Math.max(max, item.bottom), 0)
+
+    return {
+      dockTop: dockRect.top,
+      lastBottom,
+      skipped: false
+    }
+  })
+
+  await page.evaluate((scrollY) => window.scrollTo(0, scrollY), originalScrollY)
+
+  if (!clearance.skipped && clearance.lastBottom > clearance.dockTop - 8) {
+    throw new Error(`${pageName} page bottom content can sit under the mobile dock: ${JSON.stringify(clearance)}`)
+  }
+}
+
+async function capturePageScreenshot(page, viewport, pageName) {
+  await page.screenshot({
+    path: path.join(screenshotsPath, `${pageName}-${viewport.name}.png`),
+    fullPage: viewport.width >= 640
   })
 }
 
@@ -346,6 +734,98 @@ async function waitForJson(url, validate) {
     throw new Error(`Unexpected JSON response from ${url}: ${JSON.stringify(json)}`)
   }
   return json
+}
+
+async function postJson(url, body, session = null) {
+  return requestJson(url, {
+    body,
+    method: "POST",
+    session
+  })
+}
+
+async function requestJson(url, options = {}) {
+  const headers = { ...(options.headers || {}) }
+  const init = {
+    headers,
+    method: options.method || "GET"
+  }
+  if (options.body !== undefined) {
+    headers["content-type"] = headers["content-type"] || "application/json"
+    init.body = JSON.stringify(options.body)
+  }
+  if (options.session) {
+    const cookie = cookieHeader(options.session)
+    if (cookie) {
+      headers.cookie = cookie
+    }
+  }
+
+  const response = await fetch(url, init)
+  if (options.session) {
+    mergeSetCookie(options.session, response)
+  }
+  const text = await response.text()
+  let json = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch (error) {
+    throw new Error(`Unexpected non-JSON response from ${url}: HTTP ${response.status} ${text.slice(0, 300)}`)
+  }
+  if (!response.ok || !json || json.code !== 0) {
+    throw new Error(`Unexpected JSON response from ${url}: HTTP ${response.status} ${JSON.stringify(json)}`)
+  }
+  return json
+}
+
+function createCookieSession() {
+  return { cookies: new Map() }
+}
+
+function mergeSetCookie(session, response) {
+  for (const header of setCookieHeaders(response.headers)) {
+    const firstPart = header.split(";")[0]
+    const separator = firstPart.indexOf("=")
+    if (separator <= 0) {
+      continue
+    }
+    const name = firstPart.slice(0, separator).trim()
+    const value = firstPart.slice(separator + 1).trim()
+    if (!value || /;\s*max-age=0\b/i.test(header)) {
+      session.cookies.delete(name)
+      continue
+    }
+    session.cookies.set(name, value)
+  }
+}
+
+function setCookieHeaders(headers) {
+  if (typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie()
+  }
+  const value = headers.get("set-cookie")
+  if (!value) {
+    return []
+  }
+  return value.split(/,(?=\s*[A-Za-z0-9!#$%&'*+.^_`|~-]+=)/)
+}
+
+function cookieHeader(session) {
+  return Array.from(session.cookies.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join("; ")
+}
+
+function csrfToken(session) {
+  return session.cookies.get("console_csrf") || ""
+}
+
+function csrfHeaders(session) {
+  const token = csrfToken(session)
+  if (!token) {
+    throw new Error("CSRF token cookie was not set")
+  }
+  return { "X-CSRF-Token": token }
 }
 
 async function waitForHtml(url) {

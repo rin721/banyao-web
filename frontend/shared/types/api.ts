@@ -180,6 +180,7 @@ export interface VideoComment {
   status: "visible"
   createdAt: string
   updatedAt: string
+  ownedByCurrentClient?: boolean
 }
 
 export interface VideoCommentPayload {
@@ -196,6 +197,18 @@ export interface CreateVideoCommentRequest {
   clientId?: string
 }
 
+export interface UpdateVideoCommentRequest {
+  body: string
+  clientId?: string
+}
+
+export interface DeleteVideoCommentResult {
+  commentId: string
+  videoId: string
+  clientId: string
+  deleted: boolean
+}
+
 export type CommunityDynamicKind = "text" | "video_update"
 
 export interface CommunityDynamicItem {
@@ -207,6 +220,8 @@ export interface CommunityDynamicItem {
   videoId: string
   video?: VideoSummary | null
   createdAt: string
+  updatedAt: string
+  ownedByCurrentClient?: boolean
 }
 
 export interface CommunityDynamicPayload {
@@ -225,7 +240,18 @@ export interface CreateCommunityDynamicRequest {
 
 export type CreateCommunityAccountDynamicRequest = Omit<CreateCommunityDynamicRequest, "authorName" | "clientId">
 
-export type CommunitySubmissionStatus = "pending_review"
+export interface UpdateCommunityDynamicRequest {
+  body: string
+  clientId?: string
+}
+
+export interface DeleteCommunityDynamicResult {
+  dynamicId: string
+  clientId: string
+  deleted: boolean
+}
+
+export type CommunitySubmissionStatus = "pending_review" | "approved" | "rejected" | "published"
 
 export type CommunitySubmissionVisibility = "public" | "unlisted" | "private"
 
@@ -262,7 +288,25 @@ export interface CommunitySubmissionItem {
   allowComments: boolean
   sensitive: boolean
   status: CommunitySubmissionStatus
+  reviewNote?: string
+  reviewerId?: string
+  reviewedAt?: string | null
+  mediaAssetId?: string
+  publishedVideoId?: string
+  publishedAt?: string | null
   createdAt: string
+  updatedAt: string
+}
+
+export interface ReviewCommunitySubmissionRequest {
+  status: Extract<CommunitySubmissionStatus, "approved" | "rejected" | "published">
+  reviewNote?: string
+  publishedVideoId?: string
+  mediaAssetId?: string
+  sourceUrl?: string
+  thumbnailUrl?: string
+  durationSeconds?: number
+  slug?: string
 }
 
 export interface CommunitySubmissionPayload {

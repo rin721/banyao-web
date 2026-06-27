@@ -2,18 +2,34 @@
 import type { CommunityDynamicItem } from "~/types/api"
 
 const props = withDefaults(defineProps<{
+  actionError?: string
+  deletingItemId?: string
   description?: string
   emptyDescription?: string
   emptyTitle?: string
   items: CommunityDynamicItem[]
   title: string
+  updatingItemId?: string
 }>(), {
+  actionError: undefined,
+  deletingItemId: "",
   description: undefined,
   emptyDescription: undefined,
-  emptyTitle: undefined
+  emptyTitle: undefined,
+  updatingItemId: ""
 })
 
+const emit = defineEmits<{
+  delete: [item: CommunityDynamicItem]
+  update: [item: CommunityDynamicItem, body: string]
+}>()
+
 const { locale, t } = useI18n()
+const editingItemId = ref("")
+const draftBody = ref("")
+const trimmedDraftBody = computed(() => draftBody.value.trim())
+const draftBodyLength = computed(() => draftBody.value.length)
+const draftTooLong = computed(() => draftBodyLength.value > 280)
 
 function authorName(item: CommunityDynamicItem) {
   return item.author?.displayName || item.authorName || t("dynamics.anonymousAuthor")
@@ -32,6 +48,51 @@ function videoRoute(item: CommunityDynamicItem) {
     return ""
   }
   return `/video/${item.video.slug || item.video.id}`
+}
+
+function isEdited(item: CommunityDynamicItem) {
+  return Boolean(item.updatedAt && item.updatedAt !== item.createdAt)
+}
+
+function isItemBusy(item: CommunityDynamicItem) {
+  return props.updatingItemId === item.id || props.deletingItemId === item.id
+}
+
+function canSave(item: CommunityDynamicItem) {
+  return Boolean(item.ownedByCurrentClient)
+    && editingItemId.value === item.id
+    && !isItemBusy(item)
+    && trimmedDraftBody.value.length > 0
+    && !draftTooLong.value
+    && trimmedDraftBody.value !== item.body
+}
+
+function startEditing(item: CommunityDynamicItem) {
+  if (!item.ownedByCurrentClient || isItemBusy(item)) {
+    return
+  }
+  draftBody.value = item.body
+  editingItemId.value = item.id
+}
+
+function cancelEditing() {
+  draftBody.value = ""
+  editingItemId.value = ""
+}
+
+function saveEditing(item: CommunityDynamicItem) {
+  if (!canSave(item)) {
+    return
+  }
+  emit("update", item, trimmedDraftBody.value)
+  cancelEditing()
+}
+
+function deleteDynamic(item: CommunityDynamicItem) {
+  if (!item.ownedByCurrentClient || isItemBusy(item)) {
+    return
+  }
+  emit("delete", item)
 }
 
 function formatDate(value: string) {
@@ -58,6 +119,12 @@ function formatDate(value: string) {
     :count="props.items.length"
     title-id="community-pulse-title"
   >
+    <AoiStatusMessage
+      v-if="actionError"
+      intent="danger"
+      :message="actionError"
+    />
+
     <div v-if="props.items.length" class="community-pulse" role="list">
       <article
         v-for="(item, index) in props.items"
@@ -86,10 +153,70 @@ function formatDate(value: string) {
               <span>{{ t("dynamics.anonymousAuthor") }}</span>
             </span>
           </span>
-          <time class="community-pulse__time" :datetime="item.createdAt">{{ formatDate(item.createdAt) }}</time>
+          <div class="community-pulse__meta">
+            <time class="community-pulse__time" :datetime="item.createdAt">{{ formatDate(item.createdAt) }}</time>
+            <span v-if="isEdited(item)" class="community-pulse__edited">{{ t("dynamics.item.edited") }}</span>
+            <div v-if="item.ownedByCurrentClient" class="community-pulse__actions">
+              <AoiIconButton
+                v-if="editingItemId !== item.id"
+                icon="pencil"
+                :label="t('dynamics.item.editLabel')"
+                size="sm"
+                variant="plain"
+                :disabled="isItemBusy(item)"
+                :loading="updatingItemId === item.id"
+                @click="startEditing(item)"
+              />
+              <AoiIconButton
+                v-if="editingItemId !== item.id"
+                icon="trash-2"
+                :label="t('dynamics.item.deleteLabel')"
+                size="sm"
+                tone="danger"
+                variant="plain"
+                :disabled="isItemBusy(item)"
+                :loading="deletingItemId === item.id"
+                @click="deleteDynamic(item)"
+              />
+            </div>
+          </div>
         </header>
 
-        <p class="community-pulse__body">{{ item.body }}</p>
+        <form v-if="editingItemId === item.id" class="community-pulse__editor" @submit.prevent="saveEditing(item)">
+          <AoiTextField
+            v-model="draftBody"
+            appearance="outlined"
+            :label="t('dynamics.item.editBodyLabel')"
+            :max-length="280"
+            :supporting-text="`${draftBodyLength}/280`"
+            :error-text="draftTooLong ? t('dynamics.item.bodyTooLong') : undefined"
+            :disabled="isItemBusy(item)"
+            multiline
+            :rows="3"
+          />
+          <AoiActionBar align="end" class="community-pulse__editor-actions">
+            <AoiButton
+              size="sm"
+              variant="plain"
+              :disabled="isItemBusy(item)"
+              @click="cancelEditing"
+            >
+              {{ t("dynamics.item.cancel") }}
+            </AoiButton>
+            <AoiButton
+              size="sm"
+              tone="accent"
+              variant="filled"
+              type="submit"
+              icon="check"
+              :disabled="!canSave(item)"
+              :loading="updatingItemId === item.id"
+            >
+              {{ t("dynamics.item.save") }}
+            </AoiButton>
+          </AoiActionBar>
+        </form>
+        <p v-else class="community-pulse__body">{{ item.body }}</p>
 
         <AoiLink
           v-if="item.video"
@@ -158,6 +285,7 @@ function formatDate(value: string) {
 }
 
 .community-pulse__header {
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
@@ -194,15 +322,40 @@ function formatDate(value: string) {
 }
 
 .community-pulse__author-copy span,
+.community-pulse__edited,
 .community-pulse__time,
 .community-pulse__video-copy span {
   color: var(--aoi-text-muted);
   font-size: 12px;
 }
 
-.community-pulse__time {
+.community-pulse__meta {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 6px;
+}
+
+.community-pulse__time,
+.community-pulse__edited {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
+}
+
+.community-pulse__edited {
+  border: 1px solid color-mix(in srgb, var(--aoi-surface-border) 24%, transparent);
+  border-radius: var(--aoi-radius-pill);
+  background: color-mix(in srgb, var(--aoi-surface-solid) 42%, transparent);
+  padding: 2px 7px;
+}
+
+.community-pulse__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .community-pulse__body {
@@ -212,6 +365,16 @@ function formatDate(value: string) {
   line-height: 1.75;
   overflow-wrap: anywhere;
   text-wrap: pretty;
+}
+
+.community-pulse__editor {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
+.community-pulse__editor-actions {
+  min-width: 0;
 }
 
 .community-pulse__video {
@@ -249,6 +412,15 @@ function formatDate(value: string) {
 
   .community-pulse__card {
     padding: 12px;
+  }
+
+  .community-pulse__header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .community-pulse__meta {
+    justify-content: flex-start;
   }
 }
 

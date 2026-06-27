@@ -31,7 +31,13 @@
       "oldest": "Oldest first"
     },
     "item": {
-      "edited": "Edited"
+      "edited": "Edited",
+      "editLabel": "Edit comment",
+      "deleteLabel": "Delete comment",
+      "editBodyLabel": "Edit comment body",
+      "bodyTooLong": "Comment is too long",
+      "cancel": "Cancel",
+      "save": "Save"
     }
   },
   "nav": {
@@ -958,6 +964,8 @@
     "communityCommentComposerHint": "Comments sync into the discussion after posting. Keep them kind, specific, and discussable.",
     "communityCommentSubmit": "Post comment",
     "communityCommentSubmitError": "Comment submission failed. Please try again later.",
+    "communityCommentUpdateError": "Comment update failed. Please try again later.",
+    "communityCommentDeleteError": "Comment deletion failed. Please try again later.",
     "communityCommentDescription": "{count} loaded, {total} total in the community",
     "communityCommentEmptyTitle": "No community comments yet",
     "communityCommentEmptyDescription": "Start the discussion. It will appear in the community conversation.",
@@ -1022,6 +1030,17 @@
     "linkedVideo": "Linked video",
     "emptyTitle": "No pulse yet",
     "emptyDescription": "Post a pulse or follow creators to fill the timeline.",
+    "item": {
+      "edited": "Edited",
+      "editLabel": "Edit pulse",
+      "deleteLabel": "Delete pulse",
+      "editBodyLabel": "Edit pulse body",
+      "bodyTooLong": "Pulses can be up to 280 characters.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "updateError": "Pulse update failed. Please try again later.",
+      "deleteError": "Pulse deletion failed. Please try again later."
+    },
     "composer": {
       "defaultAuthor": "Aoi Viewer",
       "accountAuthor": "Community account",
@@ -1155,6 +1174,17 @@
       "errorTitle": "Submission receipts failed",
       "errorDescription": "Recent records are unavailable right now. Please try again later.",
       "pendingReview": "Pending review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "published": "Published",
+      "approvedHint": "Approved and waiting for the media publishing step.",
+      "rejectedHint": "Rejected. Update the draft based on the review note before submitting again.",
+      "publishedHint": "Linked to public video {videoId}.",
+      "reviewNote": "Review note: {note}",
+      "reviewedAt": "Reviewed",
+      "publishedVideo": "Published video",
+      "openPublished": "Open video",
+      "mediaAsset": "Media asset",
       "fileSize": "File size",
       "createdAt": "Submitted"
     }

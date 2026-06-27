@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"regexp"
 	"sort"
 	"strconv"
@@ -49,8 +50,14 @@ type Service interface {
 	ListCommunityDynamics(context.Context, model.CommunityDynamicFilter) (model.CommunityDynamicPayload, error)
 	CreateCommunityDynamic(context.Context, model.CreateCommunityDynamicRequest) (model.CommunityDynamicItem, error)
 	CreateCommunityAccountDynamic(context.Context, authtypes.Principal, model.CreateCommunityAccountDynamicRequest) (model.CommunityDynamicItem, error)
+	UpdateCommunityDynamic(context.Context, string, model.UpdateCommunityDynamicRequest) (model.CommunityDynamicItem, error)
+	UpdateCommunityAccountDynamic(context.Context, authtypes.Principal, string, model.UpdateCommunityDynamicRequest) (model.CommunityDynamicItem, error)
+	DeleteCommunityDynamic(context.Context, string, string) (model.DeleteCommunityDynamicResult, error)
+	DeleteCommunityAccountDynamic(context.Context, authtypes.Principal, string) (model.DeleteCommunityDynamicResult, error)
 	ListCommunitySubmissions(context.Context, model.CommunitySubmissionFilter) (model.CommunitySubmissionPayload, error)
 	CreateCommunitySubmission(context.Context, model.CreateCommunitySubmissionRequest) (model.CommunitySubmissionItem, error)
+	ListCommunityReviewSubmissions(context.Context, model.CommunitySubmissionFilter) (model.CommunitySubmissionPayload, error)
+	ReviewCommunitySubmission(context.Context, authtypes.Principal, string, model.ReviewCommunitySubmissionRequest) (model.CommunitySubmissionItem, error)
 	ListCommunityAccountSubmissions(context.Context, authtypes.Principal, int) (model.CommunitySubmissionPayload, error)
 	CreateCommunityAccountSubmission(context.Context, authtypes.Principal, model.CreateCommunityAccountSubmissionRequest) (model.CommunitySubmissionItem, error)
 	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
@@ -67,6 +74,10 @@ type Service interface {
 	ClearVideoHistory(context.Context, model.VideoHistoryClearRequest) (model.VideoHistoryPayload, error)
 	ClearAccountVideoHistory(context.Context, authtypes.Principal) (model.VideoHistoryPayload, error)
 	CreateVideoComment(context.Context, string, model.CreateVideoCommentRequest) (model.VideoComment, error)
+	UpdateVideoComment(context.Context, string, string, model.UpdateVideoCommentRequest) (model.VideoComment, error)
+	UpdateAccountVideoComment(context.Context, authtypes.Principal, string, string, model.UpdateVideoCommentRequest) (model.VideoComment, error)
+	DeleteVideoComment(context.Context, string, string, string) (model.DeleteVideoCommentResult, error)
+	DeleteAccountVideoComment(context.Context, authtypes.Principal, string, string) (model.DeleteVideoCommentResult, error)
 	CreateVideoDanmaku(context.Context, string, model.CreateVideoDanmakuRequest) (model.VideoDanmakuItem, error)
 	CreateVideoReport(context.Context, string, model.CreateVideoReportRequest) (model.CommunityReportReceipt, error)
 }
@@ -75,15 +86,25 @@ type Service interface {
 type Repository interface {
 	FindCreatorByHandle(context.Context, string) (*model.Creator, error)
 	FindCreatorFollow(context.Context, string, string) (*model.CreatorFollow, error)
+	FindVideoComment(context.Context, string, string) (*model.VideoComment, error)
 	FindVideoByIDOrSlug(context.Context, string) (*model.Video, error)
 	FindVideoInteraction(context.Context, string, string, string) (*model.VideoInteraction, error)
 	CountVideoComments(context.Context, string) (int, error)
 	CreateVideoComment(context.Context, model.VideoComment) error
+	UpdateVideoComment(context.Context, model.VideoComment) error
+	DeleteVideoComment(context.Context, string, string, string, time.Time) error
 	CreateVideoDanmaku(context.Context, model.VideoDanmakuItem) error
 	CreateCommunityReport(context.Context, model.CommunityReport) error
 	CreateCommunityNotification(context.Context, model.CommunityNotification) error
 	CreateCommunityDynamic(context.Context, model.CommunityDynamic) error
+	FindCommunityDynamic(context.Context, string) (*model.CommunityDynamic, error)
+	UpdateCommunityDynamic(context.Context, model.CommunityDynamic) error
+	DeleteCommunityDynamic(context.Context, string, string, time.Time) error
 	CreateCommunitySubmission(context.Context, model.CommunitySubmission) error
+	FindCommunitySubmission(context.Context, string) (*model.CommunitySubmission, error)
+	FindMediaAssetByID(context.Context, int64) (*model.CommunityMediaAsset, error)
+	CreateVideoFromSubmission(context.Context, model.Creator, model.Video, model.VideoSourceOption, []string, []string) error
+	UpdateCommunitySubmissionReview(context.Context, model.CommunitySubmission) error
 	FollowCreator(context.Context, model.CreatorFollow) error
 	SetVideoInteraction(context.Context, model.VideoInteraction) error
 	SetVideoHistory(context.Context, model.VideoHistory) error
@@ -145,6 +166,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/auth/session",
 			"/auth/signup",
 			"/account/dynamics",
+			"/account/dynamics/:dynamicId",
 			"/account/feed/following",
 			"/account/history",
 			"/account/history/clear",
@@ -157,8 +179,10 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/account/videos/:idOrSlug/interaction-state",
 			"/account/videos/:idOrSlug/interactions/:kind",
 			"/account/videos/:idOrSlug/history",
+			"/account/videos/:idOrSlug/comments/:commentId",
 			"/home",
 			"/dynamics",
+			"/dynamics/:dynamicId",
 			"/submissions",
 			"/categories",
 			"/videos",
@@ -167,6 +191,7 @@ func (s *service) CommunityStatus(context.Context) model.APIStatus {
 			"/videos/:idOrSlug/interactions/:kind",
 			"/videos/:idOrSlug/history",
 			"/videos/:idOrSlug/comments",
+			"/videos/:idOrSlug/comments/:commentId",
 			"/videos/:idOrSlug/danmaku",
 			"/videos/:idOrSlug/reports",
 			"/notifications",
@@ -197,7 +222,7 @@ func (s *service) GetHomePayload(ctx context.Context) (model.HomePayload, error)
 		return model.HomePayload{}, err
 	}
 	return model.HomePayload{
-		Announcement: communityAnnouncement(s.now),
+		Announcement: nil,
 		Categories:   categories,
 		Latest:       latest,
 		Dynamics:     model.PageResult[model.CommunityDynamicItem]{Items: dynamics},
@@ -297,11 +322,17 @@ func (s *service) GetVideoComments(ctx context.Context, idOrSlug string, filter 
 		return model.VideoCommentPayload{}, mapStorageError(err)
 	}
 	filter = normalizeVideoCommentFilter(filter)
+	if clientID, err := normalizeOptionalCommunityClientID(filter.ClientID); err != nil {
+		return model.VideoCommentPayload{}, err
+	} else {
+		filter.ClientID = clientID
+	}
 	items, err := s.repo.ListVideoComments(ctx, video.ID, filter)
 	if err != nil {
 		return model.VideoCommentPayload{}, mapStorageError(err)
 	}
 	sortVideoComments(items, filter.Sort)
+	markOwnedVideoComments(items, filter.ClientID)
 	totalCount, err := s.repo.CountVideoComments(ctx, video.ID)
 	if err != nil {
 		return model.VideoCommentPayload{}, mapStorageError(err)
@@ -328,10 +359,15 @@ func (s *service) CreateVideoComment(ctx context.Context, idOrSlug string, req m
 	if authorName == "" || body == "" {
 		return model.VideoComment{}, ErrInvalidInput
 	}
+	clientID, err := normalizeOptionalCommunityClientID(req.ClientID)
+	if err != nil {
+		return model.VideoComment{}, err
+	}
 	now := s.now()
 	comment := model.VideoComment{
 		ID:         s.newCommentID(),
 		VideoID:    video.ID,
+		ClientID:   clientID,
 		Body:       body,
 		AuthorName: authorName,
 		Status:     model.CommentStatusVisible,
@@ -341,9 +377,8 @@ func (s *service) CreateVideoComment(ctx context.Context, idOrSlug string, req m
 	if err := s.repo.CreateVideoComment(ctx, comment); err != nil {
 		return model.VideoComment{}, mapStorageError(err)
 	}
-	if clientID, err := normalizeOptionalCommunityClientID(req.ClientID); err != nil {
-		return model.VideoComment{}, err
-	} else if clientID != "" {
+	comment.OwnedByCurrentClient = clientID != ""
+	if clientID != "" {
 		if err := s.createNotification(ctx, model.CommunityNotification{
 			ClientID:   clientID,
 			Kind:       model.CommunityNotificationKindComment,
@@ -359,6 +394,66 @@ func (s *service) CreateVideoComment(ctx context.Context, idOrSlug string, req m
 		}
 	}
 	return comment, nil
+}
+
+func (s *service) UpdateVideoComment(ctx context.Context, idOrSlug string, commentID string, req model.UpdateVideoCommentRequest) (model.VideoComment, error) {
+	clientID, err := normalizeCommunityClientID(req.ClientID)
+	if err != nil {
+		return model.VideoComment{}, err
+	}
+	body := normalizeCommentBody(req.Body)
+	if body == "" {
+		return model.VideoComment{}, ErrInvalidInput
+	}
+	video, comment, err := s.videoCommentForClient(ctx, idOrSlug, commentID, clientID)
+	if err != nil {
+		return model.VideoComment{}, err
+	}
+	comment.VideoID = video.ID
+	comment.Body = body
+	comment.UpdatedAt = s.now()
+	if err := s.repo.UpdateVideoComment(ctx, *comment); err != nil {
+		return model.VideoComment{}, mapStorageError(err)
+	}
+	comment.OwnedByCurrentClient = true
+	return *comment, nil
+}
+
+func (s *service) UpdateAccountVideoComment(ctx context.Context, principal authtypes.Principal, idOrSlug string, commentID string, req model.UpdateVideoCommentRequest) (model.VideoComment, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.VideoComment{}, err
+	}
+	req.ClientID = clientID
+	return s.UpdateVideoComment(ctx, idOrSlug, commentID, req)
+}
+
+func (s *service) DeleteVideoComment(ctx context.Context, idOrSlug string, commentID string, clientID string) (model.DeleteVideoCommentResult, error) {
+	clientID, err := normalizeCommunityClientID(clientID)
+	if err != nil {
+		return model.DeleteVideoCommentResult{}, err
+	}
+	video, comment, err := s.videoCommentForClient(ctx, idOrSlug, commentID, clientID)
+	if err != nil {
+		return model.DeleteVideoCommentResult{}, err
+	}
+	if err := s.repo.DeleteVideoComment(ctx, video.ID, comment.ID, clientID, s.now()); err != nil {
+		return model.DeleteVideoCommentResult{}, mapStorageError(err)
+	}
+	return model.DeleteVideoCommentResult{
+		CommentID: comment.ID,
+		VideoID:   video.ID,
+		ClientID:  clientID,
+		Deleted:   true,
+	}, nil
+}
+
+func (s *service) DeleteAccountVideoComment(ctx context.Context, principal authtypes.Principal, idOrSlug string, commentID string) (model.DeleteVideoCommentResult, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.DeleteVideoCommentResult{}, err
+	}
+	return s.DeleteVideoComment(ctx, idOrSlug, commentID, clientID)
 }
 
 func (s *service) CreateVideoDanmaku(ctx context.Context, idOrSlug string, req model.CreateVideoDanmakuRequest) (model.VideoDanmakuItem, error) {
@@ -1059,7 +1154,7 @@ func (s *service) CreateCommunityDynamic(ctx context.Context, req model.CreateCo
 	if err := s.repo.CreateCommunityDynamic(ctx, dynamic); err != nil {
 		return model.CommunityDynamicItem{}, mapStorageError(err)
 	}
-	items, err := s.decorateDynamics(ctx, []model.CommunityDynamic{dynamic})
+	items, err := s.decorateDynamics(ctx, []model.CommunityDynamic{dynamic}, clientID)
 	if err != nil {
 		return model.CommunityDynamicItem{}, err
 	}
@@ -1080,6 +1175,70 @@ func (s *service) CreateCommunityAccountDynamic(ctx context.Context, principal a
 		ClientID:   clientID,
 		VideoID:    req.VideoID,
 	})
+}
+
+func (s *service) UpdateCommunityDynamic(ctx context.Context, dynamicID string, req model.UpdateCommunityDynamicRequest) (model.CommunityDynamicItem, error) {
+	clientID, err := normalizeCommunityClientID(req.ClientID)
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	body := normalizeCommentBody(req.Body)
+	if body == "" {
+		return model.CommunityDynamicItem{}, ErrInvalidInput
+	}
+	dynamic, err := s.communityDynamicForClient(ctx, dynamicID, clientID)
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	dynamic.Body = body
+	dynamic.UpdatedAt = s.now()
+	if err := s.repo.UpdateCommunityDynamic(ctx, *dynamic); err != nil {
+		return model.CommunityDynamicItem{}, mapStorageError(err)
+	}
+	items, err := s.decorateDynamics(ctx, []model.CommunityDynamic{*dynamic}, clientID)
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	if len(items) == 0 {
+		return model.CommunityDynamicItem{}, ErrStorageUnavailable
+	}
+	return items[0], nil
+}
+
+func (s *service) UpdateCommunityAccountDynamic(ctx context.Context, principal authtypes.Principal, dynamicID string, req model.UpdateCommunityDynamicRequest) (model.CommunityDynamicItem, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.CommunityDynamicItem{}, err
+	}
+	req.ClientID = clientID
+	return s.UpdateCommunityDynamic(ctx, dynamicID, req)
+}
+
+func (s *service) DeleteCommunityDynamic(ctx context.Context, dynamicID string, clientID string) (model.DeleteCommunityDynamicResult, error) {
+	clientID, err := normalizeCommunityClientID(clientID)
+	if err != nil {
+		return model.DeleteCommunityDynamicResult{}, err
+	}
+	dynamic, err := s.communityDynamicForClient(ctx, dynamicID, clientID)
+	if err != nil {
+		return model.DeleteCommunityDynamicResult{}, err
+	}
+	if err := s.repo.DeleteCommunityDynamic(ctx, dynamic.ID, clientID, s.now()); err != nil {
+		return model.DeleteCommunityDynamicResult{}, mapStorageError(err)
+	}
+	return model.DeleteCommunityDynamicResult{
+		DynamicID: dynamic.ID,
+		ClientID:  clientID,
+		Deleted:   true,
+	}, nil
+}
+
+func (s *service) DeleteCommunityAccountDynamic(ctx context.Context, principal authtypes.Principal, dynamicID string) (model.DeleteCommunityDynamicResult, error) {
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		return model.DeleteCommunityDynamicResult{}, err
+	}
+	return s.DeleteCommunityDynamic(ctx, dynamicID, clientID)
 }
 
 func (s *service) ListCommunitySubmissions(ctx context.Context, filter model.CommunitySubmissionFilter) (model.CommunitySubmissionPayload, error) {
@@ -1182,6 +1341,87 @@ func (s *service) CreateCommunitySubmission(ctx context.Context, req model.Creat
 	return items[0], nil
 }
 
+func (s *service) ListCommunityReviewSubmissions(ctx context.Context, filter model.CommunitySubmissionFilter) (model.CommunitySubmissionPayload, error) {
+	if s.repo == nil {
+		return model.CommunitySubmissionPayload{}, ErrStorageUnavailable
+	}
+	status, err := normalizeSubmissionReviewListStatus(filter.Status)
+	if err != nil {
+		return model.CommunitySubmissionPayload{}, err
+	}
+	filter.AllClients = true
+	filter.Status = status
+	filter.Limit = normalizeLimit(filter.Limit, 24)
+	submissions, err := s.repo.ListCommunitySubmissions(ctx, filter)
+	if err != nil {
+		return model.CommunitySubmissionPayload{}, mapStorageError(err)
+	}
+	items, err := s.decorateSubmissions(ctx, submissions)
+	if err != nil {
+		return model.CommunitySubmissionPayload{}, err
+	}
+	message := "社区投稿审核队列来自 community_submissions；发布时可绑定既有视频，或从受控 system_media_assets 资产生成社区视频记录。"
+	return model.CommunitySubmissionPayload{
+		Authenticated: true,
+		Items:         model.PageResult[model.CommunitySubmissionItem]{Items: items},
+		Message:       &message,
+	}, nil
+}
+
+func (s *service) ReviewCommunitySubmission(ctx context.Context, principal authtypes.Principal, submissionID string, req model.ReviewCommunitySubmissionRequest) (model.CommunitySubmissionItem, error) {
+	if s.repo == nil {
+		return model.CommunitySubmissionItem{}, ErrStorageUnavailable
+	}
+	reviewerID, err := communityReviewPrincipalID(principal)
+	if err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" {
+		return model.CommunitySubmissionItem{}, ErrInvalidInput
+	}
+	nextStatus, err := normalizeSubmissionReviewStatus(req.Status)
+	if err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	reviewNote := trimRunes(req.ReviewNote, 720)
+	publishedVideoID := trimRunes(req.PublishedVideoID, 96)
+	var mediaAssetID int64
+	if nextStatus == model.CommunitySubmissionStatusRejected && reviewNote == "" {
+		return model.CommunitySubmissionItem{}, ErrInvalidInput
+	}
+	submission, err := s.repo.FindCommunitySubmission(ctx, submissionID)
+	if err != nil {
+		return model.CommunitySubmissionItem{}, mapStorageError(err)
+	}
+	now := s.now()
+	if nextStatus == model.CommunitySubmissionStatusPublished {
+		publish, err := s.resolvePublishedSubmissionVideo(ctx, *submission, req, now)
+		if err != nil {
+			return model.CommunitySubmissionItem{}, err
+		}
+		publishedVideoID = publish.VideoID
+		mediaAssetID = publish.MediaAssetID
+	}
+	if err := applySubmissionReview(submission, nextStatus, reviewNote, reviewerID, publishedVideoID, mediaAssetID, now); err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	if err := s.repo.UpdateCommunitySubmissionReview(ctx, *submission); err != nil {
+		return model.CommunitySubmissionItem{}, mapStorageError(err)
+	}
+	if err := s.createNotification(ctx, submissionReviewNotification(*submission)); err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	items, err := s.decorateSubmissions(ctx, []model.CommunitySubmission{*submission})
+	if err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	if len(items) == 0 {
+		return model.CommunitySubmissionItem{}, ErrStorageUnavailable
+	}
+	return items[0], nil
+}
+
 func (s *service) ListCommunityAccountSubmissions(ctx context.Context, principal authtypes.Principal, limit int) (model.CommunitySubmissionPayload, error) {
 	clientID, err := communityAccountClientID(principal)
 	if err != nil {
@@ -1251,6 +1491,39 @@ func (s *service) createNotification(ctx context.Context, notification model.Com
 	return nil
 }
 
+func submissionReviewNotification(submission model.CommunitySubmission) model.CommunityNotification {
+	title := "投稿审核状态已更新"
+	body := "《" + submission.Title + "》的审核状态已更新为 " + submission.Status + "。"
+	link := "/upload"
+	switch submission.Status {
+	case model.CommunitySubmissionStatusApproved:
+		title = "投稿审核通过"
+		body = "《" + submission.Title + "》已通过审核，等待后续媒体发布处理。"
+	case model.CommunitySubmissionStatusRejected:
+		title = "投稿审核未通过"
+		body = "《" + submission.Title + "》未通过审核。"
+		if strings.TrimSpace(submission.ReviewNote) != "" {
+			body += "原因：" + strings.TrimSpace(submission.ReviewNote)
+		}
+	case model.CommunitySubmissionStatusPublished:
+		title = "投稿已发布"
+		body = "《" + submission.Title + "》已关联公开视频 " + submission.PublishedVideoID + "。"
+		if strings.TrimSpace(submission.PublishedVideoID) != "" {
+			link = "/video/" + submission.PublishedVideoID
+		}
+	}
+	return model.CommunityNotification{
+		ClientID:   submission.ClientID,
+		Kind:       model.CommunityNotificationKindSubmission,
+		Title:      title,
+		Body:       body,
+		TargetKind: model.CommunityNotificationTargetSubmission,
+		TargetID:   submission.ID,
+		VideoID:    submission.PublishedVideoID,
+		Link:       link,
+	}
+}
+
 func (s *service) recommendedFollowingFeed(ctx context.Context, clientID *string, messageText string) (model.FollowingFeedPayload, error) {
 	creators, err := s.repo.ListCreators(ctx, 4)
 	if err != nil {
@@ -1268,7 +1541,11 @@ func (s *service) recommendedFollowingFeed(ctx context.Context, clientID *string
 	if err != nil {
 		return model.FollowingFeedPayload{}, err
 	}
-	dynamics, err := s.communityDynamicItems(ctx, model.CommunityDynamicFilter{Limit: 6})
+	filter := model.CommunityDynamicFilter{Limit: 6}
+	if clientID != nil {
+		filter.ClientID = *clientID
+	}
+	dynamics, err := s.communityDynamicItems(ctx, filter)
 	if err != nil {
 		return model.FollowingFeedPayload{}, err
 	}
@@ -1324,7 +1601,7 @@ func (s *service) followingFeedForClient(ctx context.Context, clientID string, f
 	dynamics := []model.CommunityDynamicItem{}
 	if len(followedCreatorIDs) > 0 {
 		var err error
-		dynamics, err = s.communityDynamicItems(ctx, model.CommunityDynamicFilter{CreatorIDs: followedCreatorIDs, Limit: 12})
+		dynamics, err = s.communityDynamicItems(ctx, model.CommunityDynamicFilter{ClientID: clientID, CreatorIDs: followedCreatorIDs, Limit: 12})
 		if err != nil {
 			return model.FollowingFeedPayload{}, err
 		}
@@ -1350,13 +1627,14 @@ func (s *service) communityDynamicItems(ctx context.Context, filter model.Commun
 	if err != nil {
 		return nil, mapStorageError(err)
 	}
-	return s.decorateDynamics(ctx, dynamics)
+	return s.decorateDynamics(ctx, dynamics, filter.ClientID)
 }
 
-func (s *service) decorateDynamics(ctx context.Context, dynamics []model.CommunityDynamic) ([]model.CommunityDynamicItem, error) {
+func (s *service) decorateDynamics(ctx context.Context, dynamics []model.CommunityDynamic, currentClientID string) ([]model.CommunityDynamicItem, error) {
 	if len(dynamics) == 0 {
 		return []model.CommunityDynamicItem{}, nil
 	}
+	currentClientID = strings.TrimSpace(currentClientID)
 	creators, err := s.repo.ListCreators(ctx, 0)
 	if err != nil {
 		return nil, mapStorageError(err)
@@ -1414,6 +1692,9 @@ func (s *service) decorateDynamics(ctx context.Context, dynamics []model.Communi
 			VideoID:    dynamic.VideoID,
 			Video:      video,
 			CreatedAt:  dynamic.CreatedAt,
+			UpdatedAt:  dynamic.UpdatedAt,
+
+			OwnedByCurrentClient: currentClientID != "" && dynamic.ClientID == currentClientID,
 		})
 	}
 	return items, nil
@@ -1439,22 +1720,29 @@ func (s *service) decorateSubmissions(ctx context.Context, submissions []model.C
 			category = &item
 		}
 		items = append(items, model.CommunitySubmissionItem{
-			ID:            submission.ID,
-			ClientID:      submission.ClientID,
-			AuthorName:    submission.AuthorName,
-			Title:         submission.Title,
-			Description:   submission.Description,
-			CategorySlug:  submission.CategorySlug,
-			Category:      category,
-			Tags:          decodeSubmissionTags(submission.TagsJSON),
-			Visibility:    submission.Visibility,
-			SourceName:    submission.SourceName,
-			SourceSize:    submission.SourceSize,
-			SourceType:    submission.SourceType,
-			AllowComments: submission.AllowComments,
-			Sensitive:     submission.Sensitive,
-			Status:        submission.Status,
-			CreatedAt:     submission.CreatedAt,
+			ID:               submission.ID,
+			ClientID:         submission.ClientID,
+			AuthorName:       submission.AuthorName,
+			Title:            submission.Title,
+			Description:      submission.Description,
+			CategorySlug:     submission.CategorySlug,
+			Category:         category,
+			Tags:             decodeSubmissionTags(submission.TagsJSON),
+			Visibility:       submission.Visibility,
+			SourceName:       submission.SourceName,
+			SourceSize:       submission.SourceSize,
+			SourceType:       submission.SourceType,
+			AllowComments:    submission.AllowComments,
+			Sensitive:        submission.Sensitive,
+			Status:           submission.Status,
+			ReviewNote:       submission.ReviewNote,
+			ReviewerID:       submission.ReviewerID,
+			ReviewedAt:       submission.ReviewedAt,
+			MediaAssetID:     submission.MediaAssetID,
+			PublishedVideoID: submission.PublishedVideoID,
+			PublishedAt:      submission.PublishedAt,
+			CreatedAt:        submission.CreatedAt,
+			UpdatedAt:        submission.UpdatedAt,
 		})
 	}
 	return items, nil
@@ -1756,6 +2044,46 @@ func (s *service) videoAndClient(ctx context.Context, idOrSlug string, req model
 	return video, clientID, nil
 }
 
+func (s *service) videoCommentForClient(ctx context.Context, idOrSlug string, commentID string, clientID string) (*model.Video, *model.VideoComment, error) {
+	if s.repo == nil {
+		return nil, nil, ErrStorageUnavailable
+	}
+	video, err := s.repo.FindVideoByIDOrSlug(ctx, strings.TrimSpace(idOrSlug))
+	if err != nil {
+		return nil, nil, mapStorageError(err)
+	}
+	commentID = strings.TrimSpace(commentID)
+	if commentID == "" {
+		return nil, nil, ErrInvalidInput
+	}
+	comment, err := s.repo.FindVideoComment(ctx, video.ID, commentID)
+	if err != nil {
+		return nil, nil, mapStorageError(err)
+	}
+	if strings.TrimSpace(comment.ClientID) == "" || comment.ClientID != clientID {
+		return nil, nil, ErrNotFound
+	}
+	return video, comment, nil
+}
+
+func (s *service) communityDynamicForClient(ctx context.Context, dynamicID string, clientID string) (*model.CommunityDynamic, error) {
+	if s.repo == nil {
+		return nil, ErrStorageUnavailable
+	}
+	dynamicID = strings.TrimSpace(dynamicID)
+	if dynamicID == "" {
+		return nil, ErrInvalidInput
+	}
+	dynamic, err := s.repo.FindCommunityDynamic(ctx, dynamicID)
+	if err != nil {
+		return nil, mapStorageError(err)
+	}
+	if strings.TrimSpace(dynamic.ClientID) == "" || dynamic.ClientID != clientID {
+		return nil, ErrNotFound
+	}
+	return dynamic, nil
+}
+
 func (s *service) creatorFollowState(ctx context.Context, creator model.Creator, clientID string) (model.CreatorFollowState, error) {
 	follow, err := s.repo.FindCreatorFollow(ctx, creator.ID, clientID)
 	if err != nil && !errors.Is(err, ErrNotFound) {
@@ -1806,6 +2134,16 @@ func (s *service) videoInteractionState(ctx context.Context, video model.Video, 
 		}
 	}
 	return state, nil
+}
+
+func markOwnedVideoComments(items []model.VideoComment, clientID string) {
+	clientID = strings.TrimSpace(clientID)
+	if clientID == "" {
+		return
+	}
+	for index := range items {
+		items[index].OwnedByCurrentClient = items[index].ClientID == clientID
+	}
 }
 
 func normalizeVideoFilter(filter model.VideoFilter) model.VideoFilter {
@@ -2024,6 +2362,162 @@ func normalizeSubmissionVisibility(value string) (string, error) {
 	}
 }
 
+func normalizeSubmissionReviewStatus(value string) (string, error) {
+	switch strings.TrimSpace(value) {
+	case model.CommunitySubmissionStatusApproved:
+		return model.CommunitySubmissionStatusApproved, nil
+	case model.CommunitySubmissionStatusRejected:
+		return model.CommunitySubmissionStatusRejected, nil
+	case model.CommunitySubmissionStatusPublished:
+		return model.CommunitySubmissionStatusPublished, nil
+	default:
+		return "", ErrInvalidInput
+	}
+}
+
+func normalizeSubmissionReviewListStatus(value string) (string, error) {
+	switch strings.TrimSpace(value) {
+	case "":
+		return "", nil
+	case model.CommunitySubmissionStatusPendingReview:
+		return model.CommunitySubmissionStatusPendingReview, nil
+	case model.CommunitySubmissionStatusApproved:
+		return model.CommunitySubmissionStatusApproved, nil
+	case model.CommunitySubmissionStatusRejected:
+		return model.CommunitySubmissionStatusRejected, nil
+	case model.CommunitySubmissionStatusPublished:
+		return model.CommunitySubmissionStatusPublished, nil
+	default:
+		return "", ErrInvalidInput
+	}
+}
+
+type submissionPublishResult struct {
+	MediaAssetID int64
+	VideoID      string
+}
+
+func (s *service) resolvePublishedSubmissionVideo(ctx context.Context, submission model.CommunitySubmission, req model.ReviewCommunitySubmissionRequest, now time.Time) (submissionPublishResult, error) {
+	if publishedVideoID := trimRunes(req.PublishedVideoID, 96); publishedVideoID != "" {
+		video, err := s.repo.FindVideoByIDOrSlug(ctx, publishedVideoID)
+		if err != nil {
+			return submissionPublishResult{}, mapStorageError(err)
+		}
+		return submissionPublishResult{VideoID: video.ID, MediaAssetID: submission.MediaAssetID}, nil
+	}
+	if strings.TrimSpace(submission.PublishedVideoID) != "" {
+		return submissionPublishResult{VideoID: submission.PublishedVideoID, MediaAssetID: submission.MediaAssetID}, nil
+	}
+	mediaAssetID, err := normalizeSubmissionMediaAssetID(req.MediaAssetID)
+	if err != nil {
+		return submissionPublishResult{}, err
+	}
+	if mediaAssetID == 0 {
+		mediaAssetID = submission.MediaAssetID
+	}
+	sourceURL := ""
+	sourceType := submission.SourceType
+	if mediaAssetID > 0 {
+		asset, err := s.repo.FindMediaAssetByID(ctx, mediaAssetID)
+		if err != nil {
+			return submissionPublishResult{}, mapStorageError(err)
+		}
+		sourceURL = strings.TrimSpace(asset.URL)
+		if strings.TrimSpace(asset.MIMEType) != "" {
+			sourceType = asset.MIMEType
+		}
+		if _, err := normalizeSubmissionReviewSourceURL(sourceURL); err != nil {
+			return submissionPublishResult{}, err
+		}
+	} else {
+		sourceURL, err = normalizeSubmissionReviewSourceURL(req.SourceURL)
+		if err != nil {
+			return submissionPublishResult{}, err
+		}
+	}
+	durationSeconds := normalizeSubmissionReviewDuration(req.DurationSeconds)
+	if durationSeconds <= 0 {
+		return submissionPublishResult{}, ErrInvalidInput
+	}
+	videoID := submissionVideoID(submission)
+	slug := submissionVideoSlug(submission, req.Slug)
+	thumbnailURL := normalizeSubmissionReviewThumbnailURL(req.ThumbnailURL, slug)
+	description := trimRunes(submission.Description, 720)
+	var descriptionPtr *string
+	if description != "" {
+		descriptionPtr = &description
+	}
+	creator := submissionVideoCreator(submission, now)
+	video := model.Video{
+		ID:              videoID,
+		Slug:            slug,
+		Title:           trimRunes(submission.Title, 240),
+		Description:     descriptionPtr,
+		ThumbnailURL:    thumbnailURL,
+		DurationSeconds: durationSeconds,
+		ViewCount:       0,
+		CommentCount:    0,
+		LikeCount:       0,
+		SourceURL:       sourceURL,
+		PublishedAt:     now,
+		UploaderID:      creator.ID,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+	source := model.VideoSourceOption{
+		ID:        submissionVideoSourceID(videoID),
+		VideoID:   videoID,
+		Src:       sourceURL,
+		Kind:      model.VideoSourceKindNative,
+		Label:     "投稿原始源",
+		MimeType:  optionalSourceMimeType(sourceType),
+		IsDefault: true,
+		Order:     10,
+	}
+	categorySlugs := []string{}
+	if strings.TrimSpace(submission.CategorySlug) != "" {
+		categorySlugs = append(categorySlugs, strings.TrimSpace(submission.CategorySlug))
+	}
+	if err := s.repo.CreateVideoFromSubmission(ctx, creator, video, source, categorySlugs, decodeSubmissionTags(submission.TagsJSON)); err != nil {
+		return submissionPublishResult{}, mapStorageError(err)
+	}
+	return submissionPublishResult{VideoID: video.ID, MediaAssetID: mediaAssetID}, nil
+}
+
+func applySubmissionReview(submission *model.CommunitySubmission, nextStatus string, reviewNote string, reviewerID string, publishedVideoID string, mediaAssetID int64, now time.Time) error {
+	switch nextStatus {
+	case model.CommunitySubmissionStatusApproved:
+		if submission.Status == model.CommunitySubmissionStatusPublished {
+			return ErrInvalidInput
+		}
+		submission.PublishedVideoID = ""
+		submission.PublishedAt = nil
+	case model.CommunitySubmissionStatusRejected:
+		if submission.Status == model.CommunitySubmissionStatusPublished {
+			return ErrInvalidInput
+		}
+		submission.PublishedVideoID = ""
+		submission.PublishedAt = nil
+	case model.CommunitySubmissionStatusPublished:
+		if submission.Status != model.CommunitySubmissionStatusApproved && submission.Status != model.CommunitySubmissionStatusPublished {
+			return ErrInvalidInput
+		}
+		if mediaAssetID > 0 {
+			submission.MediaAssetID = mediaAssetID
+		}
+		submission.PublishedVideoID = publishedVideoID
+		submission.PublishedAt = &now
+	default:
+		return ErrInvalidInput
+	}
+	submission.Status = nextStatus
+	submission.ReviewNote = reviewNote
+	submission.ReviewerID = reviewerID
+	submission.ReviewedAt = &now
+	submission.UpdatedAt = now
+	return nil
+}
+
 func normalizeSubmissionTags(tags []string) []string {
 	seen := map[string]struct{}{}
 	out := make([]string, 0, len(tags))
@@ -2064,6 +2558,137 @@ func decodeSubmissionTags(value string) []string {
 	return normalizeSubmissionTags(tags)
 }
 
+func normalizeSubmissionReviewSourceURL(value string) (string, error) {
+	value = trimRunes(value, 512)
+	if value == "" {
+		return "", ErrInvalidInput
+	}
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") || strings.HasPrefix(value, "/") {
+		return value, nil
+	}
+	return "", ErrInvalidInput
+}
+
+func normalizeSubmissionMediaAssetID(value int64) (int64, error) {
+	if value < 0 {
+		return 0, ErrInvalidInput
+	}
+	return value, nil
+}
+
+func normalizeSubmissionReviewThumbnailURL(value string, slug string) string {
+	value = trimRunes(value, 512)
+	if value != "" {
+		return value
+	}
+	return "gradient:" + slug
+}
+
+func normalizeSubmissionReviewDuration(value int) int {
+	if value < 0 {
+		return 0
+	}
+	if value > 24*60*60 {
+		return 24 * 60 * 60
+	}
+	return value
+}
+
+func optionalSourceMimeType(value string) *string {
+	value = trimRunes(value, 120)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func submissionVideoID(submission model.CommunitySubmission) string {
+	raw := strings.TrimPrefix(strings.TrimSpace(submission.ID), "submission-")
+	raw = safeASCIIIdentifier(raw)
+	if raw == "" {
+		raw = shortHash(submission.ID)
+	}
+	return trimRunes("video-"+raw, 96)
+}
+
+func submissionVideoSourceID(videoID string) string {
+	raw := strings.TrimPrefix(strings.TrimSpace(videoID), "video-")
+	raw = safeASCIIIdentifier(raw)
+	if raw == "" {
+		raw = shortHash(videoID)
+	}
+	return trimRunes("source-"+raw+"-primary", 96)
+}
+
+func submissionVideoSlug(submission model.CommunitySubmission, value string) string {
+	base := safeASCIIIdentifier(value)
+	if base == "" {
+		base = safeASCIIIdentifier(submission.Title)
+	}
+	if base == "" {
+		base = "submission"
+	}
+	base = trimRunes(base, 48)
+	return trimRunes(base+"-"+shortHash(submission.ID), 160)
+}
+
+func submissionVideoCreator(submission model.CommunitySubmission, now time.Time) model.Creator {
+	seed := strings.TrimSpace(submission.ClientID)
+	hash := shortHash(seed + ":" + submission.AuthorName)
+	handleBase := safeASCIIIdentifier(seed)
+	if handleBase == "" {
+		handleBase = "community"
+	}
+	handle := trimRunes("u-"+trimRunes(handleBase, 42)+"-"+hash, 96)
+	creatorID := trimRunes("creator-"+hash, 96)
+	displayName := normalizeCommentAuthor(submission.AuthorName)
+	if displayName == "" {
+		displayName = "Community Creator"
+	}
+	bio := "社区投稿自动生成的创作者资料，后续会与登录态和创作者后台归并。"
+	return model.Creator{
+		UserSummary: model.UserSummary{
+			ID:          creatorID,
+			Handle:      handle,
+			DisplayName: displayName,
+			AvatarURL:   nil,
+		},
+		Bio:           &bio,
+		FollowerCount: 0,
+		JoinedAt:      now,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+}
+
+func safeASCIIIdentifier(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		allowed := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if allowed {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash && builder.Len() > 0 {
+			builder.WriteRune('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(builder.String(), "-")
+}
+
+func shortHash(value string) string {
+	hash := fnv.New32a()
+	if _, err := hash.Write([]byte(value)); err != nil {
+		return "0"
+	}
+	return strconv.FormatUint(uint64(hash.Sum32()), 36)
+}
+
 func normalizeCommunityClientID(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || len([]rune(value)) > 96 {
@@ -2092,6 +2717,13 @@ func communityAccountAuthorName(principal authtypes.Principal) string {
 		}
 	}
 	return normalizeCommentAuthor("user-" + strconv.FormatInt(principal.UserID, 10))
+}
+
+func communityReviewPrincipalID(principal authtypes.Principal) (string, error) {
+	if principal.UserID <= 0 {
+		return "", ErrInvalidInput
+	}
+	return strconv.FormatInt(principal.UserID, 10), nil
 }
 
 func normalizeLimit(value int, fallback int) int {
@@ -2154,18 +2786,6 @@ func reportReceipt(report model.CommunityReport) model.CommunityReportReceipt {
 		Reason:     report.Reason,
 		Status:     report.Status,
 		CreatedAt:  report.CreatedAt,
-	}
-}
-
-func communityAnnouncement(now func() time.Time) *model.Announcement {
-	return &model.Announcement{
-		ID:       "community-live-data",
-		Title:    "今日更新",
-		Body:     "首页阅读节奏变得更轻了，分类、动态和最新投稿会一起陪你发现新的创作者内容。",
-		Href:     nil,
-		Severity: "info",
-		StartsAt: now().UTC(),
-		EndsAt:   nil,
 	}
 }
 

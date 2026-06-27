@@ -5,7 +5,7 @@
 ## 原则
 
 - 仓库不提供默认管理员账号、默认密码或长期可用的演示 Token。
-- 仓库不内置虚构业务数据；当前内置数据只服务平台运行，例如字典、参数、菜单、API catalog 和权限目录。
+- 仓库不内置虚构业务内容；当前内置数据只服务平台运行和基础 taxonomy，例如字典、参数、菜单、API catalog、权限目录和社区分类。
 - 首次管理员必须通过 `/setup`、`console init` 或 `iam bootstrap-admin` 显式创建。
 - 本地演示数据应放在 `data/`、`tmp/` 或本地数据库中，不得提交到源码目录。
 - 产品名称、产品码、认证 issuer、存储 bucket 和公开 URL 继续从配置读取，不写死到页面或 seed 中。
@@ -66,6 +66,7 @@ powershell -ExecutionPolicy Bypass -File scripts/runtime-smoke.ps1 -Port 29999 -
 | 参数 | `admin.title`、`admin.home_path` |
 
 这些不是业务示例数据，也不是生产配置事实来源。它们只用于让后台基础页面具备可读的字典和参数项。已有参数被人工修改后，seed 不会覆盖用户值。
+社区模块在真实迁移路径中保留中性的分类 taxonomy，历史演示视频、创作者、动态、评论、弹幕和播放源已通过追加迁移清理。新初始化真实库不会自动出现 `Aoi Alpha`、`Layout Notes`、`Color Note` 等演示内容；这些内容只属于 Nuxt mock 或显式本地演示数据。
 
 ## 不提供默认演示账号的原因
 

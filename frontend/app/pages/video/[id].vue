@@ -25,6 +25,9 @@ const localDanmakuEnabled = ref(true)
 const commentSubmitError = ref("")
 const commentSubmitRevision = ref(0)
 const commentSubmitting = ref(false)
+const commentActionError = ref("")
+const commentDeletingId = ref("")
+const commentUpdatingId = ref("")
 const reportDetail = ref("")
 const reportDialogOpen = ref(false)
 const reportReceiptId = ref("")
@@ -63,7 +66,9 @@ const { data: serverCommentPayload } = useAsyncData(
       return emptyVideoCommentPayload(id.value, commentSortMode.value)
     }
 
-    return await api.getVideoComments(currentVideo.id, { limit: 48, sort: commentSortMode.value })
+    const clientId = import.meta.client && library.hydrated ? library.ensureClientId() : undefined
+
+    return await api.getVideoComments(currentVideo.id, { clientId, limit: 48, sort: commentSortMode.value })
       .catch(() => emptyVideoCommentPayload(
         currentVideo.id,
         commentSortMode.value,
@@ -71,7 +76,7 @@ const { data: serverCommentPayload } = useAsyncData(
       ))
   },
   {
-    watch: [() => video.value?.id, commentSortMode]
+    watch: [() => video.value?.id, commentSortMode, () => library.hydrated]
   }
 )
 const creator = computed(() => watchPayload.value?.creator || null)
@@ -209,6 +214,7 @@ async function submitComment(body: string) {
 
   commentSubmitting.value = true
   commentSubmitError.value = ""
+  commentActionError.value = ""
   try {
     const comment = await api.createVideoComment(video.value.id, {
       authorName: comments.authorName,
@@ -221,6 +227,45 @@ async function submitComment(body: string) {
     commentSubmitError.value = t("player.communityCommentSubmitError")
   } finally {
     commentSubmitting.value = false
+  }
+}
+
+async function updateComment(comment: CommentView, body: string) {
+  if (!video.value || commentUpdatingId.value || commentDeletingId.value) {
+    return
+  }
+
+  commentUpdatingId.value = comment.id
+  commentActionError.value = ""
+  try {
+    const updated = await api.updateVideoComment(video.value.id, comment.id, {
+      body,
+      clientId: library.ensureClientId()
+    })
+    replaceServerComment(updated)
+  } catch {
+    commentActionError.value = t("player.communityCommentUpdateError")
+  } finally {
+    commentUpdatingId.value = ""
+  }
+}
+
+async function deleteComment(comment: CommentView) {
+  if (!video.value || commentUpdatingId.value || commentDeletingId.value) {
+    return
+  }
+
+  commentDeletingId.value = comment.id
+  commentActionError.value = ""
+  try {
+    const result = await api.deleteVideoComment(video.value.id, comment.id, library.ensureClientId())
+    if (result.deleted) {
+      removeServerComment(comment.id)
+    }
+  } catch {
+    commentActionError.value = t("player.communityCommentDeleteError")
+  } finally {
+    commentDeletingId.value = ""
   }
 }
 
@@ -276,6 +321,32 @@ function appendServerComment(comment: VideoComment) {
     ...payload,
     items,
     totalCount: Math.max(payload.totalCount + 1, items.length)
+  }
+}
+
+function replaceServerComment(comment: VideoComment) {
+  const payload = serverCommentPayload.value
+  if (!payload) {
+    return
+  }
+
+  serverCommentPayload.value = {
+    ...payload,
+    items: payload.items.map((item) => item.id === comment.id ? comment : item)
+  }
+}
+
+function removeServerComment(commentId: string) {
+  const payload = serverCommentPayload.value
+  if (!payload) {
+    return
+  }
+
+  const items = payload.items.filter((item) => item.id !== commentId)
+  serverCommentPayload.value = {
+    ...payload,
+    items,
+    totalCount: Math.max(0, payload.totalCount - (items.length === payload.items.length ? 0 : 1))
   }
 }
 
@@ -473,13 +544,18 @@ useHead(() => ({
               />
               <CommentThread
                 v-model:sort-mode="commentSortMode"
+                :action-error="commentActionError"
                 :comments="visibleComments"
+                :deleting-comment-id="commentDeletingId"
                 :description="commentThreadDescription"
                 :empty-description="t('player.communityCommentEmptyDescription')"
                 :empty-title="t('player.communityCommentEmptyTitle')"
                 :hydrated="Boolean(video)"
                 :sort-label="t('player.communityCommentSort')"
                 :title="t('player.communityComments')"
+                :updating-comment-id="commentUpdatingId"
+                @delete="deleteComment"
+                @update="updateComment"
               />
             </template>
           </VideoWatchDetails>

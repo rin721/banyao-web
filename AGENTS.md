@@ -24,6 +24,8 @@
 - 前后端不得通过具体代码实现细节相互耦合；协作边界必须落在统一接口契约上，包括 OpenAPI 规范、接口文档、字段协议、状态码约定、错误结构、分页规则、鉴权规则和数据模型定义。
 - 后端新增或修改社区能力时，必须先让 route contract、稳定 DTO、错误/result、权限或鉴权规则、分页与状态语义、接口文档和 OpenAPI 输出形成可消费契约，再由前端进行 API client 封装、共享类型映射、数据绑定和页面状态对齐。
 - 前端不得依赖后端 service、repository、model 或数据库实现细节推断行为；后端也不得以页面局部实现替代公开协议定义。Mock、fixture 和本地状态只能模拟已声明或计划中的契约，并必须清楚标记为演示或开发辅助。
+- 前端必须通过环境变量支持“前端 Mock 数据模式”和“真实后端数据模式”切换；当前 Nuxt 入口以 `NUXT_PUBLIC_API_MOCK` 控制 mock API，以 `NUXT_PUBLIC_API_BASE_URL`、`NUXT_PUBLIC_AUTH_API_BASE_URL` 和 `NUXT_BACKEND_ORIGIN` 控制真实后端接入，不得在页面或 store 中散落不可配置的数据源切换逻辑。
+- 若后端 HTTP 接口仍存在硬编码数据、静态返回或伪造业务状态，应优先落地真实业务模块、真实数据模型和真实持久化逻辑；后端真实业务接口不得继续新增 Mock 分支，也不得把演示 fixture 混入真实联调路径。
 - 前后端真实联调以协议和文档为准完成数据对接，确保开发过程可并行推进、边界清晰、依赖可控，并最终让后端真实数据、OpenAPI 契约、前端类型和页面展示保持一致。
 
 ## 强制规则
@@ -100,7 +102,7 @@
 - Material Web 的注册与行为必须保持在 Aoi wrapper 和 `frontend/app/plugins` 后面，不得在业务页面散落实现细节。
 - 普通文本链接、卡片链接、标签链接和导航链接统一使用 `AoiLink`；按钮式链接使用 `AoiButton` 或 `AoiIconButton` 的 `to` / `href`。
 - 样式优先使用 `frontend/app/assets/css/tokens.css` 中的 CSS 变量和 `frontend/app/assets/css/main.css` 中的共享布局规则；不要在页面里制造孤立色值、尺寸或动效。
-- `frontend/app/composables/useAoiApi.ts` 和 `useAoiApiTelemetry()` 是前端 API 与诊断入口；mock API、shared DTO 和 fixture 应贴近未来后端契约并清楚标记 mock 边界。
+- `frontend/app/composables/useAoiApi.ts`、`useAoiAuthApi()` 和 `useAoiApiTelemetry()` 是前端 API 与诊断入口；mock API、shared DTO 和 fixture 应贴近未来后端契约并清楚标记 mock 边界，真实模式必须能通过 status、setup 状态、端点清单和接口响应追踪到后端数据来源。
 - 浏览器本地 store 必须只在客户端安全 hydrate，并能从损坏的 `localStorage` 恢复；不得把凭据、私有 payload、文件字节或不可恢复的大对象写入持久化存储。
 - 上传草稿状态不要持久化文件字节，只保存文件元数据。
 - 新增共享用户可见文案时，同步维护 `frontend/i18n/locales/zh-CN.json`、`frontend/i18n/locales/en.json` 和 `frontend/i18n/locales/ja.json`。

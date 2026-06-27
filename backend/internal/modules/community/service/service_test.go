@@ -17,8 +17,8 @@ func TestServiceHomePayloadBuildsCategoryTreeAndVideos(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetHomePayload() error = %v", err)
 	}
-	if payload.Announcement == nil || payload.Announcement.ID != "community-live-data" {
-		t.Fatalf("expected community announcement, got %#v", payload.Announcement)
+	if payload.Announcement != nil {
+		t.Fatalf("expected no hardcoded community announcement, got %#v", payload.Announcement)
 	}
 	if len(payload.Categories) != 2 {
 		t.Fatalf("expected two root categories, got %#v", payload.Categories)
@@ -95,6 +95,7 @@ func TestServiceVideoCommentsCreatesAndListsPersistedComments(t *testing.T) {
 	comment, err := svc.CreateVideoComment(context.Background(), "aoi-alpha", model.CreateVideoCommentRequest{
 		AuthorName: "  Aoi Viewer  ",
 		Body:       "  这条评论来自社区讨论区。  ",
+		ClientID:   " browser-client-1 ",
 	})
 	if err != nil {
 		t.Fatalf("CreateVideoComment() error = %v", err)
@@ -105,8 +106,11 @@ func TestServiceVideoCommentsCreatesAndListsPersistedComments(t *testing.T) {
 	if comment.AuthorName != "Aoi Viewer" || comment.Body != "这条评论来自社区讨论区。" {
 		t.Fatalf("expected normalized comment, got %#v", comment)
 	}
+	if !comment.OwnedByCurrentClient {
+		t.Fatalf("expected created comment to be owned by current client, got %#v", comment)
+	}
 
-	payload, err := svc.GetVideoComments(context.Background(), "aoi-alpha", model.VideoCommentFilter{Sort: model.CommentSortNewest})
+	payload, err := svc.GetVideoComments(context.Background(), "aoi-alpha", model.VideoCommentFilter{ClientID: "browser-client-1", Sort: model.CommentSortNewest})
 	if err != nil {
 		t.Fatalf("GetVideoComments() error = %v", err)
 	}
@@ -115,6 +119,66 @@ func TestServiceVideoCommentsCreatesAndListsPersistedComments(t *testing.T) {
 	}
 	if payload.Items[0].ID != comment.ID {
 		t.Fatalf("expected newest comment first, got %#v", payload.Items)
+	}
+	if !payload.Items[0].OwnedByCurrentClient || payload.Items[1].OwnedByCurrentClient {
+		t.Fatalf("expected only current client comment to be marked owned, got %#v", payload.Items)
+	}
+}
+
+func TestServiceVideoCommentOwnerCanUpdateAndDelete(t *testing.T) {
+	repo := newFakeRepository()
+	ids := []string{"unit-comment", "unit-comment-notification"}
+	nextID := 0
+	svc := New(repo, Config{
+		NewID: func() string {
+			id := ids[nextID]
+			nextID++
+			return id
+		},
+		Now: fixedNow,
+	})
+
+	comment, err := svc.CreateVideoComment(context.Background(), "aoi-alpha", model.CreateVideoCommentRequest{
+		AuthorName: "Aoi Viewer",
+		Body:       "Original body",
+		ClientID:   "browser-client-1",
+	})
+	if err != nil {
+		t.Fatalf("CreateVideoComment() error = %v", err)
+	}
+
+	updated, err := svc.UpdateVideoComment(context.Background(), "aoi-alpha", comment.ID, model.UpdateVideoCommentRequest{
+		Body:     "  Updated body  ",
+		ClientID: " browser-client-1 ",
+	})
+	if err != nil {
+		t.Fatalf("UpdateVideoComment() error = %v", err)
+	}
+	if updated.Body != "Updated body" || !updated.OwnedByCurrentClient {
+		t.Fatalf("expected updated owned comment, got %#v", updated)
+	}
+
+	if _, err := svc.UpdateVideoComment(context.Background(), "aoi-alpha", comment.ID, model.UpdateVideoCommentRequest{
+		Body:     "Hijack",
+		ClientID: "other-client",
+	}); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound for different client, got %v", err)
+	}
+
+	deleted, err := svc.DeleteVideoComment(context.Background(), "aoi-alpha", comment.ID, " browser-client-1 ")
+	if err != nil {
+		t.Fatalf("DeleteVideoComment() error = %v", err)
+	}
+	if !deleted.Deleted || deleted.CommentID != comment.ID || deleted.ClientID != "browser-client-1" {
+		t.Fatalf("unexpected delete payload: %#v", deleted)
+	}
+
+	payload, err := svc.GetVideoComments(context.Background(), "aoi-alpha", model.VideoCommentFilter{ClientID: "browser-client-1"})
+	if err != nil {
+		t.Fatalf("GetVideoComments() error = %v", err)
+	}
+	if payload.TotalCount != 1 {
+		t.Fatalf("expected one visible seed comment after delete, got %#v", payload)
 	}
 }
 
@@ -287,6 +351,9 @@ func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
 	if created.AuthorName != "Aoi Viewer" || created.Body != "The timeline feels easy to read." {
 		t.Fatalf("expected normalized dynamic, got %#v", created)
 	}
+	if !created.OwnedByCurrentClient {
+		t.Fatalf("expected created dynamic to be owned by current client, got %#v", created)
+	}
 
 	payload, err := svc.ListCommunityDynamics(context.Background(), model.CommunityDynamicFilter{ClientID: " browser-client-1 ", Limit: 10})
 	if err != nil {
@@ -297,6 +364,9 @@ func TestServiceCommunityDynamicsListsAndCreatesTimelineItems(t *testing.T) {
 	}
 	if len(payload.Items.Items) != 3 || payload.Items.Items[0].ID != created.ID {
 		t.Fatalf("expected created dynamic first, got %#v", payload.Items.Items)
+	}
+	if !payload.Items.Items[0].OwnedByCurrentClient || payload.Items.Items[1].OwnedByCurrentClient {
+		t.Fatalf("expected only current client dynamic to be marked owned, got %#v", payload.Items.Items)
 	}
 }
 
@@ -323,6 +393,59 @@ func TestServiceCreateCommunityAccountDynamicUsesPrincipalIdentity(t *testing.T)
 	}
 	if len(repo.dynamics) == 0 || repo.dynamics[0].ClientID != "account:721" {
 		t.Fatalf("expected account client id in repository, got %#v", repo.dynamics)
+	}
+}
+
+func TestServiceCommunityDynamicOwnerCanUpdateAndDelete(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{
+		NewID: func() string { return "owned-dynamic" },
+		Now:   fixedNow,
+	})
+
+	created, err := svc.CreateCommunityDynamic(context.Background(), model.CreateCommunityDynamicRequest{
+		AuthorName: "Aoi Viewer",
+		Body:       "Original pulse",
+		ClientID:   "browser-client-1",
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunityDynamic() error = %v", err)
+	}
+
+	updated, err := svc.UpdateCommunityDynamic(context.Background(), created.ID, model.UpdateCommunityDynamicRequest{
+		Body:     "  Updated pulse  ",
+		ClientID: " browser-client-1 ",
+	})
+	if err != nil {
+		t.Fatalf("UpdateCommunityDynamic() error = %v", err)
+	}
+	if updated.Body != "Updated pulse" || !updated.OwnedByCurrentClient {
+		t.Fatalf("expected updated owned dynamic, got %#v", updated)
+	}
+
+	if _, err := svc.UpdateCommunityDynamic(context.Background(), created.ID, model.UpdateCommunityDynamicRequest{
+		Body:     "Hijack pulse",
+		ClientID: "other-client",
+	}); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound for different client, got %v", err)
+	}
+
+	deleted, err := svc.DeleteCommunityDynamic(context.Background(), created.ID, " browser-client-1 ")
+	if err != nil {
+		t.Fatalf("DeleteCommunityDynamic() error = %v", err)
+	}
+	if !deleted.Deleted || deleted.DynamicID != created.ID || deleted.ClientID != "browser-client-1" {
+		t.Fatalf("unexpected delete payload: %#v", deleted)
+	}
+
+	payload, err := svc.ListCommunityDynamics(context.Background(), model.CommunityDynamicFilter{ClientID: "browser-client-1", Limit: 10})
+	if err != nil {
+		t.Fatalf("ListCommunityDynamics() error = %v", err)
+	}
+	for _, item := range payload.Items.Items {
+		if item.ID == created.ID {
+			t.Fatalf("deleted dynamic still visible in timeline: %#v", payload.Items.Items)
+		}
 	}
 }
 
@@ -394,6 +517,206 @@ func TestServiceCreateCommunitySubmissionPersistsPendingReviewMetadata(t *testin
 	}
 	if payload.ClientID == nil || *payload.ClientID != "browser-client-1" || len(payload.Items.Items) != 1 {
 		t.Fatalf("expected client submission payload, got %#v", payload)
+	}
+}
+
+func TestServiceReviewCommunitySubmissionTransitionsAndNotifies(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	principal := authtypes.Principal{UserID: 7, Username: "reviewer"}
+
+	item, err := svc.CreateCommunitySubmission(context.Background(), model.CreateCommunitySubmissionRequest{
+		AllowComments: true,
+		AuthorName:    "Aoi Creator",
+		CategorySlug:  "design",
+		ClientID:      "browser-client-1",
+		SourceName:    "alpha-preview.mp4",
+		SourceSize:    1024,
+		Title:         "Alpha preview upload",
+		Visibility:    model.CommunitySubmissionVisibilityPublic,
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunitySubmission() error = %v", err)
+	}
+
+	approved, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{
+		ReviewNote: "Ready for publishing",
+		Status:     model.CommunitySubmissionStatusApproved,
+	})
+	if err != nil {
+		t.Fatalf("ReviewCommunitySubmission(approved) error = %v", err)
+	}
+	if approved.Status != model.CommunitySubmissionStatusApproved || approved.ReviewerID != "7" || approved.ReviewedAt == nil {
+		t.Fatalf("expected approved review state, got %#v", approved)
+	}
+	if approved.ReviewNote != "Ready for publishing" || approved.PublishedVideoID != "" || approved.PublishedAt != nil {
+		t.Fatalf("expected review note without publish state, got %#v", approved)
+	}
+
+	published, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{
+		PublishedVideoID: "aoi-alpha",
+		Status:           model.CommunitySubmissionStatusPublished,
+	})
+	if err != nil {
+		t.Fatalf("ReviewCommunitySubmission(published) error = %v", err)
+	}
+	if published.Status != model.CommunitySubmissionStatusPublished || published.PublishedVideoID != "video-aoi-alpha" || published.PublishedAt == nil {
+		t.Fatalf("expected published state with external video id, got %#v", published)
+	}
+	if len(repo.notifications) < 3 || repo.notifications[0].Title != "投稿已发布" {
+		t.Fatalf("expected publish notification before prior notices, got %#v", repo.notifications)
+	}
+
+	queue, err := svc.ListCommunityReviewSubmissions(context.Background(), model.CommunitySubmissionFilter{Status: model.CommunitySubmissionStatusPublished})
+	if err != nil {
+		t.Fatalf("ListCommunityReviewSubmissions() error = %v", err)
+	}
+	if !queue.Authenticated || len(queue.Items.Items) != 1 || queue.Items.Items[0].ID != item.ID {
+		t.Fatalf("expected review queue with published item, got %#v", queue)
+	}
+}
+
+func TestServiceReviewCommunitySubmissionCanGenerateVideoRecord(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	principal := authtypes.Principal{UserID: 7, Username: "reviewer"}
+
+	item, err := svc.CreateCommunitySubmission(context.Background(), model.CreateCommunitySubmissionRequest{
+		AllowComments: true,
+		AuthorName:    "Aoi Creator",
+		CategorySlug:  "design",
+		ClientID:      "browser-client-1",
+		Description:   "A generated video from review.",
+		SourceName:    "alpha-generated.mp4",
+		SourceSize:    2048,
+		SourceType:    "video/mp4",
+		Tags:          []string{"review", "generated"},
+		Title:         "Generated review video",
+		Visibility:    model.CommunitySubmissionVisibilityPublic,
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunitySubmission() error = %v", err)
+	}
+	if _, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{
+		ReviewNote: "Ready for generated publishing",
+		Status:     model.CommunitySubmissionStatusApproved,
+	}); err != nil {
+		t.Fatalf("ReviewCommunitySubmission(approved) error = %v", err)
+	}
+
+	published, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{
+		DurationSeconds: 128,
+		SourceURL:       "https://example.invalid/generated.mp4",
+		Status:          model.CommunitySubmissionStatusPublished,
+		ThumbnailURL:    "gradient:generated-review",
+	})
+	if err != nil {
+		t.Fatalf("ReviewCommunitySubmission(published generated) error = %v", err)
+	}
+	if published.Status != model.CommunitySubmissionStatusPublished || published.PublishedVideoID == "" || published.PublishedAt == nil {
+		t.Fatalf("expected generated published state, got %#v", published)
+	}
+	detail, err := svc.GetVideoDetail(context.Background(), published.PublishedVideoID)
+	if err != nil {
+		t.Fatalf("GetVideoDetail(generated) error = %v", err)
+	}
+	if detail.Title != "Generated review video" || detail.SourceURL != "https://example.invalid/generated.mp4" || detail.DurationSeconds != 128 {
+		t.Fatalf("expected generated video to use submission metadata and source URL, got %#v", detail)
+	}
+	if detail.Uploader.DisplayName != "Aoi Creator" || len(detail.Categories) != 1 || detail.Categories[0].Slug != "design" {
+		t.Fatalf("expected generated creator and category decoration, got %#v", detail)
+	}
+	if len(detail.Tags) != 2 || detail.Tags[0] != "review" || len(detail.Sources) != 1 || detail.Sources[0].MimeType == nil || *detail.Sources[0].MimeType != "video/mp4" {
+		t.Fatalf("expected generated tags and source metadata, got %#v", detail)
+	}
+}
+
+func TestServiceReviewCommunitySubmissionCanGenerateVideoFromMediaAsset(t *testing.T) {
+	repo := newFakeRepository()
+	repo.mediaAssets[42] = model.CommunityMediaAsset{
+		ID:           42,
+		DisplayName:  "review-source",
+		OriginalName: "review-source.mp4",
+		URL:          "/api/v1/system/media/assets/42/download",
+		MIMEType:     "video/mp4",
+		SizeBytes:    4096,
+	}
+	svc := New(repo, Config{Now: fixedNow})
+	principal := authtypes.Principal{UserID: 7, Username: "reviewer"}
+
+	item, err := svc.CreateCommunitySubmission(context.Background(), model.CreateCommunitySubmissionRequest{
+		AllowComments: true,
+		AuthorName:    "Aoi Creator",
+		CategorySlug:  "design",
+		ClientID:      "browser-client-1",
+		Description:   "A generated video from a controlled media asset.",
+		SourceName:    "review-source.mp4",
+		SourceSize:    4096,
+		SourceType:    "video/mp4",
+		Tags:          []string{"review", "asset"},
+		Title:         "Media asset review video",
+		Visibility:    model.CommunitySubmissionVisibilityPublic,
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunitySubmission() error = %v", err)
+	}
+	if _, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{
+		ReviewNote: "Ready for asset publishing",
+		Status:     model.CommunitySubmissionStatusApproved,
+	}); err != nil {
+		t.Fatalf("ReviewCommunitySubmission(approved) error = %v", err)
+	}
+
+	published, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{
+		DurationSeconds: 96,
+		MediaAssetID:    42,
+		Status:          model.CommunitySubmissionStatusPublished,
+		ThumbnailURL:    "gradient:media-asset-review",
+	})
+	if err != nil {
+		t.Fatalf("ReviewCommunitySubmission(published asset) error = %v", err)
+	}
+	if published.Status != model.CommunitySubmissionStatusPublished || published.MediaAssetID != 42 || published.PublishedVideoID == "" {
+		t.Fatalf("expected media asset backed published state, got %#v", published)
+	}
+	detail, err := svc.GetVideoDetail(context.Background(), published.PublishedVideoID)
+	if err != nil {
+		t.Fatalf("GetVideoDetail(media asset generated) error = %v", err)
+	}
+	if detail.SourceURL != "/api/v1/system/media/assets/42/download" || detail.DurationSeconds != 96 {
+		t.Fatalf("expected generated video to use media asset source URL, got %#v", detail)
+	}
+	if len(detail.Sources) != 1 || detail.Sources[0].MimeType == nil || *detail.Sources[0].MimeType != "video/mp4" {
+		t.Fatalf("expected media asset mime type on generated source, got %#v", detail.Sources)
+	}
+}
+
+func TestServiceReviewCommunitySubmissionRejectsInvalidTransitions(t *testing.T) {
+	repo := newFakeRepository()
+	svc := New(repo, Config{Now: fixedNow})
+	principal := authtypes.Principal{UserID: 7}
+
+	item, err := svc.CreateCommunitySubmission(context.Background(), model.CreateCommunitySubmissionRequest{
+		AllowComments: true,
+		AuthorName:    "Aoi Creator",
+		CategorySlug:  "design",
+		ClientID:      "browser-client-1",
+		SourceName:    "alpha-preview.mp4",
+		SourceSize:    1024,
+		Title:         "Alpha preview upload",
+		Visibility:    model.CommunitySubmissionVisibilityPublic,
+	})
+	if err != nil {
+		t.Fatalf("CreateCommunitySubmission() error = %v", err)
+	}
+	if _, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{Status: model.CommunitySubmissionStatusPublished, PublishedVideoID: "aoi-alpha"}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput for publishing before approval, got %v", err)
+	}
+	if _, err := svc.ReviewCommunitySubmission(context.Background(), principal, item.ID, model.ReviewCommunitySubmissionRequest{Status: model.CommunitySubmissionStatusRejected}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput for rejection without note, got %v", err)
+	}
+	if _, err := svc.ReviewCommunitySubmission(context.Background(), authtypes.Principal{}, item.ID, model.ReviewCommunitySubmissionRequest{Status: model.CommunitySubmissionStatusApproved}); err != ErrInvalidInput {
+		t.Fatalf("expected ErrInvalidInput for missing reviewer, got %v", err)
 	}
 }
 
@@ -797,6 +1120,7 @@ type fakeRepository struct {
 	histories     map[string][]model.VideoHistory
 	interactions  map[string][]model.VideoInteraction
 	notifications []model.CommunityNotification
+	mediaAssets   map[int64]model.CommunityMediaAsset
 	reports       []model.CommunityReport
 	submissions   []model.CommunitySubmission
 	sources       map[string][]model.VideoSourceOption
@@ -841,6 +1165,7 @@ func newFakeRepository() *fakeRepository {
 		follows:      map[string][]model.CreatorFollow{},
 		histories:    map[string][]model.VideoHistory{},
 		interactions: map[string][]model.VideoInteraction{},
+		mediaAssets:  map[int64]model.CommunityMediaAsset{},
 		sources: map[string][]model.VideoSourceOption{
 			"video-aoi-alpha": {{ID: "s1", VideoID: "video-aoi-alpha", Src: "https://example.invalid/a.mp4", Kind: model.VideoSourceKindNative, Label: "主源", IsDefault: true}},
 		},
@@ -884,6 +1209,26 @@ func (r *fakeRepository) FindVideoByIDOrSlug(_ context.Context, idOrSlug string)
 	for _, video := range r.videos {
 		if video.ID == idOrSlug || video.Slug == idOrSlug {
 			item := video
+			return &item, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindVideoComment(_ context.Context, videoID string, commentID string) (*model.VideoComment, error) {
+	for _, comment := range r.comments[videoID] {
+		if comment.ID == commentID && comment.DeletedAt == nil && comment.Status == model.CommentStatusVisible {
+			item := comment
+			return &item, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindCommunityDynamic(_ context.Context, dynamicID string) (*model.CommunityDynamic, error) {
+	for _, dynamic := range r.dynamics {
+		if dynamic.ID == dynamicID && dynamic.DeletedAt == nil && dynamic.Status == model.CommunityDynamicStatusVisible {
+			item := dynamic
 			return &item, nil
 		}
 	}
@@ -961,7 +1306,13 @@ func (r *fakeRepository) ListDanmaku(_ context.Context, videoID string) ([]model
 }
 
 func (r *fakeRepository) ListVideoComments(_ context.Context, videoID string, filter model.VideoCommentFilter) ([]model.VideoComment, error) {
-	items := append([]model.VideoComment(nil), r.comments[videoID]...)
+	items := make([]model.VideoComment, 0)
+	for _, comment := range r.comments[videoID] {
+		if comment.DeletedAt != nil || comment.Status != model.CommentStatusVisible {
+			continue
+		}
+		items = append(items, comment)
+	}
 	if filter.Limit > 0 && len(items) > filter.Limit {
 		return items[:filter.Limit], nil
 	}
@@ -969,7 +1320,13 @@ func (r *fakeRepository) ListVideoComments(_ context.Context, videoID string, fi
 }
 
 func (r *fakeRepository) CountVideoComments(_ context.Context, videoID string) (int, error) {
-	return len(r.comments[videoID]), nil
+	count := 0
+	for _, comment := range r.comments[videoID] {
+		if comment.DeletedAt == nil && comment.Status == model.CommentStatusVisible {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func (r *fakeRepository) CreateVideoComment(_ context.Context, comment model.VideoComment) error {
@@ -981,6 +1338,40 @@ func (r *fakeRepository) CreateVideoComment(_ context.Context, comment model.Vid
 		}
 	}
 	return nil
+}
+
+func (r *fakeRepository) UpdateVideoComment(_ context.Context, comment model.VideoComment) error {
+	items := r.comments[comment.VideoID]
+	for index := range items {
+		if items[index].ID != comment.ID || items[index].ClientID != comment.ClientID || items[index].DeletedAt != nil {
+			continue
+		}
+		items[index].Body = comment.Body
+		items[index].UpdatedAt = comment.UpdatedAt
+		r.comments[comment.VideoID] = items
+		return nil
+	}
+	return ErrNotFound
+}
+
+func (r *fakeRepository) DeleteVideoComment(_ context.Context, videoID string, commentID string, clientID string, now time.Time) error {
+	items := r.comments[videoID]
+	for index := range items {
+		if items[index].ID != commentID || items[index].ClientID != clientID || items[index].DeletedAt != nil {
+			continue
+		}
+		items[index].UpdatedAt = now
+		items[index].DeletedAt = &now
+		r.comments[videoID] = items
+		for videoIndex := range r.videos {
+			if r.videos[videoIndex].ID == videoID && r.videos[videoIndex].CommentCount > 0 {
+				r.videos[videoIndex].CommentCount--
+				break
+			}
+		}
+		return nil
+	}
+	return ErrNotFound
 }
 
 func (r *fakeRepository) CreateVideoDanmaku(_ context.Context, item model.VideoDanmakuItem) error {
@@ -1003,9 +1394,91 @@ func (r *fakeRepository) CreateCommunityDynamic(_ context.Context, dynamic model
 	return nil
 }
 
+func (r *fakeRepository) UpdateCommunityDynamic(_ context.Context, dynamic model.CommunityDynamic) error {
+	for index := range r.dynamics {
+		if r.dynamics[index].ID != dynamic.ID || r.dynamics[index].ClientID != dynamic.ClientID || r.dynamics[index].DeletedAt != nil {
+			continue
+		}
+		r.dynamics[index].Body = dynamic.Body
+		r.dynamics[index].UpdatedAt = dynamic.UpdatedAt
+		return nil
+	}
+	return ErrNotFound
+}
+
+func (r *fakeRepository) DeleteCommunityDynamic(_ context.Context, dynamicID string, clientID string, now time.Time) error {
+	for index := range r.dynamics {
+		if r.dynamics[index].ID != dynamicID || r.dynamics[index].ClientID != clientID || r.dynamics[index].DeletedAt != nil {
+			continue
+		}
+		r.dynamics[index].UpdatedAt = now
+		r.dynamics[index].DeletedAt = &now
+		return nil
+	}
+	return ErrNotFound
+}
+
 func (r *fakeRepository) CreateCommunitySubmission(_ context.Context, submission model.CommunitySubmission) error {
 	r.submissions = append([]model.CommunitySubmission{submission}, r.submissions...)
 	return nil
+}
+
+func (r *fakeRepository) CreateVideoFromSubmission(_ context.Context, creator model.Creator, video model.Video, source model.VideoSourceOption, categorySlugs []string, tags []string) error {
+	foundCreator := false
+	for index := range r.creators {
+		if r.creators[index].ID != creator.ID {
+			continue
+		}
+		r.creators[index].DisplayName = creator.DisplayName
+		r.creators[index].Bio = creator.Bio
+		r.creators[index].UpdatedAt = creator.UpdatedAt
+		foundCreator = true
+		break
+	}
+	if !foundCreator {
+		r.creators = append(r.creators, creator)
+	}
+	r.videos = append([]model.Video{video}, r.videos...)
+	r.sources[video.ID] = []model.VideoSourceOption{source}
+	r.categorySlugs[video.ID] = append([]string(nil), categorySlugs...)
+	r.tags[video.ID] = append([]string(nil), tags...)
+	return nil
+}
+
+func (r *fakeRepository) FindCommunitySubmission(_ context.Context, submissionID string) (*model.CommunitySubmission, error) {
+	for index := range r.submissions {
+		if r.submissions[index].ID != submissionID || r.submissions[index].DeletedAt != nil {
+			continue
+		}
+		return &r.submissions[index], nil
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindMediaAssetByID(_ context.Context, id int64) (*model.CommunityMediaAsset, error) {
+	asset, ok := r.mediaAssets[id]
+	if !ok || asset.DeletedAt != nil {
+		return nil, ErrNotFound
+	}
+	return &asset, nil
+}
+
+func (r *fakeRepository) UpdateCommunitySubmissionReview(_ context.Context, submission model.CommunitySubmission) error {
+	for index := range r.submissions {
+		if r.submissions[index].ID != submission.ID || r.submissions[index].DeletedAt != nil {
+			continue
+		}
+		r.submissions[index].Status = submission.Status
+		r.submissions[index].ReviewNote = submission.ReviewNote
+		r.submissions[index].ReviewerID = submission.ReviewerID
+		r.submissions[index].ReviewedAt = submission.ReviewedAt
+		r.submissions[index].MediaAssetID = submission.MediaAssetID
+		r.submissions[index].PublishedVideoID = submission.PublishedVideoID
+		r.submissions[index].PublishedAt = submission.PublishedAt
+		r.submissions[index].UpdatedAt = submission.UpdatedAt
+		return nil
+	}
+	return ErrNotFound
 }
 
 func (r *fakeRepository) ListCommunityNotifications(_ context.Context, filter model.CommunityNotificationFilter) ([]model.CommunityNotification, error) {
@@ -1048,7 +1521,13 @@ func (r *fakeRepository) ListCommunityDynamics(_ context.Context, filter model.C
 func (r *fakeRepository) ListCommunitySubmissions(_ context.Context, filter model.CommunitySubmissionFilter) ([]model.CommunitySubmission, error) {
 	items := make([]model.CommunitySubmission, 0)
 	for _, submission := range r.submissions {
-		if submission.ClientID != filter.ClientID || submission.DeletedAt != nil {
+		if submission.DeletedAt != nil {
+			continue
+		}
+		if !filter.AllClients && submission.ClientID != filter.ClientID {
+			continue
+		}
+		if filter.Status != "" && submission.Status != filter.Status {
 			continue
 		}
 		items = append(items, submission)

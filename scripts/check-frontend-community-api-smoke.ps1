@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+Add-Type -AssemblyName System.Net.Http
+
 function Resolve-RepoPath {
     param([string]$Path)
 
@@ -46,10 +48,21 @@ function Wait-ForJsonEnvelope {
         try {
             $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec 5
             $json = ConvertFrom-JsonResponse $response
-            if ($response.StatusCode -eq 200 -and $json.code -eq 0 -and (& $Validate $json)) {
+            $statusOK = $response.StatusCode -eq 200
+            $codeOK = $json.code -eq 0
+            $validationOK = & $Validate $json
+            if ($statusOK -and $codeOK -and $validationOK) {
                 return $json
             }
-            $lastError = "Unexpected response from $Url"
+            $content = Get-ResponseText $response
+            if ($content.Length -gt 240) {
+                $content = $content.Substring(0, 240)
+            }
+            $categoryCount = 0
+            if ($null -ne $json.data -and $null -ne $json.data.categories) {
+                $categoryCount = ($json.data.categories | Measure-Object).Count
+            }
+            $lastError = "Unexpected response from ${Url}: statusOK=$statusOK codeOK=$codeOK validationOK=$validationOK categoryCount=$categoryCount body=$content"
         } catch {
             $lastError = $_.Exception.Message
         }
@@ -92,6 +105,68 @@ function Invoke-JsonEnvelope {
     return $json
 }
 
+function Invoke-MultipartFileUpload {
+    param(
+        [string]$Url,
+        [string]$FilePath,
+        [string]$FileName,
+        [object]$WebSession,
+        [hashtable]$Headers = @{},
+        [int64]$CategoryId = 0
+    )
+
+    $handler = [System.Net.Http.HttpClientHandler]::new()
+    if ($null -ne $WebSession) {
+        $handler.CookieContainer = $WebSession.Cookies
+    }
+    $client = [System.Net.Http.HttpClient]::new($handler)
+    $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, $Url)
+    $multipart = [System.Net.Http.MultipartFormDataContent]::new()
+    $fileContent = $null
+    try {
+        foreach ($key in $Headers.Keys) {
+            [void]$request.Headers.TryAddWithoutValidation($key, [string]$Headers[$key])
+        }
+        $bytes = [System.IO.File]::ReadAllBytes($FilePath)
+        $fileContent = [System.Net.Http.ByteArrayContent]::new($bytes)
+        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse("video/mp4")
+        $multipart.Add($fileContent, "file", $FileName)
+        $multipart.Add([System.Net.Http.StringContent]::new([string]$CategoryId), "categoryId")
+        $request.Content = $multipart
+
+        $response = $client.SendAsync($request).GetAwaiter().GetResult()
+        $text = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        if (-not $response.IsSuccessStatusCode) {
+            throw "Unexpected multipart upload status from ${Url}: $([int]$response.StatusCode) $text"
+        }
+        $json = $text | ConvertFrom-Json
+        if ($json.code -ne 0) {
+            throw "Unexpected multipart API result from $Url"
+        }
+        return $json
+    } finally {
+        if ($null -ne $fileContent) {
+            $fileContent.Dispose()
+        }
+        $multipart.Dispose()
+        $request.Dispose()
+        $client.Dispose()
+        $handler.Dispose()
+    }
+}
+
+function Write-SmokeMediaFile {
+    param([string]$Path)
+
+    $bytes = [byte[]]@(
+        0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70,
+        0x69, 0x73, 0x6f, 0x6d, 0, 0, 0, 1,
+        0x69, 0x73, 0x6f, 0x6d, 0x6d, 0x70, 0x34, 0x32,
+        0, 0, 0, 8, 0x6d, 0x64, 0x61, 0x74, 0
+    )
+    [System.IO.File]::WriteAllBytes($Path, $bytes)
+}
+
 function Get-SessionCookieValue {
     param(
         [object]$WebSession,
@@ -119,6 +194,42 @@ function Assert-NoControlConsoleIdentity {
             throw "$Name exposed control-console identity field '$term'"
         }
     }
+}
+
+function Assert-NoDemoIds {
+    param(
+        [object[]]$Items,
+        [string[]]$DemoIds,
+        [string]$Name
+    )
+
+    foreach ($item in @($Items)) {
+        if ($null -eq $item -or [string]::IsNullOrWhiteSpace([string]$item.id)) {
+            continue
+        }
+        if ($DemoIds -contains [string]$item.id) {
+            throw "$Name returned demo id '$($item.id)' in real API mode"
+        }
+    }
+}
+
+function Get-CollectionCount {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return 0
+    }
+    if ($Value -is [System.Array]) {
+        return $Value.Length
+    }
+    if ($Value -is [System.Collections.IEnumerable] -and -not ($Value -is [string])) {
+        $count = 0
+        foreach ($item in $Value) {
+            $count++
+        }
+        return $count
+    }
+    return 1
 }
 
 function Set-ProcessEnv {
@@ -161,8 +272,8 @@ function Start-BackendProcess {
     $startInfo.FileName = $FilePath
     $startInfo.Arguments = ($Arguments | ForEach-Object { Format-ProcessArgument $_ }) -join " "
     $startInfo.WorkingDirectory = $WorkingDirectory
-    $startInfo.RedirectStandardOutput = $false
-    $startInfo.RedirectStandardError = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
 
@@ -176,9 +287,56 @@ function Start-BackendProcess {
     if (-not $process.Start()) {
         throw "Failed to start backend process"
     }
+    $process.BeginOutputReadLine()
+    $process.BeginErrorReadLine()
 
     return [pscustomobject]@{
         Process = $process
+    }
+}
+
+function Stop-SmokeBackendProcess {
+    param(
+        [object]$Process,
+        [string]$BinaryPath
+    )
+
+    $targets = @()
+    if ($Process) {
+        $targets += $Process
+    }
+    if (-not [string]::IsNullOrWhiteSpace($BinaryPath)) {
+        $targets += @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $BinaryPath })
+    }
+    foreach ($target in ($targets | Where-Object { $_ } | Sort-Object Id -Unique)) {
+        try {
+            if (-not $target.HasExited) {
+                Stop-Process -Id $target.Id -Force -ErrorAction SilentlyContinue
+                [void]$target.WaitForExit(5000)
+            }
+        } catch {
+            Write-Warning "Failed to stop smoke backend process $($target.Id): $($_.Exception.Message)"
+        }
+    }
+}
+
+function Remove-SmokePath {
+    param([string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try {
+            Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
+            return
+        } catch {
+            if ($attempt -eq 5) {
+                Write-Warning "Failed to remove smoke path '$Path': $($_.Exception.Message)"
+                return
+            }
+            Start-Sleep -Milliseconds (200 * $attempt)
+        }
     }
 }
 
@@ -187,6 +345,7 @@ $backendPath = Resolve-RepoPath $BackendDir
 $workPath = Resolve-RepoPath $WorkDir
 $binaryPath = Resolve-RepoPath $Binary
 $configPath = Join-Path $backendPath $Config
+$runId = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 
 New-Item -ItemType Directory -Force -Path $workPath | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $binaryPath) | Out-Null
@@ -227,27 +386,165 @@ try {
         -Environment $envOverrides
     $process = $server.Process
 
-    $baseUrl = "http://127.0.0.1:$Port/api/v1/public/community"
+    $apiRoot = "http://127.0.0.1:$Port/api/v1"
+    $baseUrl = "$apiRoot/public/community"
+    $adminSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+    $adminHeaders = @{}
     $status = Wait-ForJsonEnvelope -Url "$baseUrl/status" -TimeoutSeconds $TimeoutSeconds -Validate {
         param($json)
-        $json.data.mode -eq "go" -and $json.data.basePath -eq "/api/v1/public/community" -and ($json.data.endpoints -contains "/home")
+        $json.data.mode -eq "go" -and $json.data.basePath -eq "/api/v1/public/community" -and ($json.data.endpoints -contains "/home") -and $null -ne $json.data.setup
     }
+    $setupDetail = "already-complete"
+    if ($status.data.setup.required -eq $true -and $status.data.setup.completed -ne $true) {
+        $setupUsername = "community_owner_$runId"
+        $setupEmail = "community-owner-$runId@example.com"
+        Invoke-JsonEnvelope -Url "$apiRoot/auth/setup/initial-admin" -Method "POST" -WebSession $adminSession -Body @{
+            displayName = "Community Owner"
+            email = $setupEmail
+            orgCode = "community-smoke"
+            orgName = "Community Smoke"
+            password = "Password123!"
+            username = $setupUsername
+        } | Out-Null
+        $setupDetail = "initialized-admin=$setupUsername"
+        $adminHeaders = @{
+            "X-CSRF-Token" = Get-SessionCookieValue -WebSession $adminSession -Url $apiRoot -Name "console_csrf"
+        }
+
+        $status = Wait-ForJsonEnvelope -Url "$baseUrl/status" -TimeoutSeconds $TimeoutSeconds -Validate {
+            param($json)
+            $json.data.mode -eq "go" `
+                -and $json.data.basePath -eq "/api/v1/public/community" `
+                -and ($json.data.endpoints -contains "/home") `
+                -and $null -ne $json.data.setup `
+                -and $json.data.setup.required -eq $false `
+                -and $json.data.setup.completed -eq $true
+        }
+    }
+    $demoVideoIds = @(
+        "video-aoi-alpha",
+        "video-token-array",
+        "video-dark-mode",
+        "video-mobile-grid",
+        "video-go-api",
+        "video-sakura-accent",
+        "video-music-stream",
+        "video-game-room"
+    )
+    $demoDynamicIds = @(
+        "dynamic-rin-alpha",
+        "dynamic-design-sakura",
+        "dynamic-backend-contract",
+        "dynamic-frontend-mobile"
+    )
     $homePayload = Wait-ForJsonEnvelope -Url "$baseUrl/home" -TimeoutSeconds $TimeoutSeconds -Validate {
         param($json)
-        $json.data.categories.Count -gt 0 -and $json.data.latest.items.Count -gt 0 -and $json.data.dynamics.items.Count -gt 0
+        $null -ne $json.data
     }
+    if ((Get-CollectionCount $homePayload.data.categories) -lt 1) {
+        throw "Community home endpoint returned no category taxonomy in real API mode"
+    }
+    if ($null -ne $homePayload.data.announcement) {
+        throw "Community home returned a hardcoded announcement in real API mode"
+    }
+    Assert-NoDemoIds -Items @($homePayload.data.latest.items) -DemoIds $demoVideoIds -Name "community home latest"
+    Assert-NoDemoIds -Items @($homePayload.data.dynamics.items) -DemoIds $demoDynamicIds -Name "community home dynamics"
+    if (@($homePayload.data.latest.items).Count -ne 0 -or @($homePayload.data.dynamics.items).Count -ne 0) {
+        throw "Newly initialized real community database should not contain videos or dynamics before the smoke publishes one"
+    }
+
     $categories = Invoke-JsonEnvelope -Url "$baseUrl/categories"
     if ($categories.data.Count -lt 1) {
         throw "Community categories endpoint returned no categories"
     }
 
     $videos = Invoke-JsonEnvelope -Url "$baseUrl/videos?category=home&limit=8"
-    if ($videos.data.items.Count -lt 1) {
-        throw "Community videos endpoint returned no videos"
+    if (@($videos.data.items).Count -ne 0) {
+        Assert-NoDemoIds -Items @($videos.data.items) -DemoIds $demoVideoIds -Name "community videos"
+        throw "Newly initialized real community database should not contain videos before the smoke publishes one"
     }
 
-    $firstVideo = $homePayload.data.latest.items[0]
     $clientId = "community-smoke-client"
+    $submission = Invoke-JsonEnvelope -Url "$baseUrl/submissions" -Method "POST" -Body @{
+        allowComments = $true
+        authorName = "Community Smoke"
+        categorySlug = "design"
+        clientId = $clientId
+        description = "Smoke submission for review state verification"
+        sensitive = $false
+        sourceName = "community-smoke-review.mp4"
+        sourceSize = 2048000
+        sourceType = "video/mp4"
+        tags = @("smoke", "review")
+        title = "Community smoke review submission"
+        visibility = "public"
+    }
+    if ($submission.data.status -ne "pending_review" -or -not $submission.data.id) {
+        throw "Community submission create endpoint did not return a pending review item"
+    }
+
+    if ($adminHeaders.Count -eq 0) {
+        throw "Community review smoke requires setup admin session"
+    }
+    $smokeMediaPath = Join-Path $workPath "community-smoke-review.mp4"
+    Write-SmokeMediaFile -Path $smokeMediaPath
+    $uploadedMedia = Invoke-MultipartFileUpload -Url "$apiRoot/system/media/assets/upload" -WebSession $adminSession -Headers $adminHeaders -FilePath $smokeMediaPath -FileName "community-smoke-review.mp4"
+    if (-not $uploadedMedia.data.id -or -not $uploadedMedia.data.url) {
+        throw "System media upload endpoint did not return a persisted media asset"
+    }
+    $uploadedMediaAssetId = [string]$uploadedMedia.data.id
+
+    $reviewQueue = Invoke-JsonEnvelope -Url "$apiRoot/community/submissions?status=pending_review&limit=8" -WebSession $adminSession -Headers $adminHeaders
+    $queuedSubmission = $reviewQueue.data.items.items | Where-Object { $_.id -eq $submission.data.id } | Select-Object -First 1
+    if ($null -eq $queuedSubmission) {
+        throw "Community review queue did not include the newly created submission"
+    }
+
+    $approvedSubmission = Invoke-JsonEnvelope -Url "$apiRoot/community/submissions/$($submission.data.id)/review" -Method "PATCH" -WebSession $adminSession -Headers $adminHeaders -Body @{
+        reviewNote = "Smoke review approved"
+        status = "approved"
+    }
+    if ($approvedSubmission.data.status -ne "approved" -or $approvedSubmission.data.reviewNote -ne "Smoke review approved" -or -not $approvedSubmission.data.reviewedAt) {
+        throw "Community submission review endpoint did not persist approval state"
+    }
+
+    $publishedSubmission = Invoke-JsonEnvelope -Url "$apiRoot/community/submissions/$($submission.data.id)/review" -Method "PATCH" -WebSession $adminSession -Headers $adminHeaders -Body @{
+        durationSeconds = 128
+        mediaAssetId = $uploadedMediaAssetId
+        status = "published"
+        thumbnailUrl = "gradient:community-smoke-review"
+    }
+    if ($publishedSubmission.data.status -ne "published" -or -not $publishedSubmission.data.publishedVideoId -or -not $publishedSubmission.data.publishedAt -or ([string]$publishedSubmission.data.mediaAssetId) -ne $uploadedMediaAssetId) {
+        throw "Community submission review endpoint did not persist generated published state with media asset linkage"
+    }
+
+    $publishedVideo = Invoke-JsonEnvelope -Url "$baseUrl/videos/$($publishedSubmission.data.publishedVideoId)"
+    if ($publishedVideo.data.id -ne $publishedSubmission.data.publishedVideoId -or $publishedVideo.data.title -ne $submission.data.title -or $publishedVideo.data.sourceUrl -ne $uploadedMedia.data.url) {
+        throw "Community generated video detail does not match the published media asset submission"
+    }
+    if (-not $publishedVideo.data.uploader.handle) {
+        throw "Community generated video did not expose a generated creator handle"
+    }
+    $firstVideo = $publishedVideo.data
+    $firstVideoDetail = $publishedVideo
+    $publishedCreatorHandle = $publishedVideo.data.uploader.handle
+
+    $homeAfterPublish = Wait-ForJsonEnvelope -Url "$baseUrl/home" -TimeoutSeconds $TimeoutSeconds -Validate {
+        param($json)
+        $null -ne $json.data
+    }
+    if (@($homeAfterPublish.data.latest.items | Where-Object { $_.id -eq $publishedSubmission.data.publishedVideoId }).Count -ne 1) {
+        throw "Community home endpoint did not include the generated published video"
+    }
+    Assert-NoDemoIds -Items @($homeAfterPublish.data.latest.items) -DemoIds $demoVideoIds -Name "community home latest after publish"
+    Assert-NoDemoIds -Items @($homeAfterPublish.data.dynamics.items) -DemoIds $demoDynamicIds -Name "community home dynamics after publish"
+
+    $videos = Invoke-JsonEnvelope -Url "$baseUrl/videos?category=home&limit=8"
+    if (@($videos.data.items | Where-Object { $_.id -eq $firstVideo.id }).Count -ne 1) {
+        throw "Community videos endpoint did not include the generated published video"
+    }
+    Assert-NoDemoIds -Items @($videos.data.items) -DemoIds $demoVideoIds -Name "community videos after publish"
+
     $interaction = Invoke-JsonEnvelope -Url "$baseUrl/videos/$($firstVideo.slug)/interactions/like" -Method "POST" -Body @{
         clientId = $clientId
     }
@@ -255,18 +552,84 @@ try {
         throw "Community interaction endpoint did not persist like state"
     }
 
+    $comment = Invoke-JsonEnvelope -Url "$baseUrl/videos/$($firstVideo.slug)/comments" -Method "POST" -Body @{
+        authorName = "Community Smoke"
+        body = "Smoke comment for edit and delete verification"
+        clientId = $clientId
+    }
+    if ($comment.data.ownedByCurrentClient -ne $true -or -not $comment.data.id) {
+        throw "Community comment create endpoint did not return an owned comment"
+    }
+
+    $comments = Invoke-JsonEnvelope -Url "$baseUrl/videos/$($firstVideo.slug)/comments?clientId=$clientId&limit=8"
+    $ownedComment = $comments.data.items | Where-Object { $_.id -eq $comment.data.id -and $_.ownedByCurrentClient -eq $true } | Select-Object -First 1
+    if ($null -eq $ownedComment) {
+        throw "Community comments list did not mark the current client comment as owned"
+    }
+
+    $updatedComment = Invoke-JsonEnvelope -Url "$baseUrl/videos/$($firstVideo.slug)/comments/$($comment.data.id)" -Method "PATCH" -Body @{
+        body = "Updated smoke comment"
+        clientId = $clientId
+    }
+    if ($updatedComment.data.body -ne "Updated smoke comment" -or $updatedComment.data.ownedByCurrentClient -ne $true) {
+        throw "Community comment update endpoint did not persist the edited body"
+    }
+
+    $deletedComment = Invoke-JsonEnvelope -Url "$baseUrl/videos/$($firstVideo.slug)/comments/$($comment.data.id)?clientId=$clientId" -Method "DELETE"
+    if ($deletedComment.data.deleted -ne $true -or $deletedComment.data.commentId -ne $comment.data.id) {
+        throw "Community comment delete endpoint did not return a deletion receipt"
+    }
+
+    $dynamic = Invoke-JsonEnvelope -Url "$baseUrl/dynamics" -Method "POST" -Body @{
+        authorName = "Community Smoke"
+        body = "Smoke dynamic for edit and delete verification"
+        clientId = $clientId
+        videoId = $firstVideo.id
+    }
+    if ($dynamic.data.ownedByCurrentClient -ne $true -or -not $dynamic.data.id) {
+        throw "Community dynamic create endpoint did not return an owned dynamic"
+    }
+
+    $dynamics = Invoke-JsonEnvelope -Url "$baseUrl/dynamics?clientId=$clientId&limit=8"
+    $ownedDynamic = $dynamics.data.items.items | Where-Object { $_.id -eq $dynamic.data.id -and $_.ownedByCurrentClient -eq $true } | Select-Object -First 1
+    if ($null -eq $ownedDynamic) {
+        throw "Community dynamics list did not mark the current client dynamic as owned"
+    }
+
+    $updatedDynamic = Invoke-JsonEnvelope -Url "$baseUrl/dynamics/$($dynamic.data.id)" -Method "PATCH" -Body @{
+        body = "Updated smoke dynamic"
+        clientId = $clientId
+    }
+    if ($updatedDynamic.data.body -ne "Updated smoke dynamic" -or $updatedDynamic.data.ownedByCurrentClient -ne $true) {
+        throw "Community dynamic update endpoint did not persist the edited body"
+    }
+
+    $deletedDynamic = Invoke-JsonEnvelope -Url "$baseUrl/dynamics/$($dynamic.data.id)?clientId=$clientId" -Method "DELETE"
+    if ($deletedDynamic.data.deleted -ne $true -or $deletedDynamic.data.dynamicId -ne $dynamic.data.id) {
+        throw "Community dynamic delete endpoint did not return a deletion receipt"
+    }
+
+    $feedDynamic = Invoke-JsonEnvelope -Url "$baseUrl/dynamics" -Method "POST" -Body @{
+        authorName = "Community Smoke"
+        body = "Smoke dynamic for following feed verification"
+        clientId = $clientId
+        videoId = $firstVideo.id
+    }
+    if ($feedDynamic.data.ownedByCurrentClient -ne $true -or -not $feedDynamic.data.id) {
+        throw "Community feed dynamic create endpoint did not return an owned dynamic"
+    }
+
     $notifications = Invoke-JsonEnvelope -Url "$baseUrl/notifications?clientId=$clientId&limit=8"
-    if ($notifications.data.clientId -ne $clientId -or $notifications.data.items.items.Count -lt 1) {
+    if ($notifications.data.clientId -ne $clientId -or @($notifications.data.items.items).Count -lt 1) {
         throw "Community notifications endpoint did not return the interaction notification"
     }
 
-    $search = Invoke-JsonEnvelope -Url "$baseUrl/search?q=Aoi&limit=8"
-    if ($search.data.videos.items.Count -lt 1) {
+    $search = Invoke-JsonEnvelope -Url "$baseUrl/search?q=Community%20smoke&limit=8"
+    if (@($search.data.videos.items).Count -lt 1) {
         throw "Community search endpoint returned no matching videos"
     }
 
     $accountSession = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-    $runId = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     $accountEmail = "community-smoke-$runId@example.com"
     $accountName = "community_smoke_$runId"
     $signup = Invoke-JsonEnvelope -Url "$baseUrl/auth/signup" -Method "POST" -WebSession $accountSession -Body @{
@@ -290,7 +653,7 @@ try {
     $accountHeaders = @{
         "X-CSRF-Token" = $csrfToken
     }
-    $accountFollow = Invoke-JsonEnvelope -Url "$baseUrl/account/users/rin721/follow" -Method "POST" -WebSession $accountSession -Headers $accountHeaders
+    $accountFollow = Invoke-JsonEnvelope -Url "$baseUrl/account/users/$publishedCreatorHandle/follow" -Method "POST" -WebSession $accountSession -Headers $accountHeaders
     if ($accountFollow.data.following -ne $true -or $accountFollow.data.clientId -notmatch "^account:") {
         throw "Community account follow endpoint did not persist account-scoped follow state"
     }
@@ -302,6 +665,21 @@ try {
     if ($accountDynamic.data.authorName -ne $session.data.account.displayName) {
         throw "Community account dynamic endpoint did not use the signed-in community account; expected author=$($session.data.account.displayName), got author=$($accountDynamic.data.authorName)"
     }
+    if ($accountDynamic.data.ownedByCurrentClient -ne $true) {
+        throw "Community account dynamic endpoint did not return an owned dynamic"
+    }
+
+    $updatedAccountDynamic = Invoke-JsonEnvelope -Url "$baseUrl/account/dynamics/$($accountDynamic.data.id)" -Method "PATCH" -WebSession $accountSession -Headers $accountHeaders -Body @{
+        body = "Updated account smoke dynamic"
+    }
+    if ($updatedAccountDynamic.data.body -ne "Updated account smoke dynamic" -or $updatedAccountDynamic.data.ownedByCurrentClient -ne $true) {
+        throw "Community account dynamic update endpoint did not persist the edited body"
+    }
+
+    $deletedAccountDynamic = Invoke-JsonEnvelope -Url "$baseUrl/account/dynamics/$($accountDynamic.data.id)" -Method "DELETE" -WebSession $accountSession -Headers $accountHeaders
+    if ($deletedAccountDynamic.data.deleted -ne $true -or $deletedAccountDynamic.data.dynamicId -ne $accountDynamic.data.id) {
+        throw "Community account dynamic delete endpoint did not return a deletion receipt"
+    }
 
     $accountHistory = Invoke-JsonEnvelope -Url "$baseUrl/account/videos/$($firstVideo.slug)/history" -Method "POST" -WebSession $accountSession -Headers $accountHeaders -Body @{
         progressSeconds = 42
@@ -311,48 +689,50 @@ try {
     }
 
     $accountHistoryList = Invoke-JsonEnvelope -Url "$baseUrl/account/history?limit=8" -WebSession $accountSession
-    if ($accountHistoryList.data.authenticated -ne $true -or $accountHistoryList.data.clientId -notmatch "^account:" -or $accountHistoryList.data.items.items.Count -lt 1) {
+    if ($accountHistoryList.data.authenticated -ne $true -or $accountHistoryList.data.clientId -notmatch "^account:" -or @($accountHistoryList.data.items.items).Count -lt 1) {
         throw "Community account history list did not return account-scoped data"
     }
 
     $accountFeed = Invoke-JsonEnvelope -Url "$baseUrl/account/feed/following" -WebSession $accountSession
-    if ($accountFeed.data.authenticated -ne $true -or $accountFeed.data.followingCount -lt 1 -or $accountFeed.data.dynamics.items.Count -lt 1) {
+    if ($accountFeed.data.authenticated -ne $true -or $accountFeed.data.followingCount -lt 1 -or @($accountFeed.data.dynamics.items).Count -lt 1) {
         throw "Community account following feed did not return account-scoped data"
     }
 
     $accountNotifications = Invoke-JsonEnvelope -Url "$baseUrl/account/notifications?limit=8" -WebSession $accountSession
-    if ($accountNotifications.data.clientId -notmatch "^account:" -or $accountNotifications.data.items.items.Count -lt 1) {
+    if ($accountNotifications.data.clientId -notmatch "^account:" -or @($accountNotifications.data.items.items).Count -lt 1) {
         throw "Community account notifications endpoint did not return account-scoped notifications"
     }
 
     $results = @(
-        [pscustomobject]@{ Name = "status"; Url = "$baseUrl/status"; Detail = "mode=$($status.data.mode)" }
-        [pscustomobject]@{ Name = "home"; Url = "$baseUrl/home"; Detail = "categories=$($homePayload.data.categories.Count), videos=$($homePayload.data.latest.items.Count), dynamics=$($homePayload.data.dynamics.items.Count)" }
-        [pscustomobject]@{ Name = "categories"; Url = "$baseUrl/categories"; Detail = "count=$($categories.data.Count)" }
-        [pscustomobject]@{ Name = "videos"; Url = "$baseUrl/videos?category=home&limit=8"; Detail = "count=$($videos.data.items.Count)" }
+        [pscustomobject]@{ Name = "status"; Url = "$baseUrl/status"; Detail = "mode=$($status.data.mode), setupRequired=$($status.data.setup.required), setupCompleted=$($status.data.setup.completed)" }
+        [pscustomobject]@{ Name = "setup"; Url = "$apiRoot/auth/setup/initial-admin"; Detail = $setupDetail }
+        [pscustomobject]@{ Name = "home-initial"; Url = "$baseUrl/home"; Detail = "categories=$(@($homePayload.data.categories).Count), videos=$(@($homePayload.data.latest.items).Count), dynamics=$(@($homePayload.data.dynamics.items).Count), announcement=$($null -ne $homePayload.data.announcement)" }
+        [pscustomobject]@{ Name = "home-after-publish"; Url = "$baseUrl/home"; Detail = "videos=$(@($homeAfterPublish.data.latest.items).Count), dynamics=$(@($homeAfterPublish.data.dynamics.items).Count)" }
+        [pscustomobject]@{ Name = "categories"; Url = "$baseUrl/categories"; Detail = "count=$(@($categories.data).Count)" }
+        [pscustomobject]@{ Name = "videos"; Url = "$baseUrl/videos?category=home&limit=8"; Detail = "count=$(@($videos.data.items).Count)" }
         [pscustomobject]@{ Name = "interaction"; Url = "$baseUrl/videos/$($firstVideo.slug)/interactions/like"; Detail = "liked=$($interaction.data.liked), clientId=$($interaction.data.clientId)" }
-        [pscustomobject]@{ Name = "notifications"; Url = "$baseUrl/notifications?clientId=$clientId&limit=8"; Detail = "count=$($notifications.data.items.items.Count), clientId=$($notifications.data.clientId)" }
-        [pscustomobject]@{ Name = "search"; Url = "$baseUrl/search?q=Aoi&limit=8"; Detail = "videos=$($search.data.videos.items.Count)" }
+        [pscustomobject]@{ Name = "comments"; Url = "$baseUrl/videos/$($firstVideo.slug)/comments"; Detail = "updated=$($updatedComment.data.body), deleted=$($deletedComment.data.deleted)" }
+        [pscustomobject]@{ Name = "dynamics"; Url = "$baseUrl/dynamics"; Detail = "updated=$($updatedDynamic.data.body), deleted=$($deletedDynamic.data.deleted)" }
+        [pscustomobject]@{ Name = "media-upload"; Url = "$apiRoot/system/media/assets/upload"; Detail = "asset=$uploadedMediaAssetId, source=$($uploadedMedia.data.source)" }
+        [pscustomobject]@{ Name = "submissions"; Url = "$apiRoot/community/submissions/$($submission.data.id)/review"; Detail = "status=$($publishedSubmission.data.status), video=$($publishedSubmission.data.publishedVideoId), mediaAsset=$($publishedSubmission.data.mediaAssetId)" }
+        [pscustomobject]@{ Name = "notifications"; Url = "$baseUrl/notifications?clientId=$clientId&limit=8"; Detail = "count=$(@($notifications.data.items.items).Count), clientId=$($notifications.data.clientId)" }
+        [pscustomobject]@{ Name = "search"; Url = "$baseUrl/search?q=Community%20smoke&limit=8"; Detail = "videos=$(@($search.data.videos.items).Count)" }
         [pscustomobject]@{ Name = "account-signup"; Url = "$baseUrl/auth/signup"; Detail = "status=$($signup.data.status), handle=$($signup.data.session.account.handle)" }
-        [pscustomobject]@{ Name = "account-following"; Url = "$baseUrl/account/feed/following"; Detail = "following=$($accountFeed.data.followingCount), dynamics=$($accountFeed.data.dynamics.items.Count)" }
-        [pscustomobject]@{ Name = "account-history"; Url = "$baseUrl/account/history?limit=8"; Detail = "count=$($accountHistoryList.data.items.items.Count), clientId=$($accountHistoryList.data.clientId)" }
-        [pscustomobject]@{ Name = "account-notifications"; Url = "$baseUrl/account/notifications?limit=8"; Detail = "count=$($accountNotifications.data.items.items.Count), clientId=$($accountNotifications.data.clientId)" }
+        [pscustomobject]@{ Name = "account-dynamics"; Url = "$baseUrl/account/dynamics"; Detail = "updated=$($updatedAccountDynamic.data.body), deleted=$($deletedAccountDynamic.data.deleted)" }
+        [pscustomobject]@{ Name = "account-following"; Url = "$baseUrl/account/feed/following"; Detail = "following=$($accountFeed.data.followingCount), dynamics=$(@($accountFeed.data.dynamics.items).Count)" }
+        [pscustomobject]@{ Name = "account-history"; Url = "$baseUrl/account/history?limit=8"; Detail = "count=$(@($accountHistoryList.data.items.items).Count), clientId=$($accountHistoryList.data.clientId)" }
+        [pscustomobject]@{ Name = "account-notifications"; Url = "$baseUrl/account/notifications?limit=8"; Detail = "count=$(@($accountNotifications.data.items.items).Count), clientId=$($accountNotifications.data.clientId)" }
     )
 
     foreach ($result in $results) {
         Write-Host ("[{0}] {1} | {2}" -f $result.Name, $result.Detail, $result.Url)
     }
     Write-Host "Frontend community API smoke passed."
-    Write-Host "Set NUXT_PUBLIC_API_BASE_URL=$baseUrl for split-port Nuxt integration."
+    Write-Host "Use NUXT_BACKEND_ORIGIN=http://127.0.0.1:$Port with the Nuxt same-origin proxy for split-port integration."
     Write-Host "Temporary smoke workspace: $workPath"
 } finally {
-    if ($process -and -not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force
-        $process.WaitForExit()
-    }
+    Stop-SmokeBackendProcess -Process $process -BinaryPath $binaryPath
     foreach ($path in @($binaryPath, (Join-Path $workPath "app.db"), (Join-Path $workPath "uploads"), (Join-Path $workPath "app.log"))) {
-        if (Test-Path -LiteralPath $path) {
-            Remove-Item -LiteralPath $path -Recurse -Force
-        }
+        Remove-SmokePath -Path $path
     }
 }

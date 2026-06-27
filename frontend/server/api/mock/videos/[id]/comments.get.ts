@@ -7,6 +7,7 @@ export default defineEventHandler((event) => {
   const limit = typeof query.limit === "string" ? Number(query.limit) : undefined
   const sort = query.sort === "oldest" ? "oldest" : "newest"
   const payload = getMockVideoComments(id, {
+    clientId: typeof query.clientId === "string" ? query.clientId : "",
     limit: Number.isFinite(limit) ? limit : undefined,
     sort: sort as VideoCommentSortMode
   })

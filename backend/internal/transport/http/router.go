@@ -336,6 +336,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.home", deps.CommunityHandler.Home),
 		routeSpecFor("community.dynamics.list", deps.CommunityHandler.Dynamics),
 		routeSpecFor("community.dynamics.create", deps.CommunityHandler.CreateDynamic),
+		routeSpecFor("community.dynamics.update", deps.CommunityHandler.UpdateDynamic),
+		routeSpecFor("community.dynamics.delete", deps.CommunityHandler.DeleteDynamic),
 		routeSpecFor("community.submissions.list", deps.CommunityHandler.Submissions),
 		routeSpecFor("community.submissions.create", deps.CommunityHandler.CreateSubmission),
 		routeSpecFor("community.categories", deps.CommunityHandler.Categories),
@@ -345,6 +347,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.videos.danmaku.create", deps.CommunityHandler.CreateVideoDanmaku),
 		routeSpecFor("community.videos.comments.list", deps.CommunityHandler.VideoComments),
 		routeSpecFor("community.videos.comments.create", deps.CommunityHandler.CreateVideoComment),
+		routeSpecFor("community.videos.comments.update", deps.CommunityHandler.UpdateVideoComment),
+		routeSpecFor("community.videos.comments.delete", deps.CommunityHandler.DeleteVideoComment),
 		routeSpecFor("community.videos.interaction-state", deps.CommunityHandler.VideoInteractionState),
 		routeSpecFor("community.videos.interactions.set", deps.CommunityHandler.SetVideoInteraction),
 		routeSpecFor("community.videos.interactions.unset", deps.CommunityHandler.UnsetVideoInteraction),
@@ -371,6 +375,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 	account.Use(middleware.CSRF(iamCSRFMiddlewareConfig(deps)))
 	accountSpecs := []routeSpec{
 		routeSpecFor("community.account.dynamics.create", deps.CommunityHandler.CreateAccountDynamic),
+		routeSpecFor("community.account.dynamics.update", deps.CommunityHandler.UpdateAccountDynamic),
+		routeSpecFor("community.account.dynamics.delete", deps.CommunityHandler.DeleteAccountDynamic),
 		routeSpecFor("community.account.creators.follow-state", deps.CommunityHandler.AccountCreatorFollowState),
 		routeSpecFor("community.account.creators.follow", deps.CommunityHandler.FollowAccountCreator),
 		routeSpecFor("community.account.creators.unfollow", deps.CommunityHandler.UnfollowAccountCreator),
@@ -386,9 +392,22 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.account.videos.interactions.set", deps.CommunityHandler.SetAccountVideoInteraction),
 		routeSpecFor("community.account.videos.interactions.unset", deps.CommunityHandler.UnsetAccountVideoInteraction),
 		routeSpecFor("community.account.videos.history.record", deps.CommunityHandler.RecordAccountHistory),
+		routeSpecFor("community.account.videos.comments.update", deps.CommunityHandler.UpdateAccountVideoComment),
+		routeSpecFor("community.account.videos.comments.delete", deps.CommunityHandler.DeleteAccountVideoComment),
 	}
 	registerRouteSpecs(account, appconstants.APIPath("public", "community", "account"), accountSpecs)
 	registered = append(registered, routeContractsFromSpecs(accountSpecs)...)
+
+	review := v1.Group("/community")
+	review.Use(middleware.Auth(deps.IAMAuth, iamAuthMiddlewareConfig(deps)))
+	review.Use(middleware.CSRF(iamCSRFMiddlewareConfig(deps)))
+	review.Use(OperationRecorder(deps.SystemHandler, deps.Logger))
+	reviewSpecs := []routeSpec{
+		routeSpecFor("community.submissions.review-list", deps.CommunityHandler.ReviewSubmissions),
+		routeSpecFor("community.submissions.review", deps.CommunityHandler.ReviewSubmission),
+	}
+	registerProtectedRouteSpecs(review, appconstants.APIPath("community"), deps, reviewSpecs)
+	registered = append(registered, routeContractsFromSpecs(reviewSpecs)...)
 
 	return registered
 }

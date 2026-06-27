@@ -1,12 +1,17 @@
 <script setup lang="ts">
+import type { CommunityDynamicItem } from "~/types/api"
+
 const api = useAoiApi()
 const authSession = useAuthSessionStore()
 const following = useFollowingStore()
 const { locale, t } = useI18n()
+const deletingDynamicId = ref("")
+const dynamicActionError = ref("")
 const dynamicAuthorName = ref(t("dynamics.composer.defaultAuthor"))
 const dynamicError = ref("")
 const dynamicSubmitRevision = ref(0)
 const dynamicSubmitting = ref(false)
+const updatingDynamicId = ref("")
 
 const { data: feed, error, pending, refresh } = useAsyncData(
   "following-feed",
@@ -117,6 +122,7 @@ function formatCount(value: number) {
 
 async function publishDynamic(body: string) {
   dynamicError.value = ""
+  dynamicActionError.value = ""
   dynamicSubmitting.value = true
 
   try {
@@ -140,6 +146,55 @@ async function publishDynamic(body: string) {
       : t("dynamics.composer.error")
   } finally {
     dynamicSubmitting.value = false
+  }
+}
+
+async function updateDynamic(item: CommunityDynamicItem, body: string) {
+  dynamicActionError.value = ""
+  updatingDynamicId.value = item.id
+
+  try {
+    if (!authSession.hydrated) {
+      await authSession.refreshSession({ silent: true })
+    }
+    if (communityAccountActive.value) {
+      await api.updateCommunityAccountDynamic(item.id, { body })
+    } else {
+      await api.updateCommunityDynamic(item.id, {
+        body,
+        clientId: following.ensureClientId()
+      })
+    }
+    await refresh()
+  } catch (error) {
+    dynamicActionError.value = error instanceof Error
+      ? error.message
+      : t("dynamics.item.updateError")
+  } finally {
+    updatingDynamicId.value = ""
+  }
+}
+
+async function deleteDynamic(item: CommunityDynamicItem) {
+  dynamicActionError.value = ""
+  deletingDynamicId.value = item.id
+
+  try {
+    if (!authSession.hydrated) {
+      await authSession.refreshSession({ silent: true })
+    }
+    if (communityAccountActive.value) {
+      await api.deleteCommunityAccountDynamic(item.id)
+    } else {
+      await api.deleteCommunityDynamic(item.id, following.ensureClientId())
+    }
+    await refresh()
+  } catch (error) {
+    dynamicActionError.value = error instanceof Error
+      ? error.message
+      : t("dynamics.item.deleteError")
+  } finally {
+    deletingDynamicId.value = ""
   }
 }
 
@@ -255,9 +310,14 @@ useHead(() => ({
       </AoiSection>
 
       <CommunityPulse
+        :action-error="dynamicActionError"
+        :deleting-item-id="deletingDynamicId"
         :items="dynamicItems"
         :title="t('following.dynamicsTitle')"
         :description="feedMessage || t('following.dynamicsDescription')"
+        :updating-item-id="updatingDynamicId"
+        @delete="deleteDynamic"
+        @update="updateDynamic"
       />
 
       <div

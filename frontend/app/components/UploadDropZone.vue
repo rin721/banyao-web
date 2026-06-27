@@ -66,9 +66,9 @@ const emit = defineEmits<{
 }
 
 .upload-drop-zone__copy strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .upload-drop-zone__copy span {

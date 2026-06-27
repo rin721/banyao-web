@@ -43,6 +43,9 @@ const (
 	CommunityDynamicStatusVisible   = "visible"
 
 	CommunitySubmissionStatusPendingReview = "pending_review"
+	CommunitySubmissionStatusApproved      = "approved"
+	CommunitySubmissionStatusRejected      = "rejected"
+	CommunitySubmissionStatusPublished     = "published"
 	CommunitySubmissionVisibilityPublic    = "public"
 	CommunitySubmissionVisibilityUnlisted  = "unlisted"
 	CommunitySubmissionVisibilityPrivate   = "private"
@@ -163,26 +166,45 @@ func (CommunityDynamic) TableName() string { return "community_dynamics" }
 
 // CommunitySubmission saves community account or anonymous upload metadata for the review queue.
 type CommunitySubmission struct {
-	ID            string     `gorm:"column:id;primaryKey;size:96" json:"id"`
-	ClientID      string     `gorm:"column:client_id;size:96;not null;index" json:"clientId"`
-	AuthorName    string     `gorm:"column:author_name;size:120;not null" json:"authorName"`
-	Title         string     `gorm:"column:title;size:180;not null" json:"title"`
-	Description   string     `gorm:"column:description;size:720;not null;default:''" json:"description"`
-	CategorySlug  string     `gorm:"column:category_slug;size:96;not null;index" json:"categorySlug"`
-	TagsJSON      string     `gorm:"column:tags_json;type:text;not null" json:"-"`
-	Visibility    string     `gorm:"column:visibility;size:32;not null;default:public" json:"visibility"`
-	SourceName    string     `gorm:"column:source_name;size:260;not null" json:"sourceName"`
-	SourceSize    int64      `gorm:"column:source_size;not null;default:0" json:"sourceSize"`
-	SourceType    string     `gorm:"column:source_type;size:120;not null;default:''" json:"sourceType"`
-	AllowComments bool       `gorm:"column:allow_comments;not null;default:true" json:"allowComments"`
-	Sensitive     bool       `gorm:"column:sensitive;not null;default:false" json:"sensitive"`
-	Status        string     `gorm:"column:status;size:32;not null;default:pending_review;index" json:"status"`
-	CreatedAt     time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
-	UpdatedAt     time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
-	DeletedAt     *time.Time `gorm:"column:deleted_at" json:"-"`
+	ID               string     `gorm:"column:id;primaryKey;size:96" json:"id"`
+	ClientID         string     `gorm:"column:client_id;size:96;not null;index" json:"clientId"`
+	AuthorName       string     `gorm:"column:author_name;size:120;not null" json:"authorName"`
+	Title            string     `gorm:"column:title;size:180;not null" json:"title"`
+	Description      string     `gorm:"column:description;size:720;not null;default:''" json:"description"`
+	CategorySlug     string     `gorm:"column:category_slug;size:96;not null;index" json:"categorySlug"`
+	TagsJSON         string     `gorm:"column:tags_json;type:text;not null" json:"-"`
+	Visibility       string     `gorm:"column:visibility;size:32;not null;default:public" json:"visibility"`
+	SourceName       string     `gorm:"column:source_name;size:260;not null" json:"sourceName"`
+	SourceSize       int64      `gorm:"column:source_size;not null;default:0" json:"sourceSize"`
+	SourceType       string     `gorm:"column:source_type;size:120;not null;default:''" json:"sourceType"`
+	AllowComments    bool       `gorm:"column:allow_comments;not null;default:true" json:"allowComments"`
+	Sensitive        bool       `gorm:"column:sensitive;not null;default:false" json:"sensitive"`
+	Status           string     `gorm:"column:status;size:32;not null;default:pending_review;index" json:"status"`
+	ReviewNote       string     `gorm:"column:review_note;size:720;not null;default:''" json:"reviewNote"`
+	ReviewerID       string     `gorm:"column:reviewer_id;size:96;not null;default:'';index" json:"reviewerId"`
+	ReviewedAt       *time.Time `gorm:"column:reviewed_at;index" json:"reviewedAt"`
+	MediaAssetID     int64      `gorm:"column:media_asset_id;not null;default:0;index" json:"mediaAssetId,string,omitempty"`
+	PublishedVideoID string     `gorm:"column:published_video_id;size:96;not null;default:'';index" json:"publishedVideoId"`
+	PublishedAt      *time.Time `gorm:"column:published_at;index" json:"publishedAt"`
+	CreatedAt        time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt        time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
+	DeletedAt        *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
 func (CommunitySubmission) TableName() string { return "community_submissions" }
+
+// CommunityMediaAsset is the minimal platform media projection needed by community review publishing.
+type CommunityMediaAsset struct {
+	ID           int64      `gorm:"column:id;primaryKey" json:"id,string"`
+	DisplayName  string     `gorm:"column:display_name;size:255;not null" json:"displayName"`
+	OriginalName string     `gorm:"column:original_name;size:255;not null" json:"originalName"`
+	URL          string     `gorm:"column:url;type:text;not null" json:"url"`
+	MIMEType     string     `gorm:"column:mime_type;size:128;not null" json:"mimeType"`
+	SizeBytes    int64      `gorm:"column:size_bytes;not null" json:"sizeBytes"`
+	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CommunityMediaAsset) TableName() string { return "system_media_assets" }
 
 // Category 是社区内容分类的扁平持久化模型。
 type Category struct {
@@ -278,12 +300,15 @@ func (VideoDanmakuItem) TableName() string { return "community_video_danmaku" }
 type VideoComment struct {
 	ID         string     `gorm:"column:id;primaryKey;size:96" json:"id"`
 	VideoID    string     `gorm:"column:video_id;size:96;not null;index" json:"videoId"`
+	ClientID   string     `gorm:"column:client_id;size:96;not null;default:'';index" json:"-"`
 	Body       string     `gorm:"column:body;size:500;not null" json:"body"`
 	AuthorName string     `gorm:"column:author_name;size:120;not null" json:"authorName"`
 	Status     string     `gorm:"column:status;size:32;not null;default:visible" json:"status"`
 	CreatedAt  time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
 	UpdatedAt  time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
 	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
+
+	OwnedByCurrentClient bool `gorm:"-" json:"ownedByCurrentClient,omitempty"`
 }
 
 func (VideoComment) TableName() string { return "community_video_comments" }
@@ -292,6 +317,18 @@ type CreateVideoCommentRequest struct {
 	AuthorName string `json:"authorName"`
 	Body       string `json:"body"`
 	ClientID   string `json:"clientId,omitempty"`
+}
+
+type UpdateVideoCommentRequest struct {
+	Body     string `json:"body"`
+	ClientID string `json:"clientId,omitempty"`
+}
+
+type DeleteVideoCommentResult struct {
+	CommentID string `json:"commentId"`
+	VideoID   string `json:"videoId"`
+	ClientID  string `json:"clientId"`
+	Deleted   bool   `json:"deleted"`
 }
 
 type CreateVideoDanmakuRequest struct {
@@ -346,6 +383,17 @@ type CreateCommunityAccountDynamicRequest struct {
 	VideoID string `json:"videoId,omitempty"`
 }
 
+type UpdateCommunityDynamicRequest struct {
+	Body     string `json:"body"`
+	ClientID string `json:"clientId,omitempty"`
+}
+
+type DeleteCommunityDynamicResult struct {
+	DynamicID string `json:"dynamicId"`
+	ClientID  string `json:"clientId"`
+	Deleted   bool   `json:"deleted"`
+}
+
 type CreateCommunitySubmissionRequest struct {
 	ClientID      string   `json:"clientId"`
 	AuthorName    string   `json:"authorName"`
@@ -374,6 +422,17 @@ type CreateCommunityAccountSubmissionRequest struct {
 	Sensitive     bool     `json:"sensitive"`
 }
 
+type ReviewCommunitySubmissionRequest struct {
+	Status           string `json:"status"`
+	ReviewNote       string `json:"reviewNote"`
+	PublishedVideoID string `json:"publishedVideoId,omitempty"`
+	MediaAssetID     int64  `json:"mediaAssetId,string,omitempty"`
+	SourceURL        string `json:"sourceUrl,omitempty"`
+	ThumbnailURL     string `json:"thumbnailUrl,omitempty"`
+	DurationSeconds  int    `json:"durationSeconds,omitempty"`
+	Slug             string `json:"slug,omitempty"`
+}
+
 type CommunityDynamicFilter struct {
 	ClientID   string
 	CreatorIDs []string
@@ -381,8 +440,10 @@ type CommunityDynamicFilter struct {
 }
 
 type CommunitySubmissionFilter struct {
-	ClientID string
-	Limit    int
+	ClientID   string
+	Status     string
+	AllClients bool
+	Limit      int
 }
 
 type CommunityDynamicItem struct {
@@ -394,6 +455,9 @@ type CommunityDynamicItem struct {
 	VideoID    string        `json:"videoId"`
 	Video      *VideoSummary `json:"video,omitempty"`
 	CreatedAt  time.Time     `json:"createdAt"`
+	UpdatedAt  time.Time     `json:"updatedAt"`
+
+	OwnedByCurrentClient bool `json:"ownedByCurrentClient,omitempty"`
 }
 
 type CommunityDynamicPayload struct {
@@ -404,22 +468,29 @@ type CommunityDynamicPayload struct {
 }
 
 type CommunitySubmissionItem struct {
-	ID            string    `json:"id"`
-	ClientID      string    `json:"clientId"`
-	AuthorName    string    `json:"authorName"`
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	CategorySlug  string    `json:"categorySlug"`
-	Category      *Category `json:"category,omitempty"`
-	Tags          []string  `json:"tags"`
-	Visibility    string    `json:"visibility"`
-	SourceName    string    `json:"sourceName"`
-	SourceSize    int64     `json:"sourceSize"`
-	SourceType    string    `json:"sourceType"`
-	AllowComments bool      `json:"allowComments"`
-	Sensitive     bool      `json:"sensitive"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"createdAt"`
+	ID               string     `json:"id"`
+	ClientID         string     `json:"clientId"`
+	AuthorName       string     `json:"authorName"`
+	Title            string     `json:"title"`
+	Description      string     `json:"description"`
+	CategorySlug     string     `json:"categorySlug"`
+	Category         *Category  `json:"category,omitempty"`
+	Tags             []string   `json:"tags"`
+	Visibility       string     `json:"visibility"`
+	SourceName       string     `json:"sourceName"`
+	SourceSize       int64      `json:"sourceSize"`
+	SourceType       string     `json:"sourceType"`
+	AllowComments    bool       `json:"allowComments"`
+	Sensitive        bool       `json:"sensitive"`
+	Status           string     `json:"status"`
+	ReviewNote       string     `json:"reviewNote,omitempty"`
+	ReviewerID       string     `json:"reviewerId,omitempty"`
+	ReviewedAt       *time.Time `json:"reviewedAt,omitempty"`
+	MediaAssetID     int64      `json:"mediaAssetId,string,omitempty"`
+	PublishedVideoID string     `json:"publishedVideoId,omitempty"`
+	PublishedAt      *time.Time `json:"publishedAt,omitempty"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
 }
 
 type CommunitySubmissionPayload struct {
@@ -632,6 +703,7 @@ type VideoInteractionFilter struct {
 }
 
 type VideoCommentFilter struct {
-	Limit int
-	Sort  string
+	ClientID string
+	Limit    int
+	Sort     string
 }

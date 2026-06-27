@@ -31,7 +31,13 @@
       "oldest": "最早优先"
     },
     "item": {
-      "edited": "已编辑"
+      "edited": "已编辑",
+      "editLabel": "编辑评论",
+      "deleteLabel": "删除评论",
+      "editBodyLabel": "编辑评论内容",
+      "bodyTooLong": "评论内容过长",
+      "cancel": "取消",
+      "save": "保存"
     }
   },
   "nav": {
@@ -989,6 +995,8 @@
     "communityCommentComposerHint": "评论发布后会同步到讨论区；请保持友善、具体和可讨论。",
     "communityCommentSubmit": "发布评论",
     "communityCommentSubmitError": "评论发布失败，请稍后重试。",
+    "communityCommentUpdateError": "评论更新失败，请稍后重试。",
+    "communityCommentDeleteError": "评论删除失败，请稍后重试。",
     "communityCommentDescription": "已加载 {count} 条，社区共 {total} 条",
     "communityCommentEmptyTitle": "还没有社区评论",
     "communityCommentEmptyDescription": "写下第一条讨论，它会出现在社区讨论流里。",
@@ -1022,6 +1030,17 @@
     "linkedVideo": "关联视频",
     "emptyTitle": "还没有动态",
     "emptyDescription": "发布一条动态，或先关注创作者来填充时间线。",
+    "item": {
+      "edited": "已编辑",
+      "editLabel": "编辑动态",
+      "deleteLabel": "删除动态",
+      "editBodyLabel": "编辑动态内容",
+      "bodyTooLong": "动态内容最多 280 个字符",
+      "cancel": "取消",
+      "save": "保存",
+      "updateError": "动态更新失败，请稍后重试。",
+      "deleteError": "动态删除失败，请稍后重试。"
+    },
     "composer": {
       "defaultAuthor": "Aoi 观众",
       "accountAuthor": "社区账号",
@@ -1155,6 +1174,17 @@
       "errorTitle": "投稿回执加载失败",
       "errorDescription": "暂时没有拿到最近记录，请稍后重试。",
       "pendingReview": "待审核",
+      "approved": "已通过",
+      "rejected": "未通过",
+      "published": "已发布",
+      "approvedHint": "审核已通过，等待后续媒体发布处理。",
+      "rejectedHint": "审核未通过，请根据审核意见调整后重新提交。",
+      "publishedHint": "已关联公开视频 {videoId}。",
+      "reviewNote": "审核意见：{note}",
+      "reviewedAt": "审核时间",
+      "publishedVideo": "发布视频",
+      "openPublished": "查看视频",
+      "mediaAsset": "媒体资产",
       "fileSize": "文件大小",
       "createdAt": "提交时间"
     }

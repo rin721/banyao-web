@@ -13,13 +13,16 @@ import type {
   CreateCommunitySubmissionRequest,
   CreatorFollowState,
   CreatorProfile,
+  DeleteCommunityDynamicResult,
   FollowingFeedPayload,
   HomePayload,
   SearchPayload,
+  ReviewCommunitySubmissionRequest,
   CreatorFollowRequest,
   CreateVideoCommentRequest,
   CreateVideoDanmakuRequest,
   CreateVideoReportRequest,
+  DeleteVideoCommentResult,
   VideoHistoryClearRequest,
   VideoHistoryItem,
   VideoHistoryPayload,
@@ -35,6 +38,8 @@ import type {
   VideoComment,
   VideoCommentPayload,
   VideoCommentSortMode,
+  UpdateCommunityDynamicRequest,
+  UpdateVideoCommentRequest,
   UserSummary,
   VideoDetail,
   VideoSummary
@@ -44,6 +49,10 @@ import {
   flattenCategoryTree,
   getCategorySelfAndDescendants
 } from "../utils/categories"
+
+type StoredVideoComment = VideoComment & {
+  clientId?: string
+}
 
 export const mockCategoryTree: CategoryTreeNode[] = [
   { id: "cat-home", slug: "home", name: "首页", description: "全部精选内容", accentColor: "#f2709c", parentSlug: null, order: 0, children: [] },
@@ -248,6 +257,7 @@ const mockVideoLikes: Record<string, number> = Object.fromEntries(mockVideos.map
   video.id,
   Math.max(24, Math.round(video.viewCount / 12))
 ]))
+const mockVideoSourceUrls: Record<string, string> = {}
 const mockVideoInteractions: Record<string, Record<string, Record<string, string>>> = {}
 const mockCommunityDynamics: CommunityDynamicItem[] = [
   {
@@ -258,7 +268,8 @@ const mockCommunityDynamics: CommunityDynamicItem[] = [
     body: "今天把首页动态整理成更轻的阅读节奏，短更新和关联视频会自然连在一起。",
     videoId: "video-aoi-alpha",
     video: mockVideos.find((video) => video.id === "video-aoi-alpha") || null,
-    createdAt: "2026-06-03T10:16:00.000Z"
+    createdAt: "2026-06-03T10:16:00.000Z",
+    updatedAt: "2026-06-03T10:16:00.000Z"
   },
   {
     id: "dynamic-design-sakura",
@@ -268,7 +279,8 @@ const mockCommunityDynamics: CommunityDynamicItem[] = [
     body: "这轮视觉继续保留清透底色、细线边框和一点柔和粉色状态，让社区信息更像连续流而不是孤立卡片。",
     videoId: "video-sakura-accent",
     video: mockVideos.find((video) => video.id === "video-sakura-accent") || null,
-    createdAt: "2026-06-03T09:42:00.000Z"
+    createdAt: "2026-06-03T09:42:00.000Z",
+    updatedAt: "2026-06-03T09:42:00.000Z"
   },
   {
     id: "dynamic-frontend-mobile",
@@ -278,7 +290,8 @@ const mockCommunityDynamics: CommunityDynamicItem[] = [
     body: "手机上也能轻松阅读动态卡片，长句会自然换行，视频入口保持稳定比例。",
     videoId: "video-mobile-grid",
     video: mockVideos.find((video) => video.id === "video-mobile-grid") || null,
-    createdAt: "2026-06-03T08:50:00.000Z"
+    createdAt: "2026-06-03T08:50:00.000Z",
+    updatedAt: "2026-06-03T08:50:00.000Z"
   },
   {
     id: "dynamic-aoi-lab-note",
@@ -288,9 +301,11 @@ const mockCommunityDynamics: CommunityDynamicItem[] = [
     body: "关注页现在会优先显示已关注创作者的动态，没有关注时则展示推荐预览，方便继续打磨社区入口。",
     videoId: "",
     video: null,
-    createdAt: "2026-06-03T08:18:00.000Z"
+    createdAt: "2026-06-03T08:18:00.000Z",
+    updatedAt: "2026-06-03T08:18:00.000Z"
   }
 ]
+const mockCommunityDynamicOwners: Record<string, string> = {}
 
 export const mockHomePayload: HomePayload = {
   announcement: mockAnnouncement,
@@ -473,7 +488,7 @@ export function getMockFollowingFeed(clientId?: string): FollowingFeedPayload {
     clientId: normalizedClientId || null,
     creators,
     dynamics: {
-      items: dynamicItems,
+      items: dynamicItems.map((item) => withMockCommunityDynamicOwnership(item, normalizedClientId)),
       nextCursor: null
     },
     followingCount: followedCreators.length,
@@ -495,7 +510,9 @@ export function getMockCommunityDynamics(clientId?: string, limit?: number): Com
     authenticated: false,
     clientId: normalizedClientId || null,
     items: {
-      items: mockCommunityDynamics.slice(0, visibleLimit),
+      items: mockCommunityDynamics
+        .slice(0, visibleLimit)
+        .map((item) => withMockCommunityDynamicOwnership(item, normalizedClientId)),
       nextCursor: null
     },
     message: "社区动态来自本地演示数据；真实模式会展示社区时间线。"
@@ -512,6 +529,7 @@ export function createMockCommunityDynamic(payload: CreateCommunityDynamicReques
     return null
   }
 
+  const now = new Date().toISOString()
   const item: CommunityDynamicItem = {
     id: `dynamic-${clientId}-${Date.now().toString(36)}`,
     kind: video ? "video_update" : "text",
@@ -520,11 +538,51 @@ export function createMockCommunityDynamic(payload: CreateCommunityDynamicReques
     body,
     videoId: video?.id || "",
     video,
-    createdAt: new Date().toISOString()
+    createdAt: now,
+    updatedAt: now,
+    ownedByCurrentClient: true
   }
+  mockCommunityDynamicOwners[item.id] = clientId
   mockCommunityDynamics.unshift(item)
 
   return item
+}
+
+export function updateMockCommunityDynamic(dynamicId: string, payload: UpdateCommunityDynamicRequest): CommunityDynamicItem | null {
+  const clientId = normalizeMockClientId(payload.clientId || "")
+  const body = payload.body.trim().slice(0, 280)
+  const index = mockCommunityDynamics.findIndex((item) => item.id === dynamicId)
+
+  if (index < 0 || !clientId || !body || mockCommunityDynamicOwners[dynamicId] !== clientId) {
+    return null
+  }
+
+  const updated: CommunityDynamicItem = {
+    ...mockCommunityDynamics[index]!,
+    body,
+    updatedAt: new Date().toISOString()
+  }
+  mockCommunityDynamics[index] = updated
+
+  return withMockCommunityDynamicOwnership(updated, clientId)
+}
+
+export function deleteMockCommunityDynamic(dynamicId: string, clientIdInput: string): DeleteCommunityDynamicResult | null {
+  const clientId = normalizeMockClientId(clientIdInput)
+  const index = mockCommunityDynamics.findIndex((item) => item.id === dynamicId)
+
+  if (index < 0 || !clientId || mockCommunityDynamicOwners[dynamicId] !== clientId) {
+    return null
+  }
+
+  mockCommunityDynamics.splice(index, 1)
+  delete mockCommunityDynamicOwners[dynamicId]
+
+  return {
+    clientId,
+    deleted: true,
+    dynamicId
+  }
 }
 
 export function getMockVideoInteractionState(idOrSlug: string, clientId: string): VideoInteractionState | null {
@@ -718,6 +776,7 @@ export function getMockVideoDetail(idOrSlug: string): VideoDetail | null {
   if (!video) {
     return null
   }
+  const primaryUrl = mockVideoSourceUrls[video.id] || primaryMockVideoUrl
 
   const tags = [
     ...new Set([
@@ -731,13 +790,13 @@ export function getMockVideoDetail(idOrSlug: string): VideoDetail | null {
     ...video,
     likeCount: getMockVideoLikeCount(video),
     related: mockVideos.filter((item) => item.id !== video.id).slice(0, 4),
-    sourceUrl: primaryMockVideoUrl,
+    sourceUrl: primaryUrl,
     sources: [
       {
-        id: "r2-primary",
-        src: primaryMockVideoUrl,
+        id: `${video.id}-primary`,
+        src: primaryUrl,
         kind: "native",
-        label: "R2 示例 1",
+        label: mockVideoSourceUrls[video.id] ? "Mock 投稿源" : "R2 示例 1",
         mimeType: "video/mp4",
         qualityLabel: "Auto",
         isDefault: true
@@ -773,7 +832,7 @@ const mockDanmakuSamples: Array<{
   { body: "移动端也要稳", offset: 31 }
 ]
 
-const mockVideoComments: Record<string, VideoComment[]> = {
+const mockVideoComments: Record<string, StoredVideoComment[]> = {
   "video-aoi-alpha": [
     {
       id: "comment-aoi-alpha-1",
@@ -941,6 +1000,7 @@ export function createMockVideoDanmaku(idOrSlug: string, payload: CreateVideoDan
 }
 
 export function getMockVideoComments(idOrSlug: string, params: {
+  clientId?: string
   limit?: number
   sort?: VideoCommentSortMode
 } = {}): VideoCommentPayload | null {
@@ -951,6 +1011,7 @@ export function getMockVideoComments(idOrSlug: string, params: {
   }
 
   const sort = params.sort === "oldest" ? "oldest" : "newest"
+  const clientId = normalizeMockClientId(params.clientId || "")
   const items = [...(mockVideoComments[video.id] || [])]
     .sort((a, b) => {
       const aTime = Date.parse(a.createdAt)
@@ -961,7 +1022,7 @@ export function getMockVideoComments(idOrSlug: string, params: {
   const limit = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : items.length
 
   return {
-    items: items.slice(0, limit),
+    items: items.slice(0, limit).map((comment) => publicMockVideoComment(comment, clientId)),
     nextCursor: null,
     sort,
     totalCount: items.length,
@@ -984,19 +1045,21 @@ export function createMockVideoComment(idOrSlug: string, payload: CreateVideoCom
   }
 
   const now = new Date().toISOString()
-  const comment: VideoComment = {
+  const clientId = normalizeMockClientId(payload.clientId || "")
+  const comment: StoredVideoComment = {
     id: `comment-${video.id}-${Date.now().toString(36)}`,
     videoId: video.id,
+    clientId,
     body,
     authorName,
     status: "visible",
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    ownedByCurrentClient: Boolean(clientId)
   }
 
   mockVideoComments[video.id] = [comment, ...(mockVideoComments[video.id] || [])]
   video.commentCount = (video.commentCount || 0) + 1
-  const clientId = normalizeMockClientId(payload.clientId || "")
   if (clientId) {
     pushMockCommunityNotification(clientId, {
       body: `你在《${video.title}》下发布的评论已经进入公开讨论区。`,
@@ -1010,7 +1073,75 @@ export function createMockVideoComment(idOrSlug: string, payload: CreateVideoCom
     })
   }
 
-  return comment
+  return publicMockVideoComment(comment, clientId)
+}
+
+export function updateMockVideoComment(idOrSlug: string, commentId: string, payload: UpdateVideoCommentRequest): VideoComment | null {
+  const video = mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug)
+  const clientId = normalizeMockClientId(payload.clientId || "")
+  const body = payload.body.trim().slice(0, 500)
+
+  if (!video || !clientId || !body) {
+    return null
+  }
+
+  const comments = mockVideoComments[video.id] || []
+  const index = comments.findIndex((comment) => comment.id === commentId && comment.clientId === clientId)
+  if (index < 0) {
+    return null
+  }
+  const current = comments[index]
+  if (!current) {
+    return null
+  }
+
+  const updated: StoredVideoComment = {
+    ...current,
+    body,
+    updatedAt: new Date().toISOString(),
+    ownedByCurrentClient: true
+  }
+  mockVideoComments[video.id] = [
+    ...comments.slice(0, index),
+    updated,
+    ...comments.slice(index + 1)
+  ]
+
+  return publicMockVideoComment(updated, clientId)
+}
+
+export function deleteMockVideoComment(idOrSlug: string, commentId: string, clientIdInput: string): DeleteVideoCommentResult | null {
+  const video = mockVideos.find((item) => item.id === idOrSlug || item.slug === idOrSlug)
+  const clientId = normalizeMockClientId(clientIdInput)
+
+  if (!video || !clientId) {
+    return null
+  }
+
+  const comments = mockVideoComments[video.id] || []
+  const index = comments.findIndex((comment) => comment.id === commentId && comment.clientId === clientId)
+  if (index < 0) {
+    return null
+  }
+
+  mockVideoComments[video.id] = comments.filter((comment) => comment.id !== commentId)
+  video.commentCount = Math.max(0, (video.commentCount || 0) - 1)
+
+  return {
+    commentId,
+    videoId: video.id,
+    clientId,
+    deleted: true
+  }
+}
+
+function publicMockVideoComment(comment: StoredVideoComment, clientId: string): VideoComment {
+  const { clientId: storedClientId, ...publicComment } = comment
+
+  return {
+    ...publicComment,
+    ownedByCurrentClient: Boolean(clientId && storedClientId === clientId)
+  }
 }
 
 export function createMockVideoReport(idOrSlug: string, payload: CreateVideoReportRequest): CommunityReportReceipt | null {
@@ -1076,35 +1207,37 @@ export function getMockCommunitySubmissions(clientId: string, limit?: number): C
 }
 
 export function createMockCommunitySubmission(payload: CreateCommunitySubmissionRequest): CommunitySubmissionItem | null {
-  const clientId = normalizeMockClientId(payload.clientId)
-  const authorName = payload.authorName.trim().slice(0, 24)
-  const title = payload.title.trim().slice(0, 160)
-  const category = getMockCategory(payload.categorySlug)
-  const visibility = normalizeMockSubmissionVisibility(payload.visibility)
-  const sourceName = payload.sourceName.trim().slice(0, 240)
+	const clientId = normalizeMockClientId(payload.clientId)
+	const authorName = payload.authorName.trim().slice(0, 24)
+	const title = payload.title.trim().slice(0, 160)
+	const category = getMockCategory(payload.categorySlug)
+	const visibility = normalizeMockSubmissionVisibility(payload.visibility)
+	const sourceName = payload.sourceName.trim().slice(0, 240)
+	const now = new Date().toISOString()
 
-  if (!clientId || !authorName || title.length < 4 || !category || !visibility || !sourceName || payload.sourceSize <= 0) {
-    return null
-  }
+	if (!clientId || !authorName || title.length < 4 || !category || !visibility || !sourceName || payload.sourceSize <= 0) {
+		return null
+	}
 
   const item: CommunitySubmissionItem = {
-    allowComments: Boolean(payload.allowComments),
-    authorName,
-    category,
-    categorySlug: category.slug,
-    clientId,
-    createdAt: new Date().toISOString(),
-    description: payload.description.trim().slice(0, 720),
-    id: `submission-${clientId}-${Date.now().toString(36)}`,
-    sensitive: Boolean(payload.sensitive),
-    sourceName,
-    sourceSize: payload.sourceSize,
+		allowComments: Boolean(payload.allowComments),
+		authorName,
+		category,
+		categorySlug: category.slug,
+		clientId,
+		createdAt: now,
+		description: payload.description.trim().slice(0, 720),
+		id: `submission-${clientId}-${Date.now().toString(36)}`,
+		sensitive: Boolean(payload.sensitive),
+		sourceName,
+		sourceSize: payload.sourceSize,
     sourceType: payload.sourceType.trim().slice(0, 120),
-    status: "pending_review",
-    tags: normalizeMockSubmissionTags(payload.tags),
-    title,
-    visibility
-  }
+		status: "pending_review",
+		tags: normalizeMockSubmissionTags(payload.tags),
+		title,
+		updatedAt: now,
+		visibility
+	}
 
   mockCommunitySubmissions[clientId] = [
     item,
@@ -1119,11 +1252,149 @@ export function createMockCommunitySubmission(payload: CreateCommunitySubmission
     title: "投稿已进入待审核"
   })
 
-  return item
+	return item
+}
+
+export function reviewMockCommunitySubmission(params: ReviewCommunitySubmissionRequest & {
+  submissionId: string
+}): CommunitySubmissionItem | null {
+  const nextStatus = params.status
+  const reviewNote = (params.reviewNote || "").trim().slice(0, 720)
+  let publishedVideoId = (params.publishedVideoId || "").trim().slice(0, 96)
+
+  if (!["approved", "rejected", "published"].includes(nextStatus)) {
+    return null
+  }
+  if (nextStatus === "rejected" && !reviewNote) {
+    return null
+  }
+
+  for (const clientId of Object.keys(mockCommunitySubmissions)) {
+    const submissions = mockCommunitySubmissions[clientId] || []
+    const index = submissions.findIndex((item) => item.id === params.submissionId)
+
+    if (index < 0) {
+      continue
+    }
+    const current = submissions[index]
+    if (!current) {
+      continue
+    }
+
+    if (nextStatus === "published" && current.status !== "approved" && current.status !== "published") {
+      return null
+    }
+    if (nextStatus === "published" && !publishedVideoId) {
+      const generated = createMockVideoFromSubmission(current, params)
+
+      if (!generated) {
+        return null
+      }
+      publishedVideoId = generated.id
+    }
+    const now = new Date().toISOString()
+    const reviewed: CommunitySubmissionItem = {
+      ...current,
+      publishedAt: nextStatus === "published" ? now : null,
+      mediaAssetId: nextStatus === "published" ? normalizeMockMediaAssetId(params.mediaAssetId) || current.mediaAssetId : current.mediaAssetId,
+      publishedVideoId: nextStatus === "published" ? publishedVideoId : "",
+      reviewedAt: now,
+      reviewerId: "mock-reviewer",
+      reviewNote,
+      status: nextStatus,
+      updatedAt: now
+    }
+
+    submissions[index] = reviewed
+    pushMockCommunityNotification(clientId, {
+      body: mockSubmissionReviewNotificationBody(reviewed),
+      kind: "submission",
+      link: reviewed.publishedVideoId ? `/video/${reviewed.publishedVideoId}` : "/upload",
+      targetId: reviewed.id,
+      targetKind: "submission",
+      title: mockSubmissionReviewNotificationTitle(reviewed)
+    })
+
+    return reviewed
+  }
+
+  return null
+}
+
+function createMockVideoFromSubmission(item: CommunitySubmissionItem, params: ReviewCommunitySubmissionRequest): VideoSummary | null {
+  const mediaAssetId = normalizeMockMediaAssetId(params.mediaAssetId) || normalizeMockMediaAssetId(item.mediaAssetId)
+  const sourceUrl = (params.sourceUrl || "").trim() || (mediaAssetId ? `/api/v1/system/media/assets/${encodeURIComponent(mediaAssetId)}/download` : "")
+  const durationSeconds = Math.floor(params.durationSeconds || 0)
+
+  if (!sourceUrl || durationSeconds <= 0) {
+    return null
+  }
+  const id = mockSubmissionVideoId(item.id)
+  const slug = mockSubmissionVideoSlug(item, params.slug)
+  const user: UserSummary = {
+    id: `creator-${mockShortHash(item.clientId || item.authorName)}`,
+    handle: `u-${mockSafeSlug(item.clientId || item.authorName).slice(0, 42)}-${mockShortHash(item.clientId)}`,
+    displayName: item.authorName,
+    avatarUrl: null
+  }
+  const video: VideoSummary = {
+    id,
+    slug,
+    title: item.title,
+    description: item.description || null,
+    thumbnailUrl: (params.thumbnailUrl || "").trim() || `gradient:${slug}`,
+    durationSeconds,
+    viewCount: 0,
+    commentCount: 0,
+    publishedAt: new Date().toISOString(),
+    uploader: user,
+    categories: [category(item.categorySlug)]
+  }
+
+  const existing = mockVideos.findIndex((current) => current.id === id)
+  if (existing >= 0) {
+    mockVideos[existing] = video
+  } else {
+    mockVideos.unshift(video)
+  }
+  mockVideoLikes[id] = 0
+  mockVideoSourceUrls[id] = sourceUrl
+  return video
+}
+
+function normalizeMockMediaAssetId(value?: string) {
+  const normalized = (value || "").trim()
+  return /^\d+$/.test(normalized) && normalized !== "0" ? normalized : ""
+}
+
+function mockSubmissionReviewNotificationTitle(item: CommunitySubmissionItem) {
+  if (item.status === "approved") {
+    return "投稿审核通过"
+  }
+  if (item.status === "rejected") {
+    return "投稿审核未通过"
+  }
+  if (item.status === "published") {
+    return "投稿已发布"
+  }
+  return "投稿审核状态已更新"
+}
+
+function mockSubmissionReviewNotificationBody(item: CommunitySubmissionItem) {
+  if (item.status === "approved") {
+    return `《${item.title}》已通过审核，等待后续媒体发布处理。`
+  }
+  if (item.status === "rejected") {
+    return `《${item.title}》未通过审核。${item.reviewNote ? `原因：${item.reviewNote}` : ""}`
+  }
+  if (item.status === "published") {
+    return `《${item.title}》已关联公开视频 ${item.publishedVideoId || ""}。`
+  }
+  return `《${item.title}》的审核状态已更新为 ${item.status}。`
 }
 
 export function getMockCommunityNotifications(clientId: string, limit?: number): CommunityNotificationPayload | null {
-  const normalizedClientId = normalizeMockClientId(clientId)
+	const normalizedClientId = normalizeMockClientId(clientId)
 
   if (!normalizedClientId) {
     return null
@@ -1302,6 +1573,37 @@ function normalizeMockSubmissionTags(tags: string[]) {
     .slice(0, 8)
 }
 
+function mockSubmissionVideoId(submissionId: string) {
+  const raw = mockSafeSlug(submissionId.replace(/^submission-/, ""))
+
+  return `video-${raw || mockShortHash(submissionId)}`
+}
+
+function mockSubmissionVideoSlug(item: CommunitySubmissionItem, value?: string) {
+  const base = mockSafeSlug(value || item.title) || "submission"
+
+  return `${base.slice(0, 48)}-${mockShortHash(item.id)}`
+}
+
+function mockSafeSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+function mockShortHash(value: string) {
+  let hash = 2166136261
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return (hash >>> 0).toString(36)
+}
+
 function isMockVideoInteractionKind(value: string): value is VideoInteractionKind {
   return value === "like" || value === "favorite" || value === "watch_later"
 }
@@ -1343,6 +1645,15 @@ function normalizeMockClientId(value: string) {
   const normalized = value.trim()
 
   return normalized && normalized.length <= 96 ? normalized : ""
+}
+
+function withMockCommunityDynamicOwnership(item: CommunityDynamicItem, clientId: string): CommunityDynamicItem {
+  const ownerClientId = mockCommunityDynamicOwners[item.id] || ""
+
+  return {
+    ...item,
+    ownedByCurrentClient: ownerClientId !== "" && ownerClientId === clientId
+  }
 }
 
 function uniqueCategories(categories: Category[]) {

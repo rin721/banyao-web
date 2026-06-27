@@ -31,7 +31,13 @@
       "oldest": "古い順"
     },
     "item": {
-      "edited": "編集済み"
+      "edited": "編集済み",
+      "editLabel": "コメントを編集",
+      "deleteLabel": "コメントを削除",
+      "editBodyLabel": "コメント本文を編集",
+      "bodyTooLong": "コメントが長すぎます",
+      "cancel": "キャンセル",
+      "save": "保存"
     }
   },
   "nav": {
@@ -989,6 +995,8 @@
     "communityCommentComposerHint": "コメントは投稿後にディスカッションへ同期されます。やさしく、具体的で、話し合える内容にしましょう。",
     "communityCommentSubmit": "コメントを投稿",
     "communityCommentSubmitError": "コメントの投稿に失敗しました。しばらくしてから再試行してください。",
+    "communityCommentUpdateError": "コメントの更新に失敗しました。しばらくしてから再試行してください。",
+    "communityCommentDeleteError": "コメントの削除に失敗しました。しばらくしてから再試行してください。",
     "communityCommentDescription": "{count} 件を読み込み済み、コミュニティ合計 {total} 件",
     "communityCommentEmptyTitle": "コミュニティコメントはまだありません",
     "communityCommentEmptyDescription": "最初の討論を書き込みましょう。コミュニティの会話に表示されます。",
@@ -1022,6 +1030,17 @@
     "linkedVideo": "関連動画",
     "emptyTitle": "動向はまだありません",
     "emptyDescription": "動向を投稿するか、クリエイターをフォローしてタイムラインを埋めましょう。",
+    "item": {
+      "edited": "編集済み",
+      "editLabel": "動向を編集",
+      "deleteLabel": "動向を削除",
+      "editBodyLabel": "動向本文を編集",
+      "bodyTooLong": "動向本文は 280 文字までです。",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "updateError": "動向の更新に失敗しました。あとでもう一度お試しください。",
+      "deleteError": "動向の削除に失敗しました。あとでもう一度お試しください。"
+    },
     "composer": {
       "defaultAuthor": "Aoi ビューアー",
       "accountAuthor": "コミュニティアカウント",
@@ -1155,6 +1174,17 @@
       "errorTitle": "投稿控えを読み込めませんでした",
       "errorDescription": "最近の記録を取得できませんでした。しばらくしてから再試行してください。",
       "pendingReview": "審査待ち",
+      "approved": "承認済み",
+      "rejected": "差し戻し",
+      "published": "公開済み",
+      "approvedHint": "審査を通過し、メディア公開処理を待っています。",
+      "rejectedHint": "審査を通過できませんでした。指摘内容を反映して再送信してください。",
+      "publishedHint": "公開動画 {videoId} に関連付けられました。",
+      "reviewNote": "審査メモ：{note}",
+      "reviewedAt": "審査日時",
+      "publishedVideo": "公開動画",
+      "openPublished": "動画を見る",
+      "mediaAsset": "メディアアセット",
       "fileSize": "ファイルサイズ",
       "createdAt": "送信日時"
     }

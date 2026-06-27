@@ -24,16 +24,23 @@ const { mobilePrimaryItems } = useAoiNavigation()
 <style scoped>
 .bottom-nav {
   position: fixed;
-  inset: auto 0 0;
+  left: 50%;
+  bottom: calc(var(--aoi-mobile-bottom-nav-offset) + env(safe-area-inset-bottom, 0px));
   z-index: var(--aoi-z-nav);
   display: none;
+  width: min(
+    calc(100% - (var(--aoi-mobile-bottom-nav-gutter) * 2)),
+    var(--aoi-mobile-bottom-nav-max-width)
+  );
   height: var(--aoi-mobile-bottom-nav-height);
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--aoi-border);
+  border: 1px solid var(--aoi-border);
+  border-radius: var(--aoi-radius-round);
   background: var(--aoi-nav-bg);
+  box-shadow: 0 12px 30px rgba(33, 33, 33, 0.08);
   backdrop-filter: blur(var(--aoi-nav-surface-blur));
   padding: var(--aoi-bottom-nav-padding);
-  padding-bottom: calc(var(--aoi-bottom-nav-padding-block-end) + env(safe-area-inset-bottom, 0px));
+  transform: translate3d(-50%, 0, 0);
 }
 
 .bottom-nav__item {
@@ -46,7 +53,6 @@ const { mobilePrimaryItems } = useAoiNavigation()
   font-weight: 700;
   gap: var(--aoi-bottom-nav-item-gap);
   line-height: 1;
-  transform: translate3d(0, 0, 0);
   transition:
     background var(--aoi-motion-fast) var(--aoi-ease-out),
     color var(--aoi-motion-fast) var(--aoi-ease-out),
@@ -63,7 +69,7 @@ const { mobilePrimaryItems } = useAoiNavigation()
 .bottom-nav__item:active {
   background: var(--aoi-nav-pressed-bg);
   color: var(--aoi-nav-active-color);
-  transform: translate3d(0, 0, 0) scale(.96);
+  transform: translate3d(0, 1px, 0) scale(.97);
 }
 
 .bottom-nav__item--active {
@@ -93,7 +99,18 @@ const { mobilePrimaryItems } = useAoiNavigation()
   }
 }
 
+@media (max-width: 360px) {
+  .bottom-nav {
+    --aoi-bottom-nav-label-size: 10px;
+    --aoi-bottom-nav-icon-size: 18px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .bottom-nav {
+    transform: translate3d(-50%, 0, 0);
+  }
+
   .bottom-nav__item {
     transition-duration: 1ms;
     will-change: auto;

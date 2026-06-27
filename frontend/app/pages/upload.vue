@@ -346,8 +346,40 @@ function submissionStatusLabel(status: string) {
   if (status === "pending_review") {
     return t("upload.submissions.pendingReview")
   }
+  if (status === "approved") {
+    return t("upload.submissions.approved")
+  }
+  if (status === "rejected") {
+    return t("upload.submissions.rejected")
+  }
+  if (status === "published") {
+    return t("upload.submissions.published")
+  }
 
   return status
+}
+
+function submissionReviewMessage(item: CommunitySubmissionItem) {
+  if (item.status === "approved") {
+    return item.reviewNote
+      ? t("upload.submissions.reviewNote", { note: item.reviewNote })
+      : t("upload.submissions.approvedHint")
+  }
+  if (item.status === "rejected") {
+    return item.reviewNote
+      ? t("upload.submissions.reviewNote", { note: item.reviewNote })
+      : t("upload.submissions.rejectedHint")
+  }
+  if (item.status === "published") {
+    return item.publishedVideoId
+      ? t("upload.submissions.publishedHint", { videoId: item.publishedVideoId })
+      : t("upload.submissions.approvedHint")
+  }
+  return ""
+}
+
+function submissionPublishedPath(item: CommunitySubmissionItem) {
+  return item.publishedVideoId ? `/video/${encodeURIComponent(item.publishedVideoId)}` : ""
 }
 
 function visibilityLabelFor(value: string) {
@@ -725,7 +757,7 @@ useHead(() => ({
             >
               <div class="upload-submission-list__heading">
                 <strong>{{ item.title }}</strong>
-                <span>{{ submissionStatusLabel(item.status) }}</span>
+                <span :data-status="item.status">{{ submissionStatusLabel(item.status) }}</span>
               </div>
               <p>{{ item.description || t('upload.review.emptyDescription') }}</p>
               <dl class="upload-submission-list__meta">
@@ -741,11 +773,33 @@ useHead(() => ({
                   <dt>{{ t('upload.submissions.fileSize') }}</dt>
                   <dd>{{ formatBytes(item.sourceSize) }}</dd>
                 </div>
+                <div v-if="item.mediaAssetId">
+                  <dt>{{ t('upload.submissions.mediaAsset') }}</dt>
+                  <dd>{{ item.mediaAssetId }}</dd>
+                </div>
                 <div>
                   <dt>{{ t('upload.submissions.createdAt') }}</dt>
                   <dd>{{ formatDate(item.createdAt) }}</dd>
                 </div>
+                <div v-if="item.reviewedAt">
+                  <dt>{{ t('upload.submissions.reviewedAt') }}</dt>
+                  <dd>{{ formatDate(item.reviewedAt) }}</dd>
+                </div>
+                <div v-if="item.publishedVideoId">
+                  <dt>{{ t('upload.submissions.publishedVideo') }}</dt>
+                  <dd>
+                    <AoiLink :to="submissionPublishedPath(item)">
+                      {{ item.publishedVideoId }}
+                    </AoiLink>
+                  </dd>
+                </div>
               </dl>
+              <div v-if="submissionReviewMessage(item)" class="upload-submission-list__review">
+                <span>{{ submissionReviewMessage(item) }}</span>
+                <AoiLink v-if="item.publishedVideoId" :to="submissionPublishedPath(item)">
+                  {{ t('upload.submissions.openPublished') }}
+                </AoiLink>
+              </div>
               <div v-if="item.tags.length" class="upload-submission-list__tags" :aria-label="t('upload.tagsAriaLabel')">
                 <span v-for="tag in item.tags" :key="tag"># {{ tag }}</span>
               </div>
@@ -1014,8 +1068,27 @@ useHead(() => ({
   padding: 4px 8px;
 }
 
+.upload-submission-list__heading span[data-status="approved"] {
+  border-color: var(--aoi-intent-success-border);
+  background: var(--aoi-intent-success-soft-bg);
+  color: var(--aoi-success);
+}
+
+.upload-submission-list__heading span[data-status="rejected"] {
+  border-color: var(--aoi-intent-danger-border);
+  background: var(--aoi-intent-danger-soft-bg);
+  color: var(--aoi-danger);
+}
+
+.upload-submission-list__heading span[data-status="published"] {
+  border-color: var(--aoi-intent-warning-border);
+  background: var(--aoi-intent-warning-soft-bg);
+  color: var(--aoi-warning);
+}
+
 .upload-submission-list__item strong,
 .upload-submission-list__item p,
+.upload-submission-list__review,
 .upload-submission-list__meta,
 .upload-submission-list__meta dt,
 .upload-submission-list__meta dd,
@@ -1054,6 +1127,26 @@ useHead(() => ({
 .upload-submission-list__meta dd {
   color: var(--aoi-text);
   font-weight: 750;
+}
+
+.upload-submission-list__review {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--aoi-accent-40) 28%, var(--aoi-surface-border));
+  border-radius: var(--aoi-radius-control);
+  background: color-mix(in srgb, var(--aoi-accent-10) 62%, var(--aoi-surface-solid));
+  color: var(--aoi-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 8px 10px;
+}
+
+.upload-submission-list__review span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .upload-submission-list__tags,
