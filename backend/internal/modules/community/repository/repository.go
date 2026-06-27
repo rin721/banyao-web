@@ -100,6 +100,123 @@ func (r *repository) ListCreators(ctx context.Context, limit int) ([]model.Creat
 	return creators, err
 }
 
+func (r *repository) CreateCommunityAccount(ctx context.Context, account model.CommunityAccount) error {
+	return r.db.Create(ctx, &account)
+}
+
+func (r *repository) FindCommunityAccountByID(ctx context.Context, id int64) (*model.CommunityAccount, error) {
+	var account model.CommunityAccount
+	err := r.db.First(ctx, &account, database.Where("id = ?", id), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (r *repository) FindCommunityAccountByHandle(ctx context.Context, handle string) (*model.CommunityAccount, error) {
+	var account model.CommunityAccount
+	err := r.db.First(ctx, &account, database.Where("LOWER(handle) = ?", strings.ToLower(strings.TrimSpace(handle))), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (r *repository) FindCommunityAccountByEmail(ctx context.Context, email string) (*model.CommunityAccount, error) {
+	var account model.CommunityAccount
+	err := r.db.First(ctx, &account, database.Where("LOWER(email) = ?", strings.ToLower(strings.TrimSpace(email))), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (r *repository) FindCommunityAccountByHandleOrEmail(ctx context.Context, identifier string) (*model.CommunityAccount, error) {
+	identifier = strings.ToLower(strings.TrimSpace(identifier))
+	var account model.CommunityAccount
+	err := r.db.First(ctx, &account, database.Where("LOWER(handle) = ? OR LOWER(email) = ?", identifier, identifier), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &account, nil
+}
+
+func (r *repository) UpdateCommunityAccount(ctx context.Context, account model.CommunityAccount) error {
+	result, err := r.db.Update(ctx, &model.CommunityAccount{}, map[string]any{
+		"display_name":  account.DisplayName,
+		"role":          account.Role,
+		"status":        account.Status,
+		"last_login_at": account.LastLoginAt,
+		"updated_at":    account.UpdatedAt,
+	}, database.Where("id = ?", account.ID), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) ListCommunityAccounts(ctx context.Context, filter model.CommunityAccountFilter) ([]model.CommunityAccount, error) {
+	opts := []database.QueryOption{alive(), database.Order("created_at DESC, id DESC")}
+	if keyword := strings.ToLower(strings.TrimSpace(filter.Keyword)); keyword != "" {
+		like := "%" + keyword + "%"
+		opts = append(opts, database.Where("(LOWER(handle) LIKE ? OR LOWER(email) LIKE ? OR LOWER(display_name) LIKE ?)", like, like, like))
+	}
+	if role := strings.TrimSpace(filter.Role); role != "" {
+		opts = append(opts, database.Where("role = ?", role))
+	}
+	if status := strings.TrimSpace(filter.Status); status != "" {
+		opts = append(opts, database.Where("status = ?", status))
+	}
+	if filter.Limit > 0 {
+		opts = append(opts, database.Limit(filter.Limit))
+	}
+	var accounts []model.CommunityAccount
+	err := r.db.Find(ctx, &accounts, opts...)
+	return accounts, err
+}
+
+func (r *repository) CreateCommunitySession(ctx context.Context, session model.CommunitySession) error {
+	return r.db.Create(ctx, &session)
+}
+
+func (r *repository) FindCommunitySessionByAccessTokenHash(ctx context.Context, tokenHash string, now time.Time) (*model.CommunitySession, error) {
+	var session model.CommunitySession
+	err := r.db.First(ctx, &session,
+		database.Where("access_token_hash = ? AND revoked_at IS NULL AND access_expires_at > ?", strings.TrimSpace(tokenHash), now),
+		alive(),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func (r *repository) FindCommunitySessionByID(ctx context.Context, id int64) (*model.CommunitySession, error) {
+	var session model.CommunitySession
+	err := r.db.First(ctx, &session, database.Where("id = ? AND revoked_at IS NULL", id), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+func (r *repository) RevokeCommunitySession(ctx context.Context, sessionID int64, now time.Time) error {
+	result, err := r.db.Update(ctx, &model.CommunitySession{}, map[string]any{
+		"revoked_at": now,
+		"updated_at": now,
+	}, database.Where("id = ? AND revoked_at IS NULL", sessionID), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
 func (r *repository) FindCreatorByHandle(ctx context.Context, handle string) (*model.Creator, error) {
 	var creator model.Creator
 	err := r.db.First(ctx, &creator, database.Where("LOWER(handle) = ?", strings.ToLower(strings.TrimSpace(handle))), alive())
@@ -351,6 +468,45 @@ func (r *repository) CreateVideoDanmaku(ctx context.Context, item model.VideoDan
 
 func (r *repository) CreateCommunityReport(ctx context.Context, report model.CommunityReport) error {
 	return r.db.Create(ctx, &report)
+}
+
+func (r *repository) ListCommunityReports(ctx context.Context, filter model.CommunityReportFilter) ([]model.CommunityReport, error) {
+	opts := []database.QueryOption{alive(), database.Order("created_at DESC, id DESC")}
+	if status := strings.TrimSpace(filter.Status); status != "" {
+		opts = append(opts, database.Where("status = ?", status))
+	}
+	if filter.Limit > 0 {
+		opts = append(opts, database.Limit(filter.Limit))
+	}
+	var reports []model.CommunityReport
+	err := r.db.Find(ctx, &reports, opts...)
+	return reports, err
+}
+
+func (r *repository) FindCommunityReport(ctx context.Context, reportID string) (*model.CommunityReport, error) {
+	var report model.CommunityReport
+	err := r.db.First(ctx, &report, database.Where("id = ?", strings.TrimSpace(reportID)), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &report, nil
+}
+
+func (r *repository) UpdateCommunityReportReview(ctx context.Context, report model.CommunityReport) error {
+	result, err := r.db.Update(ctx, &model.CommunityReport{}, map[string]any{
+		"status":      report.Status,
+		"review_note": report.ReviewNote,
+		"reviewer_id": report.ReviewerID,
+		"reviewed_at": report.ReviewedAt,
+		"updated_at":  report.UpdatedAt,
+	}, database.Where("id = ?", strings.TrimSpace(report.ID)), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
 }
 
 func (r *repository) CreateCommunityNotification(ctx context.Context, notification model.CommunityNotification) error {

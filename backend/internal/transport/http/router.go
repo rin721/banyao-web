@@ -44,6 +44,7 @@ type RouterDeps struct {
 	SetupHandler                 SetupHandler
 	IAMAuth                      middleware.Authenticator
 	IAMAuthz                     middleware.Authorizer
+	CommunityAuth                middleware.Authenticator
 	WebUI                        WebUIDeps
 }
 
@@ -107,12 +108,12 @@ func NewRouter(deps RouterDeps) ports.HTTPRouter {
 	}
 	if deps.IAMHandler != nil {
 		registeredContracts = append(registeredContracts, registerIAMRoutes(v1, deps)...)
-		registeredContracts = append(registeredContracts, registerCommunityAuthRoutes(v1, deps)...)
 	}
 	if deps.AnnouncementsHandler != nil {
 		registeredContracts = append(registeredContracts, registerAnnouncementRoutes(v1, deps)...)
 	}
 	if deps.CommunityHandler != nil {
+		registeredContracts = append(registeredContracts, registerCommunityAuthRoutes(v1, deps)...)
 		registeredContracts = append(registeredContracts, registerCommunityRoutes(v1, deps)...)
 		deps.CommunityHandler.UseStatusEndpoints(communityStatusEndpoints(registeredContracts))
 	}
@@ -275,19 +276,19 @@ func registerCommunityAuthRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteCo
 	auth.Use(middleware.RateLimit(middleware.RateLimitConfig{Enabled: true, Limit: 20, Window: time.Minute}))
 	auth.Use(communitySetupGate(deps.CommunitySetupStatusProvider, deps.Logger))
 	specs := []routeSpec{
-		routeSpecFor("community.auth.login", deps.IAMHandler.CommunityLogin),
-		routeSpecFor("community.auth.session", deps.IAMHandler.CommunitySession),
-		routeSpecFor("community.auth.signup", deps.IAMHandler.CommunitySignup),
+		routeSpecFor("community.auth.login", deps.CommunityHandler.AuthLogin),
+		routeSpecFor("community.auth.session", deps.CommunityHandler.AuthSession),
+		routeSpecFor("community.auth.signup", deps.CommunityHandler.AuthSignup),
 	}
 	registerRouteSpecs(auth, appconstants.APIPath("public", "community", "auth"), specs)
 	registered := routeContractsFromSpecs(specs)
 
 	protected := v1.Group("/public/community/auth")
 	protected.Use(communitySetupGate(deps.CommunitySetupStatusProvider, deps.Logger))
-	protected.Use(middleware.Auth(deps.IAMAuth, iamAuthMiddlewareConfig(deps)))
-	protected.Use(middleware.CSRF(iamCSRFMiddlewareConfig(deps)))
+	protected.Use(middleware.Auth(deps.CommunityAuth, communityAuthMiddlewareConfig(deps)))
+	protected.Use(middleware.CSRF(communityCSRFMiddlewareConfig(deps)))
 	protectedSpecs := []routeSpec{
-		routeSpecFor("community.auth.logout", deps.IAMHandler.CommunityLogout),
+		routeSpecFor("community.auth.logout", deps.CommunityHandler.AuthLogout),
 	}
 	registerRouteSpecs(protected, appconstants.APIPath("public", "community", "auth"), protectedSpecs)
 	registered = append(registered, routeContractsFromSpecs(protectedSpecs)...)
@@ -375,8 +376,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 
 	account := v1.Group("/public/community/account")
 	account.Use(communitySetupGate(deps.CommunitySetupStatusProvider, deps.Logger))
-	account.Use(middleware.Auth(deps.IAMAuth, iamAuthMiddlewareConfig(deps)))
-	account.Use(middleware.CSRF(iamCSRFMiddlewareConfig(deps)))
+	account.Use(middleware.Auth(deps.CommunityAuth, communityAuthMiddlewareConfig(deps)))
+	account.Use(middleware.CSRF(communityCSRFMiddlewareConfig(deps)))
 	accountSpecs := []routeSpec{
 		routeSpecFor("community.account.dynamics.create", deps.CommunityHandler.CreateAccountDynamic),
 		routeSpecFor("community.account.dynamics.update", deps.CommunityHandler.UpdateAccountDynamic),
@@ -407,8 +408,12 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 	review.Use(middleware.CSRF(iamCSRFMiddlewareConfig(deps)))
 	review.Use(OperationRecorder(deps.SystemHandler, deps.Logger))
 	reviewSpecs := []routeSpec{
+		routeSpecFor("community.accounts.list", deps.CommunityHandler.Accounts),
+		routeSpecFor("community.accounts.update", deps.CommunityHandler.UpdateAccount),
 		routeSpecFor("community.submissions.review-list", deps.CommunityHandler.ReviewSubmissions),
 		routeSpecFor("community.submissions.review", deps.CommunityHandler.ReviewSubmission),
+		routeSpecFor("community.reports.list", deps.CommunityHandler.Reports),
+		routeSpecFor("community.reports.review", deps.CommunityHandler.ReviewReport),
 	}
 	registerProtectedRouteSpecs(review, appconstants.APIPath("community"), deps, reviewSpecs)
 	registered = append(registered, routeContractsFromSpecs(reviewSpecs)...)
@@ -481,6 +486,20 @@ func iamCSRFMiddlewareConfig(deps RouterDeps) middleware.CSRFConfig {
 		return middleware.CSRFConfig{}
 	}
 	return deps.IAMHandler.CSRFMiddlewareConfig()
+}
+
+func communityAuthMiddlewareConfig(deps RouterDeps) middleware.AuthConfig {
+	if deps.CommunityHandler == nil {
+		return middleware.AuthConfig{}
+	}
+	return deps.CommunityHandler.AuthMiddlewareConfig()
+}
+
+func communityCSRFMiddlewareConfig(deps RouterDeps) middleware.CSRFConfig {
+	if deps.CommunityHandler == nil {
+		return middleware.CSRFConfig{}
+	}
+	return deps.CommunityHandler.CSRFMiddlewareConfig()
 }
 
 // registerSystemRoutes 注册系统管理路由。

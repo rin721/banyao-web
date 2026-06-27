@@ -8,6 +8,9 @@ import { expect, test, type Locator, type Page, type Request, type Route } from 
 
 import type {
   Announcement,
+  CommunityAccount,
+  CommunityReport,
+  CommunitySubmission,
   IAMAPIToken,
   IAMInvitation,
   IAMNotificationOutboxItem,
@@ -796,6 +799,39 @@ const en = JSON.parse(
   readFileSync(resolve(testDir, "../../app/i18n/locales/en-US.json"), "utf8"),
 ) as typeof zhCN;
 
+type CommunityAdminTestMessages = {
+  accountRole: {
+    creator: string;
+    registered: string;
+  };
+  accounts: {
+    title: string;
+  };
+  reports: {
+    actions: {
+      resolve: string;
+    };
+    title: string;
+  };
+  reportReason: {
+    spam: string;
+  };
+  submissions: {
+    actions: {
+      approve: string;
+    };
+    title: string;
+  };
+};
+
+const zhCommunity = (
+  zhCN as typeof zhCN & {
+    admin: typeof zhCN.admin & {
+      community: CommunityAdminTestMessages;
+    };
+  }
+).admin.community;
+
 type DesignSystemTestMessages = {
   actions: {
     applyImport: string;
@@ -1032,6 +1068,10 @@ function sessionSnapshot(
       { code: "api_token:revoke", productCode, scope: "tenant" },
       { code: "notification:read", productCode, scope: "platform" },
       { code: "notification:retry", productCode, scope: "platform" },
+      { code: "community_account:read", productCode, scope: "tenant" },
+      { code: "community_account:update", productCode, scope: "tenant" },
+      { code: "community_submission:review", productCode, scope: "tenant" },
+      { code: "community_report:review", productCode, scope: "tenant" },
       { code: "session:read", productCode, scope: "tenant" },
       { code: "session:revoke", productCode, scope: "tenant" },
       { code: "announcement:read", productCode, scope: "tenant" },
@@ -9512,6 +9552,212 @@ test("admin announcements route disables writes without announcement grants", as
   await expect(deleteButton).toBeDisabled();
   await expect(deleteButton).toHaveAttribute("title", permissionTitle("announcement:delete"));
   expect(writeRequests).toBe(0);
+});
+
+test("admin community routes render backend community management", async ({ page }) => {
+  const accessToken = accessTokenWithOrg("1");
+  await setAuthenticatedSession(page, accessToken);
+  const protectedRequests: Array<{
+    authorization: string | null;
+    body?: unknown;
+    locale: string | null;
+    method: string;
+    path: string;
+    query: Record<string, string>;
+  }> = [];
+
+  const recordProtectedRequest = (route: Route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const rawBody = request.postData();
+    protectedRequests.push({
+      authorization: requestAuth(request),
+      body: rawBody ? (JSON.parse(rawBody) as unknown) : undefined,
+      locale: request.headers()["x-locale"] ?? null,
+      method: request.method(),
+      path: url.pathname,
+      query: Object.fromEntries(url.searchParams.entries()),
+    });
+    return { request, url };
+  };
+
+  let accounts: CommunityAccount[] = [
+    {
+      createdAt: "2026-06-27T08:00:00Z",
+      displayName: "Rin Community",
+      email: "rin.community@example.test",
+      handle: "rin-community",
+      id: "201",
+      lastLoginAt: null,
+      role: "registered",
+      status: "active",
+      updatedAt: "2026-06-27T08:00:00Z",
+    },
+  ];
+  const submissions: CommunitySubmission[] = [
+    {
+      allowComments: true,
+      authorName: "Rin Community",
+      categorySlug: "music",
+      clientId: "account:201",
+      createdAt: "2026-06-27T08:20:00Z",
+      description: "后台审核需要读取的真实投稿队列记录。",
+      id: "sub-201",
+      mediaAssetId: "901",
+      publishedAt: null,
+      sensitive: false,
+      sourceName: "summer-night.mp4",
+      sourceSize: 7340032,
+      sourceType: "video/mp4",
+      status: "pending_review",
+      tags: ["music", "demo"],
+      title: "夏夜投稿",
+      updatedAt: "2026-06-27T08:20:00Z",
+      visibility: "public",
+    },
+  ];
+  const reports: CommunityReport[] = [
+    {
+      clientId: "account:201",
+      createdAt: "2026-06-27T08:40:00Z",
+      detail: "疑似批量重复发布相同链接。",
+      id: "rep-201",
+      reason: "spam",
+      reviewedAt: null,
+      status: "pending",
+      targetId: "vid-201",
+      targetKind: "video",
+      updatedAt: "2026-06-27T08:40:00Z",
+      videoId: "vid-201",
+    },
+  ];
+
+  await page.route("**/api/v1/community/accounts**", async (route) => {
+    const { request, url } = recordProtectedRequest(route);
+    if (request.method() === "PATCH") {
+      const accountId = url.pathname.split("/").at(-1);
+      const input = request.postDataJSON() as Partial<CommunityAccount>;
+      const current = accounts.find((account) => String(account.id) === accountId);
+      if (!current) {
+        await route.fulfill({
+          body: JSON.stringify({ code: 404, message: "not found" }),
+          contentType: "application/json",
+          status: 404,
+        });
+        return;
+      }
+      const updated: CommunityAccount = {
+        ...current,
+        role: input.role ?? current.role,
+        status: input.status ?? current.status,
+        updatedAt: "2026-06-27T09:00:00Z",
+      };
+      accounts = accounts.map((account) => (String(account.id) === accountId ? updated : account));
+      await route.fulfill({
+        body: JSON.stringify({ code: 0, data: updated }),
+        contentType: "application/json",
+      });
+      return;
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        code: 0,
+        data: { items: { items: accounts, nextCursor: null } },
+      }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.route("**/api/v1/community/submissions**", async (route) => {
+    const { request } = recordProtectedRequest(route);
+    if (request.method() === "PATCH") {
+      await route.fulfill({
+        body: JSON.stringify({
+          code: 0,
+          data: { ...submissions[0], status: "approved", reviewedAt: "2026-06-27T09:10:00Z" },
+        }),
+        contentType: "application/json",
+      });
+      return;
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        code: 0,
+        data: { items: { items: submissions, nextCursor: null } },
+      }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.route("**/api/v1/community/reports**", async (route) => {
+    const { request } = recordProtectedRequest(route);
+    if (request.method() === "PATCH") {
+      await route.fulfill({
+        body: JSON.stringify({
+          code: 0,
+          data: { ...reports[0], status: "resolved", reviewedAt: "2026-06-27T09:20:00Z" },
+        }),
+        contentType: "application/json",
+      });
+      return;
+    }
+    await route.fulfill({
+      body: JSON.stringify({
+        code: 0,
+        data: { items: { items: reports, nextCursor: null } },
+      }),
+      contentType: "application/json",
+    });
+  });
+
+  await page.goto("/admin/community/accounts");
+  await expect(
+    page.getByRole("heading", { level: 1, name: zhCommunity.accounts.title }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("@rin-community")).toBeVisible();
+  await expect(page.getByText(zhCommunity.accountRole.registered).first()).toBeVisible();
+
+  await page.goto("/admin/community/submissions");
+  await expect(
+    page.getByRole("heading", { level: 1, name: zhCommunity.submissions.title }),
+  ).toBeVisible();
+  await expect(page.getByText("夏夜投稿")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: zhCommunity.submissions.actions.approve }).first(),
+  ).toBeVisible();
+
+  await page.goto("/admin/community/reports");
+  await expect(
+    page.getByRole("heading", { level: 1, name: zhCommunity.reports.title }),
+  ).toBeVisible();
+  await expect(page.getByText("video #vid-201")).toBeVisible();
+  await expect(page.getByText(zhCommunity.reportReason.spam)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: zhCommunity.reports.actions.resolve }).first(),
+  ).toBeVisible();
+
+  expect(protectedRequests).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        authorization: `Bearer ${accessToken}`,
+        locale: "zh-CN",
+        method: "GET",
+        path: "/api/v1/community/accounts",
+      }),
+      expect.objectContaining({
+        authorization: `Bearer ${accessToken}`,
+        locale: "zh-CN",
+        method: "GET",
+        path: "/api/v1/community/submissions",
+      }),
+      expect.objectContaining({
+        authorization: `Bearer ${accessToken}`,
+        locale: "zh-CN",
+        method: "GET",
+        path: "/api/v1/community/reports",
+      }),
+    ]),
+  );
 });
 
 test("setup route is independent from public and platform console shells", async ({ page }) => {

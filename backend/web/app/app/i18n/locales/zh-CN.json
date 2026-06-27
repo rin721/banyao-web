@@ -518,6 +518,9 @@
       "loginLogs": "登录日志",
       "errorLogs": "错误日志",
       "notificationOutbox": "通知队列",
+      "communityAccounts": "社区账号",
+      "communitySubmissions": "投稿审核",
+      "communityReports": "举报处理",
       "media": "媒体",
       "versions": "版本",
       "mediaResumable": "断点续传"
@@ -526,6 +529,7 @@
       "workspace": "工作台",
       "identity": "身份与权限",
       "system": "系统与配置",
+      "community": "社区管理",
       "logs": "日志与审计",
       "media": "媒体与内容",
       "integration": "集成与发布"
@@ -2123,7 +2127,7 @@
       },
       "fields": {
         "code": "角色编码",
-        "codePlaceholder": "operator",
+        "codePlaceholder": "support_operator",
         "description": "描述",
         "descriptionHelp": "后端会裁剪描述并随角色一起保存。",
         "name": "角色名称"
@@ -2511,6 +2515,212 @@
         "writePermissionDescription": "当前会话缺少租户级 {{permission}} 权限。",
         "storageUnavailableTitle": "API Token 存储不可用",
         "storageUnavailableDescription": "后端报告 API Token 尚未持久化。使用 Token 工作流前，请先运行所需迁移。"
+      }
+    },
+    "community": {
+      "actions": {
+        "refresh": "刷新",
+        "reset": "重置",
+        "search": "搜索"
+      },
+      "filters": {
+        "limit": "返回数量"
+      },
+      "accountRole": {
+        "registered": "普通注册用户",
+        "creator": "内容创作者"
+      },
+      "accountStatus": {
+        "active": "活跃",
+        "disabled": "已禁用"
+      },
+      "submissionStatus": {
+        "pending_review": "待审核",
+        "approved": "已通过",
+        "rejected": "已驳回",
+        "published": "已发布"
+      },
+      "reportStatus": {
+        "pending": "待处理",
+        "resolved": "已处理",
+        "rejected": "已驳回"
+      },
+      "reportReason": {
+        "abuse": "骚扰或攻击",
+        "copyright": "版权问题",
+        "illegal": "违法内容",
+        "misinformation": "虚假信息",
+        "spam": "垃圾信息"
+      },
+      "accounts": {
+        "title": "社区账号",
+        "description": "管理普通社区注册身份。这里不会创建或授予 IAM 控制台角色，普通注册用户和内容创作者都不能凭社区账号进入后台控制台。",
+        "badge": "社区身份",
+        "summaryLabel": "社区账号摘要",
+        "empty": "后端没有返回社区账号。",
+        "actions": {
+          "save": "保存"
+        },
+        "metrics": {
+          "total": "当前返回",
+          "active": "活跃",
+          "creators": "创作者",
+          "disabled": "已禁用"
+        },
+        "filters": {
+          "title": "账号筛选",
+          "description": "按 handle、邮箱、展示名、社区角色和账号状态读取社区账号列表。",
+          "keyword": "关键词",
+          "role": "社区角色",
+          "status": "状态",
+          "allRoles": "全部角色",
+          "allStatuses": "全部状态"
+        },
+        "columns": {
+          "account": "账号",
+          "id": "ID",
+          "role": "角色",
+          "status": "状态",
+          "lastLoginAt": "最近登录",
+          "createdAt": "注册时间",
+          "actions": "操作"
+        },
+        "controls": {
+          "role": "社区角色",
+          "status": "账号状态"
+        },
+        "list": {
+          "title": "账号列表",
+          "description": "当前筛选返回 {{count}} 个社区账号。"
+        },
+        "messages": {
+          "updateFailedTitle": "{{handle}} 更新失败",
+          "updateSuccessTitle": "社区账号已更新",
+          "updateSuccessDescription": "@{{handle}} 的社区账号状态已经保存。"
+        },
+        "states": {
+          "emptyTitle": "没有社区账号数据",
+          "emptyDescription": "后端响应为空，或当前筛选没有匹配账号。",
+          "errorTitle": "社区账号不可用",
+          "loadingDescription": "正在读取社区账号。",
+          "permissionTitle": "需要社区账号读取权限",
+          "permissionDescription": "当前会话缺少租户级 community_account:read 权限。",
+          "readPermissionDescription": "当前会话缺少租户级 community_account:read 权限，无法读取社区账号列表。",
+          "updatePermissionTitle": "只能查看，不能修改",
+          "updatePermissionDescription": "当前会话缺少租户级 community_account:update 权限。",
+          "storageUnavailableTitle": "社区账号存储不可用",
+          "storageUnavailableDescription": "后端报告社区账号尚未持久化，请先运行社区账号迁移。"
+        }
+      },
+      "submissions": {
+        "title": "投稿审核",
+        "description": "读取社区投稿审核队列，并通过真实审核接口保存通过或驳回结果。",
+        "badge": "社区内容",
+        "summaryLabel": "投稿审核摘要",
+        "empty": "后端没有返回投稿记录。",
+        "actions": {
+          "approve": "通过",
+          "reject": "驳回"
+        },
+        "metrics": {
+          "total": "当前返回",
+          "pending": "待审核",
+          "approved": "已通过",
+          "rejected": "已驳回"
+        },
+        "filters": {
+          "title": "队列筛选",
+          "description": "按审核状态读取投稿队列，本页只处理后端已暴露的审核能力。",
+          "status": "审核状态",
+          "allStatuses": "全部状态"
+        },
+        "columns": {
+          "submission": "投稿",
+          "author": "作者 / 分类",
+          "status": "状态",
+          "source": "源文件",
+          "reviewNote": "审核备注",
+          "createdAt": "提交时间",
+          "actions": "操作"
+        },
+        "controls": {
+          "reviewNote": "处理备注"
+        },
+        "list": {
+          "title": "审核队列",
+          "description": "当前筛选返回 {{count}} 条投稿。"
+        },
+        "messages": {
+          "reviewFailedTitle": "投稿《{{title}}》处理失败",
+          "reviewSuccessTitle": "投稿状态已保存",
+          "reviewSuccessDescription": "《{{title}}》已更新为 {{status}}。"
+        },
+        "states": {
+          "emptyTitle": "没有投稿数据",
+          "emptyDescription": "后端响应为空，或当前筛选没有匹配投稿。",
+          "errorTitle": "投稿队列不可用",
+          "loadingDescription": "正在读取社区投稿审核队列。",
+          "permissionTitle": "需要投稿审核权限",
+          "permissionDescription": "当前会话缺少租户级 community_submission:review 权限。",
+          "storageUnavailableTitle": "投稿存储不可用",
+          "storageUnavailableDescription": "后端报告社区投稿尚未持久化，请先运行社区模块迁移。"
+        }
+      },
+      "reports": {
+        "title": "举报处理",
+        "description": "读取社区举报队列，并通过真实处理接口保存已处理或驳回结果。",
+        "badge": "社区治理",
+        "summaryLabel": "举报处理摘要",
+        "empty": "后端没有返回举报记录。",
+        "actions": {
+          "resolve": "标记已处理",
+          "reject": "驳回"
+        },
+        "labels": {
+          "target": "{{kind}} #{{id}}"
+        },
+        "metrics": {
+          "total": "当前返回",
+          "pending": "待处理",
+          "resolved": "已处理",
+          "rejected": "已驳回"
+        },
+        "filters": {
+          "title": "举报筛选",
+          "description": "按处理状态读取举报队列，本页只处理后端已暴露的举报审核能力。",
+          "status": "处理状态",
+          "allStatuses": "全部状态"
+        },
+        "columns": {
+          "report": "举报",
+          "status": "状态",
+          "reason": "原因 / 详情",
+          "reviewNote": "处理备注",
+          "createdAt": "提交时间",
+          "actions": "操作"
+        },
+        "controls": {
+          "reviewNote": "处理备注"
+        },
+        "list": {
+          "title": "举报队列",
+          "description": "当前筛选返回 {{count}} 条举报。"
+        },
+        "messages": {
+          "reviewFailedTitle": "举报 {{id}} 处理失败",
+          "reviewSuccessTitle": "举报状态已保存",
+          "reviewSuccessDescription": "举报 {{id}} 已更新为 {{status}}。"
+        },
+        "states": {
+          "emptyTitle": "没有举报数据",
+          "emptyDescription": "后端响应为空，或当前筛选没有匹配举报。",
+          "errorTitle": "举报队列不可用",
+          "loadingDescription": "正在读取社区举报队列。",
+          "permissionTitle": "需要举报处理权限",
+          "permissionDescription": "当前会话缺少租户级 community_report:review 权限。",
+          "storageUnavailableTitle": "举报存储不可用",
+          "storageUnavailableDescription": "后端报告社区举报尚未持久化，请先运行社区模块迁移。"
+        }
       }
     },
     "notificationOutbox": {

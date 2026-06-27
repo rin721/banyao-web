@@ -105,6 +105,39 @@ function Invoke-JsonEnvelope {
     return $json
 }
 
+function Invoke-JsonProbe {
+    param(
+        [string]$Url,
+        [object]$WebSession = $null
+    )
+
+    $handler = [System.Net.Http.HttpClientHandler]::new()
+    if ($null -ne $WebSession) {
+        $handler.CookieContainer = $WebSession.Cookies
+    }
+    $client = [System.Net.Http.HttpClient]::new($handler)
+    try {
+        $response = $client.GetAsync($Url).GetAwaiter().GetResult()
+        $text = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        $json = $null
+        if (-not [string]::IsNullOrWhiteSpace($text)) {
+            try {
+                $json = $text | ConvertFrom-Json
+            } catch {
+                $json = $null
+            }
+        }
+        return [pscustomobject]@{
+            Json = $json
+            StatusCode = [int]$response.StatusCode
+            Text = $text
+        }
+    } finally {
+        $client.Dispose()
+        $handler.Dispose()
+    }
+}
+
 function Invoke-MultipartFileUpload {
     param(
         [string]$Url,
@@ -649,9 +682,20 @@ try {
         throw "Community session endpoint did not keep the compact community account identity"
     }
 
-    $csrfToken = Get-SessionCookieValue -WebSession $accountSession -Url $baseUrl -Name "console_csrf"
+    $csrfToken = Get-SessionCookieValue -WebSession $accountSession -Url $baseUrl -Name "community_csrf"
     $accountHeaders = @{
-        "X-CSRF-Token" = $csrfToken
+        "X-Community-CSRF-Token" = $csrfToken
+    }
+
+    $consoleSessionProbe = Invoke-JsonProbe -Url "$apiRoot/me/session" -WebSession $accountSession
+    if ($consoleSessionProbe.StatusCode -eq 200 -and $consoleSessionProbe.Json.code -eq 0) {
+        throw "Community signup unexpectedly created an IAM console session: $($consoleSessionProbe.Text)"
+    }
+
+    $communityOrgProbe = Invoke-JsonEnvelope -Url "$apiRoot/orgs?keyword=community-$accountName&page=1&pageSize=20" -WebSession $adminSession
+    $communityOrgs = @($communityOrgProbe.data.items | Where-Object { [string]$_.code -like "community-*" })
+    if ($communityOrgs.Count -gt 0) {
+        throw "Community signup unexpectedly created IAM community organizations: $($communityOrgs | ConvertTo-Json -Depth 8)"
     }
     $accountFollow = Invoke-JsonEnvelope -Url "$baseUrl/account/users/$publishedCreatorHandle/follow" -Method "POST" -WebSession $accountSession -Headers $accountHeaders
     if ($accountFollow.data.following -ne $true -or $accountFollow.data.clientId -notmatch "^account:") {
@@ -744,6 +788,7 @@ try {
         [pscustomobject]@{ Name = "notifications"; Url = "$baseUrl/notifications?clientId=$clientId&limit=8"; Detail = "count=$(@($notifications.data.items.items).Count), clientId=$($notifications.data.clientId)" }
         [pscustomobject]@{ Name = "search"; Url = "$baseUrl/search?q=Community%20smoke&limit=8"; Detail = "videos=$(@($search.data.videos.items).Count)" }
         [pscustomobject]@{ Name = "account-signup"; Url = "$baseUrl/auth/signup"; Detail = "status=$($signup.data.status), handle=$($signup.data.session.account.handle)" }
+        [pscustomobject]@{ Name = "account-console-boundary"; Url = "$apiRoot/me/session"; Detail = "status=$($consoleSessionProbe.StatusCode), iamCommunityOrgs=$($communityOrgs.Count)" }
         [pscustomobject]@{ Name = "account-login"; Url = "$baseUrl/auth/login"; Detail = "session=$($login.data.sessionId), handle=$($login.data.account.handle)" }
         [pscustomobject]@{ Name = "account-logout"; Url = "$baseUrl/auth/logout"; Detail = "loggedOut=$($logout.data.loggedOut), anonymousSession=$($null -eq $anonymousAfterLogout.data)" }
         [pscustomobject]@{ Name = "account-dynamics"; Url = "$baseUrl/account/dynamics"; Detail = "updated=$($updatedAccountDynamic.data.body), deleted=$($deletedAccountDynamic.data.deleted)" }

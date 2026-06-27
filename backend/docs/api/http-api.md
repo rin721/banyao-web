@@ -28,7 +28,7 @@ Authorization: Bearer <accessToken-or-api-token>
 | Auth | `/api/v1/auth/*`、`/api/v1/me*`、`/api/v1/invitations/*` | 登录、注册、MFA、找回密码、当前用户、邀请 |
 | IAM | `/api/v1/orgs/*`、`/api/v1/iam/notification-outbox*` | 组织、用户、角色、权限、API Token、会话、审计、脱敏通知投递队列和手动重试 |
 | Announcements | `/api/v1/announcements*`、`/api/v1/public/announcements*` | 公告后台管理，以及公开只读已发布公告列表和详情 |
-| Community | `/api/v1/public/community/*`、`/api/v1/community/submissions*` | Nuxt 视频社区公开数据：账号注册入口、首页、分类、视频、弹幕、评论发布与本人编辑删除、视频举报、投稿元数据、搜索、创作者资料、匿名关注、视频互动、观看历史、社区动态发布与本人编辑删除、关注动态和匿名通知；`/status` 返回 setup 状态和由真实 route contract 注册结果派生的 endpoint 清单，`/home.announcement` 来自公告模块已发布数据；内容入口在平台初始化完成后返回真实数据；主系统 `/community/submissions*` 受 `community_submission:review` 保护，用于审核队列、审核状态、绑定既有视频 ID，或在审核发布时用受控 `mediaAssetId` / `durationSeconds` 从 system media 资产生成社区视频记录 |
+| Community | `/api/v1/public/community/*`、`/api/v1/community/accounts*`、`/api/v1/community/submissions*`、`/api/v1/community/reports*` | Nuxt 视频社区公开数据：独立社区账号注册 / 登录 / 会话、首页、分类、视频、弹幕、评论发布与本人编辑删除、视频举报、投稿元数据、搜索、创作者资料、匿名关注、视频互动、观看历史、社区动态发布与本人编辑删除、关注动态和匿名通知；社区账号使用 `community_accounts`、`community_sessions` 和 `community_*` Cookie，不创建 IAM 控制台身份；`/status` 返回 setup 状态和由真实 route contract 注册结果派生的 endpoint 清单，`/home.announcement` 来自公告模块已发布数据，首页不再展示社区动态区块；主系统 `/community/accounts*`、`/community/submissions*`、`/community/reports*` 分别受 `community_account:*`、`community_submission:review`、`community_report:review` 保护，用于后台社区账号、投稿审核和举报处理 WebUI |
 | System | `/api/v1/system/*` | 菜单、配置、服务信息、API catalog、操作记录、媒体、版本、参数、字典、流量探针 |
 
 ## 维护规则

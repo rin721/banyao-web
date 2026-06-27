@@ -25,6 +25,8 @@ const (
 	RolePlatformOwner = "platform_owner"
 	RoleOwner         = "owner"
 	RoleAdmin         = "admin"
+	RoleModerator     = "moderator"
+	RoleOperator      = "operator"
 	RoleMember        = "member"
 
 	OrgKindPlatform = "platform"

@@ -131,7 +131,7 @@ cors:
   enabled: true
   allow_origins: [http://localhost:3000, http://127.0.0.1:3000]
   allow_methods: [GET, POST, PUT, DELETE, PATCH, OPTIONS]
-  allow_headers: [Origin, Content-Type, X-Request-ID, Authorization, X-Locale, X-Setup-Token, X-CSRF-Token]
+  allow_headers: [Origin, Content-Type, X-Request-ID, Authorization, X-Locale, X-Setup-Token, X-CSRF-Token, X-Community-CSRF-Token]
   expose_headers: [X-Request-ID]
   allow_credentials: true
   max_age: 3600
@@ -199,6 +199,22 @@ auth:
     require_number: false
     require_symbol: false
   casbin_reload_interval_seconds: 300
+
+community:
+  auth:
+    access_token_ttl_seconds: 900
+    refresh_token_ttl_seconds: 604800
+    default_client_type: community_web
+    cookie:
+      name_prefix: community
+      domain: ""
+      path: /
+      same_site: lax
+      secure: false
+    csrf:
+      enabled: true
+      cookie_name: community_csrf
+      header_name: X-Community-CSRF-Token
 
 migration:
   auto_apply: true

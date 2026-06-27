@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-var defaultCORSAllowHeaders = []string{"Origin", "Content-Type", "X-Request-ID", "Authorization", "X-Locale", "X-Setup-Token", DefaultAuthCSRFHeaderName}
+var defaultCORSAllowHeaders = []string{"Origin", "Content-Type", "X-Request-ID", "Authorization", "X-Locale", "X-Setup-Token", DefaultAuthCSRFHeaderName, DefaultCommunityAuthCSRFHeaderName}
 
 // CORSConfig 跨域资源共享(CORS)配置
 // 控制浏览器跨域访问策略

@@ -11,8 +11,8 @@ export function createAoiCredentialHeaders(
     return undefined
   }
 
-  const cookieName = String(config.public.csrfCookieName || "console_csrf").trim()
-  const headerName = String(config.public.csrfHeaderName || "X-CSRF-Token").trim()
+  const cookieName = String(config.public.csrfCookieName || "community_csrf").trim()
+  const headerName = String(config.public.csrfHeaderName || "X-Community-CSRF-Token").trim()
   if (!cookieName || !headerName) {
     return undefined
   }

@@ -9,6 +9,7 @@ import (
 	"github.com/open-console/console-platform/internal/middleware"
 	announcementhandler "github.com/open-console/console-platform/internal/modules/announcements/handler"
 	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
+	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iamservice "github.com/open-console/console-platform/internal/modules/iam/service"
 	systemhandler "github.com/open-console/console-platform/internal/modules/system/handler"
@@ -47,6 +48,7 @@ func NewTransport(core Core, infra Infrastructure, modules Modules, setupHandler
 		setupHandler,
 		setupStatusProvider,
 		modules.IAM.Service,
+		modules.Community.Service,
 	)
 	if err != nil {
 		return Transport{}, err
@@ -95,6 +97,9 @@ func NewCORS(cfg *config.Config, log logger.Logger) (middleware.CORSConfig, erro
 	if csrfHeaderName := strings.TrimSpace(cfg.Auth.CSRF.HeaderName); csrfHeaderName != "" {
 		corsCfg.EnsureAllowHeaders(csrfHeaderName)
 	}
+	if csrfHeaderName := strings.TrimSpace(cfg.Community.Auth.CSRF.HeaderName); csrfHeaderName != "" {
+		corsCfg.EnsureAllowHeaders(csrfHeaderName)
+	}
 
 	if err := corsCfg.Validate(); err != nil {
 		return middleware.CORSConfig{}, err
@@ -140,6 +145,7 @@ func NewHTTPServer(
 	setupHandler httptransport.SetupHandler,
 	setupStatusProvider httptransport.SetupStatusProvider,
 	iamService iamservice.Service,
+	communityService communityservice.Service,
 ) (*web.Engine, httpserver.HTTPServer, error) {
 	middlewareCfg := middleware.DefaultMiddlewareConfig()
 	middlewareCfg.CORS = corsConfig
@@ -164,6 +170,7 @@ func NewHTTPServer(
 		SetupHandler:                 setupHandler,
 		IAMAuth:                      iamService,
 		IAMAuthz:                     iamService,
+		CommunityAuth:                communityService,
 		WebUI: httptransport.WebUIDeps{
 			Enabled:   webUICfg.EnabledValue(),
 			MountPath: webUICfg.MountPath,

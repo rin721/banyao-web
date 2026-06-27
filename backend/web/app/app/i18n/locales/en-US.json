@@ -518,6 +518,9 @@
       "loginLogs": "Login logs",
       "errorLogs": "Error logs",
       "notificationOutbox": "Notification queue",
+      "communityAccounts": "Community accounts",
+      "communitySubmissions": "Submission review",
+      "communityReports": "Report handling",
       "media": "Media",
       "versions": "Versions",
       "mediaResumable": "Resumable upload"
@@ -526,6 +529,7 @@
       "workspace": "Workspace",
       "identity": "Identity and access",
       "system": "System and config",
+      "community": "Community management",
       "logs": "Logs and audit",
       "media": "Media and content",
       "integration": "Integrations and release"
@@ -2123,7 +2127,7 @@
       },
       "fields": {
         "code": "Role code",
-        "codePlaceholder": "operator",
+        "codePlaceholder": "support_operator",
         "description": "Description",
         "descriptionHelp": "The backend trims the description and stores it with the role.",
         "name": "Role name"
@@ -2511,6 +2515,212 @@
         "writePermissionDescription": "The current session does not have the tenant {{permission}} grant.",
         "storageUnavailableTitle": "API token storage unavailable",
         "storageUnavailableDescription": "The backend reports that API tokens are not persisted yet. Run the required migrations before using token workflows."
+      }
+    },
+    "community": {
+      "actions": {
+        "refresh": "Refresh",
+        "reset": "Reset",
+        "search": "Search"
+      },
+      "filters": {
+        "limit": "Limit"
+      },
+      "accountRole": {
+        "registered": "Registered user",
+        "creator": "Creator"
+      },
+      "accountStatus": {
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "submissionStatus": {
+        "pending_review": "Pending review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "published": "Published"
+      },
+      "reportStatus": {
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "reportReason": {
+        "abuse": "Harassment or abuse",
+        "copyright": "Copyright issue",
+        "illegal": "Illegal content",
+        "misinformation": "Misinformation",
+        "spam": "Spam"
+      },
+      "accounts": {
+        "title": "Community accounts",
+        "description": "Manage ordinary community identities. This page does not create or grant IAM console roles; registered users and creators cannot enter the backend console with community accounts.",
+        "badge": "Community identity",
+        "summaryLabel": "Community account summary",
+        "empty": "No community accounts returned.",
+        "actions": {
+          "save": "Save"
+        },
+        "metrics": {
+          "total": "Returned",
+          "active": "Active",
+          "creators": "Creators",
+          "disabled": "Disabled"
+        },
+        "filters": {
+          "title": "Account filters",
+          "description": "Read community accounts by handle, email, display name, community role, and account status.",
+          "keyword": "Keyword",
+          "role": "Community role",
+          "status": "Status",
+          "allRoles": "All roles",
+          "allStatuses": "All statuses"
+        },
+        "columns": {
+          "account": "Account",
+          "id": "ID",
+          "role": "Role",
+          "status": "Status",
+          "lastLoginAt": "Last login",
+          "createdAt": "Registered at",
+          "actions": "Actions"
+        },
+        "controls": {
+          "role": "Community role",
+          "status": "Account status"
+        },
+        "list": {
+          "title": "Account list",
+          "description": "Current filters returned {{count}} community accounts."
+        },
+        "messages": {
+          "updateFailedTitle": "{{handle}} update failed",
+          "updateSuccessTitle": "Community account updated",
+          "updateSuccessDescription": "@{{handle}} has been saved."
+        },
+        "states": {
+          "emptyTitle": "No community account data",
+          "emptyDescription": "The backend response was empty, or no account matches the current filters.",
+          "errorTitle": "Community accounts unavailable",
+          "loadingDescription": "Reading community accounts.",
+          "permissionTitle": "Community account read permission required",
+          "permissionDescription": "The current session does not have the tenant community_account:read grant.",
+          "readPermissionDescription": "The current session does not have the tenant community_account:read grant, so the account list cannot be loaded.",
+          "updatePermissionTitle": "Read-only access",
+          "updatePermissionDescription": "The current session does not have the tenant community_account:update grant.",
+          "storageUnavailableTitle": "Community account storage unavailable",
+          "storageUnavailableDescription": "The backend reports that community accounts are not persisted yet. Run the community account migration first."
+        }
+      },
+      "submissions": {
+        "title": "Submission review",
+        "description": "Read the community submission review queue and save approve or reject results through the real review API.",
+        "badge": "Community content",
+        "summaryLabel": "Submission review summary",
+        "empty": "No submissions returned.",
+        "actions": {
+          "approve": "Approve",
+          "reject": "Reject"
+        },
+        "metrics": {
+          "total": "Returned",
+          "pending": "Pending",
+          "approved": "Approved",
+          "rejected": "Rejected"
+        },
+        "filters": {
+          "title": "Queue filters",
+          "description": "Read the submission queue by review status. This page only handles backend-exposed review capabilities.",
+          "status": "Review status",
+          "allStatuses": "All statuses"
+        },
+        "columns": {
+          "submission": "Submission",
+          "author": "Author / category",
+          "status": "Status",
+          "source": "Source file",
+          "reviewNote": "Review note",
+          "createdAt": "Submitted at",
+          "actions": "Actions"
+        },
+        "controls": {
+          "reviewNote": "Review note"
+        },
+        "list": {
+          "title": "Review queue",
+          "description": "Current filters returned {{count}} submissions."
+        },
+        "messages": {
+          "reviewFailedTitle": "Failed to handle \"{{title}}\"",
+          "reviewSuccessTitle": "Submission status saved",
+          "reviewSuccessDescription": "\"{{title}}\" is now {{status}}."
+        },
+        "states": {
+          "emptyTitle": "No submission data",
+          "emptyDescription": "The backend response was empty, or no submission matches the current filters.",
+          "errorTitle": "Submission queue unavailable",
+          "loadingDescription": "Reading the community submission review queue.",
+          "permissionTitle": "Submission review permission required",
+          "permissionDescription": "The current session does not have the tenant community_submission:review grant.",
+          "storageUnavailableTitle": "Submission storage unavailable",
+          "storageUnavailableDescription": "The backend reports that community submissions are not persisted yet. Run the community module migration first."
+        }
+      },
+      "reports": {
+        "title": "Report handling",
+        "description": "Read the community report queue and save resolved or rejected results through the real handling API.",
+        "badge": "Community governance",
+        "summaryLabel": "Report handling summary",
+        "empty": "No reports returned.",
+        "actions": {
+          "resolve": "Mark resolved",
+          "reject": "Reject"
+        },
+        "labels": {
+          "target": "{{kind}} #{{id}}"
+        },
+        "metrics": {
+          "total": "Returned",
+          "pending": "Pending",
+          "resolved": "Resolved",
+          "rejected": "Rejected"
+        },
+        "filters": {
+          "title": "Report filters",
+          "description": "Read reports by handling status. This page only handles backend-exposed report review capabilities.",
+          "status": "Handling status",
+          "allStatuses": "All statuses"
+        },
+        "columns": {
+          "report": "Report",
+          "status": "Status",
+          "reason": "Reason / detail",
+          "reviewNote": "Handling note",
+          "createdAt": "Submitted at",
+          "actions": "Actions"
+        },
+        "controls": {
+          "reviewNote": "Handling note"
+        },
+        "list": {
+          "title": "Report queue",
+          "description": "Current filters returned {{count}} reports."
+        },
+        "messages": {
+          "reviewFailedTitle": "Failed to handle report {{id}}",
+          "reviewSuccessTitle": "Report status saved",
+          "reviewSuccessDescription": "Report {{id}} is now {{status}}."
+        },
+        "states": {
+          "emptyTitle": "No report data",
+          "emptyDescription": "The backend response was empty, or no report matches the current filters.",
+          "errorTitle": "Report queue unavailable",
+          "loadingDescription": "Reading the community report queue.",
+          "permissionTitle": "Report handling permission required",
+          "permissionDescription": "The current session does not have the tenant community_report:review grant.",
+          "storageUnavailableTitle": "Report storage unavailable",
+          "storageUnavailableDescription": "The backend reports that community reports are not persisted yet. Run the community module migration first."
+        }
       }
     },
     "notificationOutbox": {

@@ -253,14 +253,39 @@ func NewCommunityModule(core Core, infra Infrastructure, announcements announcem
 	if infra.Database != nil {
 		repo = communityrepository.New(adapters.NewDatabase(infra.Database))
 	}
+	communityCfg := core.Config.Community
+	communityCfg.ApplyDefaults()
+	passwords, err := crypto.NewBcrypt()
+	if err != nil {
+		if core.Logger != nil {
+			core.Logger.Error("failed to create community password crypto", "error", err)
+		}
+	}
 	service := communityservice.New(repo, communityservice.Config{
 		BasePath:                 "/api/v1/public/community",
 		HomeAnnouncementProvider: communityHomeAnnouncementProvider{announcements: announcements},
 		NewID:                    core.IDGenerator.NextIDString,
+		NewIntID:                 core.IDGenerator.NextID,
+		Passwords:                passwords,
+		AccessTokenTTL:           time.Duration(communityCfg.Auth.AccessTokenTTLSeconds) * time.Second,
+		RefreshTokenTTL:          time.Duration(communityCfg.Auth.RefreshTokenTTLSeconds) * time.Second,
+		DefaultProductCode:       normalizeSystemProductCode(core.Config.Brand.ProductCode),
+		DefaultClientType:        communityCfg.Auth.DefaultClientType,
 	})
 	return CommunityModule{
 		Service: service,
-		Handler: communityhandler.New(service, core.Logger),
+		Handler: communityhandler.New(service, core.Logger, communityhandler.RuntimeConfig{
+			CookieNamePrefix: communityCfg.Auth.Cookie.NamePrefix,
+			CookieDomain:     communityCfg.Auth.Cookie.Domain,
+			CookiePath:       communityCfg.Auth.Cookie.Path,
+			CookieSameSite:   communityCfg.Auth.Cookie.SameSite,
+			CookieSecure:     communityCfg.Auth.Cookie.Secure,
+			CSRFEnabled:      communityCfg.Auth.CSRF.EnabledValue(),
+			CSRFCookieName:   communityCfg.Auth.CSRF.CookieName,
+			CSRFHeaderName:   communityCfg.Auth.CSRF.HeaderName,
+			DefaultProduct:   normalizeSystemProductCode(core.Config.Brand.ProductCode),
+			DefaultClient:    communityCfg.Auth.DefaultClientType,
+		}),
 	}
 }
 

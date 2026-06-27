@@ -9,12 +9,19 @@ $repoRoot = (Resolve-Path -LiteralPath $Root).Path
 . (Join-Path $repoRoot "scripts/agent-skill-registry.ps1")
 
 if ($Paths.Count -eq 0) {
+    $skillPaths = @(
+        Get-RepositorySkillNames | ForEach-Object {
+            $path = ".agents/skills/$_"
+            if (Test-Path -LiteralPath (Join-Path $repoRoot $path)) {
+                $path
+            }
+        }
+    )
+
     $Paths = @(
         "README.md",
         "AGENTS.md"
-    ) + @(
-        Get-RepositorySkillNames | ForEach-Object { ".agents/skills/$_" }
-    ) + @(
+    ) + $skillPaths + @(
         "cmd",
         "configs",
         "deploy",

@@ -31,6 +31,32 @@ export const queryKeys = {
     organizations: ["auth", "organizations"] as const,
     root: ["auth"] as const,
   },
+  community: {
+    accounts: (
+      locale: string,
+      filters: {
+        keyword?: string;
+        limit?: number;
+        role?: string;
+        status?: string;
+      } = {},
+    ) => ["community", "accounts", locale, filters] as const,
+    reports: (
+      locale: string,
+      filters: {
+        limit?: number;
+        status?: string;
+      } = {},
+    ) => ["community", "reports", locale, filters] as const,
+    root: ["community"] as const,
+    submissions: (
+      locale: string,
+      filters: {
+        limit?: number;
+        status?: string;
+      } = {},
+    ) => ["community", "submissions", locale, filters] as const,
+  },
   iam: {
     apiTokens: (
       locale: string,

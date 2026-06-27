@@ -20,7 +20,7 @@ func TestNewCORSAddsConfiguredCSRFHeaderAfterEnvOverride(t *testing.T) {
 		t.Fatalf("NewCORS() error = %v", err)
 	}
 
-	for _, header := range []string{"Content-Type", config.DefaultAuthCSRFHeaderName, "X-Community-CSRF"} {
+	for _, header := range []string{"Content-Type", config.DefaultAuthCSRFHeaderName, config.DefaultCommunityAuthCSRFHeaderName, "X-Community-CSRF"} {
 		if !corsAllowHeadersContain(cors.AllowHeaders, header) {
 			t.Fatalf("CORS allow headers do not contain %q: %#v", header, cors.AllowHeaders)
 		}

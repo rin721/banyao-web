@@ -185,7 +185,7 @@ func TestDirectSignupCreatesOwnerSession(t *testing.T) {
 	}
 	if _, err := svc.CreateRole(ctx, CreateRoleInput{
 		Principal:   principal,
-		Code:        "operator",
+		Code:        "support_operator",
 		Name:        "Operator",
 		Permissions: []string{"audit:read", "user:read"},
 	}); err != nil {
@@ -200,7 +200,7 @@ func TestDirectSignupCreatesOwnerSession(t *testing.T) {
 		if roles[i].Code == model.RolePlatformOwner {
 			t.Fatal("tenant signup organization should not expose platform_owner role")
 		}
-		if roles[i].Code == "operator" {
+		if roles[i].Code == "support_operator" {
 			operator = &roles[i]
 		}
 	}
@@ -671,14 +671,14 @@ func TestRoleMutationsRejectInvalidOrUnassignablePermissions(t *testing.T) {
 
 		_, err := svc.CreateRole(ctx, CreateRoleInput{
 			Principal:   *admin,
-			Code:        "operator",
+			Code:        "support_operator",
 			Name:        "Operator",
 			Permissions: []string{"audit:read", "unknown:read"},
 		})
 		if !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("CreateRole() error = %v, want ErrInvalidInput", err)
 		}
-		if role := findRole(t, svc, *admin, "operator"); role != nil {
+		if role := findRole(t, svc, *admin, "support_operator"); role != nil {
 			t.Fatalf("CreateRole() persisted role after invalid permission: %#v", role)
 		}
 	})
@@ -689,14 +689,14 @@ func TestRoleMutationsRejectInvalidOrUnassignablePermissions(t *testing.T) {
 
 		_, err := svc.CreateRole(ctx, CreateRoleInput{
 			Principal:   *admin,
-			Code:        "operator",
+			Code:        "support_operator",
 			Name:        "Operator",
 			Permissions: []string{"config:read"},
 		})
 		if !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("CreateRole(platform permission) error = %v, want ErrInvalidInput", err)
 		}
-		if role := findRole(t, svc, *admin, "operator"); role != nil {
+		if role := findRole(t, svc, *admin, "support_operator"); role != nil {
 			t.Fatalf("CreateRole() persisted role after platform permission: %#v", role)
 		}
 	})
@@ -707,7 +707,7 @@ func TestRoleMutationsRejectInvalidOrUnassignablePermissions(t *testing.T) {
 
 		role, err := svc.CreateRole(ctx, CreateRoleInput{
 			Principal:   *admin,
-			Code:        "operator",
+			Code:        "support_operator",
 			Name:        "Operator",
 			Permissions: []string{"audit:read"},
 		})
@@ -724,7 +724,7 @@ func TestRoleMutationsRejectInvalidOrUnassignablePermissions(t *testing.T) {
 		if !errors.Is(err, ErrInvalidInput) {
 			t.Fatalf("UpdateRole(platform permission) error = %v, want ErrInvalidInput", err)
 		}
-		updated := findRole(t, svc, *admin, "operator")
+		updated := findRole(t, svc, *admin, "support_operator")
 		if updated == nil {
 			t.Fatal("UpdateRole() removed role after invalid permission")
 		}
@@ -745,7 +745,7 @@ func TestPolicyReloadErrorsAreReturnedForRoleMutations(t *testing.T) {
 				gate.failLoadRules = true
 				_, err := svc.CreateRole(ctx, CreateRoleInput{
 					Principal:   *admin,
-					Code:        "operator",
+					Code:        "support_operator",
 					Name:        "Operator",
 					Permissions: []string{"audit:read"},
 				})
@@ -757,7 +757,7 @@ func TestPolicyReloadErrorsAreReturnedForRoleMutations(t *testing.T) {
 			run: func(ctx context.Context, svc Service, admin *Principal, gate *loadRulesGateEnforcer) error {
 				role, err := svc.CreateRole(ctx, CreateRoleInput{
 					Principal:   *admin,
-					Code:        "operator",
+					Code:        "support_operator",
 					Name:        "Operator",
 					Permissions: []string{"audit:read"},
 				})
@@ -1011,14 +1011,14 @@ func TestAuditErrorsAreReturnedForIAMMutations(t *testing.T) {
 			name: "create role",
 			run: func(ctx context.Context, svc Service, admin *Principal, gate *repositoryGate, auditErr error) error {
 				gate.createAuditLogErr = auditErr
-				_, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "operator", Name: "Operator", Permissions: []string{"audit:read"}})
+				_, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "support_operator", Name: "Operator", Permissions: []string{"audit:read"}})
 				return err
 			},
 		},
 		{
 			name: "update role",
 			run: func(ctx context.Context, svc Service, admin *Principal, gate *repositoryGate, auditErr error) error {
-				role, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "operator", Name: "Operator", Permissions: []string{"audit:read"}})
+				role, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "support_operator", Name: "Operator", Permissions: []string{"audit:read"}})
 				if err != nil {
 					return err
 				}
@@ -1382,11 +1382,11 @@ func TestAuditErrorsRollbackTransactionalIAMMutations(t *testing.T) {
 			t.Fatalf("BootstrapAdmin() failed: %v", err)
 		}
 		repoGate.createAuditLogErr = errors.New("create audit log failed")
-		if _, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "operator", Name: "Operator", Permissions: []string{"audit:read"}}); !errors.Is(err, repoGate.createAuditLogErr) {
+		if _, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "support_operator", Name: "Operator", Permissions: []string{"audit:read"}}); !errors.Is(err, repoGate.createAuditLogErr) {
 			t.Fatalf("CreateRole() error = %v, want %v", err, repoGate.createAuditLogErr)
 		}
-		if _, err := repoGate.FindRole(ctx, admin.OrgID, "operator"); !errors.Is(err, ErrNotFound) {
-			t.Fatalf("FindRole(operator) error = %v, want ErrNotFound", err)
+		if _, err := repoGate.FindRole(ctx, admin.OrgID, "support_operator"); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("FindRole(support_operator) error = %v, want ErrNotFound", err)
 		}
 	})
 
@@ -1399,7 +1399,7 @@ func TestAuditErrorsRollbackTransactionalIAMMutations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("BootstrapAdmin() failed: %v", err)
 		}
-		role, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "operator", Name: "Operator", Permissions: []string{"audit:read"}})
+		role, err := svc.CreateRole(ctx, CreateRoleInput{Principal: *admin, Code: "support_operator", Name: "Operator", Permissions: []string{"audit:read"}})
 		if err != nil {
 			t.Fatalf("CreateRole() failed: %v", err)
 		}

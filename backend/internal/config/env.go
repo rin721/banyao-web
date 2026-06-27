@@ -68,4 +68,7 @@ func OverrideWithEnvExcept(cfg *Config, disabledPaths []string) {
 	if csrfHeaderName := strings.TrimSpace(cfg.Auth.CSRF.HeaderName); csrfHeaderName != "" {
 		cfg.CORS.EnsureAllowHeaders(csrfHeaderName)
 	}
+	if csrfHeaderName := strings.TrimSpace(cfg.Community.Auth.CSRF.HeaderName); csrfHeaderName != "" {
+		cfg.CORS.EnsureAllowHeaders(csrfHeaderName)
+	}
 }

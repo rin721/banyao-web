@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 $originalLocation = (Get-Location).Path
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $outputDir = Join-Path $repoRoot "tmp/qa/visual-qa"
-$defaultGrep = "public home renders|authenticated admin dashboard reads backend-supported overview APIs|setup owner step validates password confirmation without submitting it|public announcements route|admin announcements route"
+$defaultGrep = "public home renders|authenticated admin dashboard reads backend-supported overview APIs|setup owner step validates password confirmation without submitting it|public announcements route|admin announcements route|admin community routes render backend community management"
 
 function Invoke-External {
     param(

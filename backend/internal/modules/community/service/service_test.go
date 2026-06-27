@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,49 @@ func TestServiceHomePayloadReturnsAnnouncementProviderError(t *testing.T) {
 	_, err := svc.GetHomePayload(context.Background())
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("GetHomePayload() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestServiceCommunitySignupUsesCommunityAccountSession(t *testing.T) {
+	repo := newFakeRepository()
+	nextIDs := []int64{101, 201}
+	svc := New(repo, Config{
+		Now:       fixedNow,
+		Passwords: fakePasswordCrypto{},
+		NewIntID: func() int64 {
+			id := nextIDs[0]
+			nextIDs = nextIDs[1:]
+			return id
+		},
+	})
+
+	snapshot, tokens, err := svc.SignupCommunityAccount(context.Background(), model.CommunitySignupRequest{
+		Username: "rinxxx",
+		Email:    "rinxxx@example.com",
+		Password: "password123",
+	}, SessionIssueInput{ProductCode: "console-platform", ClientType: "community_web"})
+	if err != nil {
+		t.Fatalf("SignupCommunityAccount() error = %v", err)
+	}
+	if len(repo.accounts) != 1 || repo.accounts[0].ID != 101 || repo.accounts[0].Role != model.CommunityAccountRoleRegistered {
+		t.Fatalf("expected one community account, got %#v", repo.accounts)
+	}
+	if len(repo.sessions) != 1 || repo.sessions[0].ID != 201 || tokens.AccessToken == "" {
+		t.Fatalf("expected one community session and access token, sessions=%#v tokens=%#v", repo.sessions, tokens)
+	}
+	if snapshot.Account == nil || snapshot.Account.ID != "101" || snapshot.Account.Role != model.CommunityAccountRoleRegistered {
+		t.Fatalf("unexpected community auth snapshot: %#v", snapshot)
+	}
+	principal, err := svc.AuthenticateToken(context.Background(), tokens.AccessToken)
+	if err != nil {
+		t.Fatalf("AuthenticateToken() error = %v", err)
+	}
+	clientID, err := communityAccountClientID(principal)
+	if err != nil {
+		t.Fatalf("communityAccountClientID() error = %v", err)
+	}
+	if principal.OrgID != 0 || principal.UserID != 101 || clientID != "account:101" {
+		t.Fatalf("expected community-only principal, got %#v", principal)
 	}
 }
 
@@ -1203,6 +1247,8 @@ func (p *fakeHomeAnnouncementProvider) HomeAnnouncement(context.Context) (*model
 }
 
 type fakeRepository struct {
+	accounts      []model.CommunityAccount
+	sessions      []model.CommunitySession
 	categories    []model.Category
 	creators      []model.Creator
 	videos        []model.Video
@@ -1267,6 +1313,117 @@ func newFakeRepository() *fakeRepository {
 			"video-aoi-alpha": {"Banyao", "设计"},
 		},
 	}
+}
+
+func (r *fakeRepository) CreateCommunityAccount(_ context.Context, account model.CommunityAccount) error {
+	r.accounts = append(r.accounts, account)
+	return nil
+}
+
+func (r *fakeRepository) FindCommunityAccountByID(_ context.Context, id int64) (*model.CommunityAccount, error) {
+	for index := range r.accounts {
+		if r.accounts[index].ID == id && r.accounts[index].DeletedAt == nil {
+			return &r.accounts[index], nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindCommunityAccountByHandle(_ context.Context, handle string) (*model.CommunityAccount, error) {
+	handle = strings.ToLower(strings.TrimSpace(handle))
+	for index := range r.accounts {
+		if strings.ToLower(r.accounts[index].Handle) == handle && r.accounts[index].DeletedAt == nil {
+			return &r.accounts[index], nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindCommunityAccountByEmail(_ context.Context, email string) (*model.CommunityAccount, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	for index := range r.accounts {
+		if strings.ToLower(r.accounts[index].Email) == email && r.accounts[index].DeletedAt == nil {
+			return &r.accounts[index], nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindCommunityAccountByHandleOrEmail(ctx context.Context, identifier string) (*model.CommunityAccount, error) {
+	if account, err := r.FindCommunityAccountByHandle(ctx, identifier); err == nil {
+		return account, nil
+	}
+	return r.FindCommunityAccountByEmail(ctx, identifier)
+}
+
+func (r *fakeRepository) UpdateCommunityAccount(_ context.Context, account model.CommunityAccount) error {
+	for index := range r.accounts {
+		if r.accounts[index].ID == account.ID && r.accounts[index].DeletedAt == nil {
+			r.accounts[index] = account
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (r *fakeRepository) ListCommunityAccounts(_ context.Context, filter model.CommunityAccountFilter) ([]model.CommunityAccount, error) {
+	items := make([]model.CommunityAccount, 0)
+	keyword := strings.ToLower(strings.TrimSpace(filter.Keyword))
+	for _, account := range r.accounts {
+		if account.DeletedAt != nil {
+			continue
+		}
+		if filter.Role != "" && account.Role != filter.Role {
+			continue
+		}
+		if filter.Status != "" && account.Status != filter.Status {
+			continue
+		}
+		if keyword != "" && !strings.Contains(strings.ToLower(account.Handle+" "+account.Email+" "+account.DisplayName), keyword) {
+			continue
+		}
+		items = append(items, account)
+	}
+	if filter.Limit > 0 && len(items) > filter.Limit {
+		return items[:filter.Limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) CreateCommunitySession(_ context.Context, session model.CommunitySession) error {
+	r.sessions = append(r.sessions, session)
+	return nil
+}
+
+func (r *fakeRepository) FindCommunitySessionByAccessTokenHash(_ context.Context, tokenHash string, now time.Time) (*model.CommunitySession, error) {
+	for index := range r.sessions {
+		session := &r.sessions[index]
+		if session.AccessTokenHash == tokenHash && session.RevokedAt == nil && session.DeletedAt == nil && session.AccessExpiresAt.After(now) {
+			return session, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) FindCommunitySessionByID(_ context.Context, id int64) (*model.CommunitySession, error) {
+	for index := range r.sessions {
+		session := &r.sessions[index]
+		if session.ID == id && session.RevokedAt == nil && session.DeletedAt == nil {
+			return session, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) RevokeCommunitySession(_ context.Context, sessionID int64, now time.Time) error {
+	for index := range r.sessions {
+		if r.sessions[index].ID == sessionID && r.sessions[index].RevokedAt == nil {
+			r.sessions[index].RevokedAt = &now
+			r.sessions[index].UpdatedAt = now
+			return nil
+		}
+	}
+	return ErrNotFound
 }
 
 func (r *fakeRepository) FindCreatorByHandle(_ context.Context, handle string) (*model.Creator, error) {
@@ -1476,6 +1633,46 @@ func (r *fakeRepository) CreateVideoDanmaku(_ context.Context, item model.VideoD
 func (r *fakeRepository) CreateCommunityReport(_ context.Context, report model.CommunityReport) error {
 	r.reports = append(r.reports, report)
 	return nil
+}
+
+func (r *fakeRepository) ListCommunityReports(_ context.Context, filter model.CommunityReportFilter) ([]model.CommunityReport, error) {
+	items := make([]model.CommunityReport, 0)
+	for _, report := range r.reports {
+		if report.DeletedAt != nil {
+			continue
+		}
+		if filter.Status != "" && report.Status != filter.Status {
+			continue
+		}
+		items = append(items, report)
+	}
+	if filter.Limit > 0 && len(items) > filter.Limit {
+		return items[:filter.Limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) FindCommunityReport(_ context.Context, reportID string) (*model.CommunityReport, error) {
+	for index := range r.reports {
+		if r.reports[index].ID == reportID && r.reports[index].DeletedAt == nil {
+			return &r.reports[index], nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) UpdateCommunityReportReview(_ context.Context, report model.CommunityReport) error {
+	for index := range r.reports {
+		if r.reports[index].ID == report.ID && r.reports[index].DeletedAt == nil {
+			r.reports[index].Status = report.Status
+			r.reports[index].ReviewNote = report.ReviewNote
+			r.reports[index].ReviewerID = report.ReviewerID
+			r.reports[index].ReviewedAt = report.ReviewedAt
+			r.reports[index].UpdatedAt = report.UpdatedAt
+			return nil
+		}
+	}
+	return ErrNotFound
 }
 
 func (r *fakeRepository) CreateCommunityNotification(_ context.Context, notification model.CommunityNotification) error {
@@ -1802,6 +1999,19 @@ func (r *fakeRepository) bumpLikeCount(videoID string, delta int64) {
 
 func fixedNow() time.Time {
 	return time.Date(2026, 6, 26, 0, 0, 0, 0, time.UTC)
+}
+
+type fakePasswordCrypto struct{}
+
+func (fakePasswordCrypto) HashPassword(password string) (string, error) {
+	return "hash:" + password, nil
+}
+
+func (fakePasswordCrypto) VerifyPassword(hashedPassword, password string) error {
+	if hashedPassword != "hash:"+password {
+		return errors.New("invalid password")
+	}
+	return nil
 }
 
 func strPtr(value string) *string {

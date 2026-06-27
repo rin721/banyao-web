@@ -129,6 +129,108 @@ export type PublicAnnouncementPage = {
   total: number;
 };
 
+export type CommunityPageResult<T> = {
+  items: T[];
+  nextCursor?: string | null;
+};
+
+export type CommunityAccountRole = BackendString<"creator" | "registered">;
+export type CommunityAccountStatus = BackendString<"active" | "disabled">;
+
+export type CommunityAccount = {
+  createdAt: string;
+  displayName: string;
+  email: string;
+  handle: string;
+  id: number | string;
+  lastLoginAt?: string | null;
+  role: CommunityAccountRole;
+  status: CommunityAccountStatus;
+  updatedAt: string;
+};
+
+export type CommunityAccountPayload = {
+  items: CommunityPageResult<CommunityAccount>;
+};
+
+export type CommunityUpdateAccountInput = {
+  role?: CommunityAccountRole;
+  status?: CommunityAccountStatus;
+};
+
+export type CommunitySubmissionStatus = BackendString<
+  "approved" | "pending_review" | "published" | "rejected"
+>;
+
+export type CommunitySubmission = {
+  allowComments: boolean;
+  authorName: string;
+  categorySlug: string;
+  clientId: string;
+  createdAt: string;
+  description: string;
+  id: string;
+  mediaAssetId?: number | string;
+  publishedAt?: string | null;
+  publishedVideoId?: string;
+  reviewNote?: string;
+  reviewedAt?: string | null;
+  reviewerId?: string;
+  sensitive: boolean;
+  sourceName: string;
+  sourceSize: number | string;
+  sourceType: string;
+  status: CommunitySubmissionStatus;
+  tags: string[];
+  title: string;
+  updatedAt: string;
+  visibility: string;
+};
+
+export type CommunitySubmissionPayload = {
+  authenticated?: boolean;
+  clientId?: string | null;
+  items: CommunityPageResult<CommunitySubmission>;
+  message?: string | null;
+};
+
+export type CommunityReviewSubmissionInput = {
+  durationSeconds?: number;
+  mediaAssetId?: number | string;
+  publishedVideoId?: string;
+  reviewNote?: string;
+  sourceUrl?: string;
+  status: CommunitySubmissionStatus;
+  thumbnailUrl?: string;
+};
+
+export type CommunityReportStatus = BackendString<"pending" | "rejected" | "resolved">;
+
+export type CommunityReport = {
+  clientId: string;
+  createdAt: string;
+  detail: string;
+  id: string;
+  reason: string;
+  reviewedAt?: string | null;
+  reviewerId?: string;
+  reviewNote?: string;
+  status: CommunityReportStatus;
+  targetId: string;
+  targetKind: string;
+  updatedAt: string;
+  videoId: string;
+};
+
+export type CommunityReportPayload = {
+  items: CommunityPageResult<CommunityReport>;
+};
+
+export type CommunityReviewReportInput = {
+  reviewNote?: string;
+  status: Exclude<CommunityReportStatus, "pending">;
+};
+
 export type CurrentUser = {
   displayName?: string;
   email?: string;

@@ -3316,6 +3316,8 @@ func (s *service) ensureBuiltins(ctx context.Context, repo Repository, orgID int
 	roles = append(roles,
 		builtinRoleSeed{model.RoleOwner, "Owner"},
 		builtinRoleSeed{model.RoleAdmin, "Admin"},
+		builtinRoleSeed{model.RoleModerator, "Moderator"},
+		builtinRoleSeed{model.RoleOperator, "Operator"},
 		builtinRoleSeed{model.RoleMember, "Member"},
 	)
 	for _, role := range roles {
@@ -3347,6 +3349,16 @@ func (s *service) ensureBuiltins(ctx context.Context, repo Repository, orgID int
 			if err := s.addPolicy(ctx, repo, orgID, model.RoleAdmin, s.cfg.DefaultProductCode, scope, obj, act); err != nil {
 				return err
 			}
+		}
+	}
+	for _, code := range []string{"community_submission:review", "community_report:review"} {
+		if err := s.addTenantPermissionPolicy(ctx, repo, orgID, model.RoleModerator, code); err != nil {
+			return err
+		}
+	}
+	for _, code := range []string{"community_account:read", "community_account:update", "community_submission:review", "community_report:review"} {
+		if err := s.addTenantPermissionPolicy(ctx, repo, orgID, model.RoleOperator, code); err != nil {
+			return err
 		}
 	}
 	return s.addPolicy(ctx, repo, orgID, model.RoleMember, s.cfg.DefaultProductCode, model.PermissionScopeTenant, "me", "read")
@@ -3536,6 +3548,14 @@ func (s *service) addPolicy(ctx context.Context, repo Repository, orgID int64, r
 	now := s.now()
 	rule := &model.CasbinRule{ID: s.ids.NextID(), PType: "p", V0: roleSubject(roleCode), V1: strconv.FormatInt(orgID, 10), V2: productCode, V3: scope, V4: strings.TrimSpace(obj), V5: strings.TrimSpace(act), CreatedAt: now}
 	return repo.AddCasbinRule(ctx, rule)
+}
+
+func (s *service) addTenantPermissionPolicy(ctx context.Context, repo Repository, orgID int64, roleCode, permissionCode string) error {
+	obj, act := permissionObjectAction(permissionCode)
+	if obj == "" || act == "" {
+		return ErrInvalidInput
+	}
+	return s.addPolicy(ctx, repo, orgID, roleCode, s.cfg.DefaultProductCode, model.PermissionScopeTenant, obj, act)
 }
 
 // audit 写入 IAM 审计日志。
@@ -4023,7 +4043,7 @@ func validPermissionScope(value string) bool {
 
 func isBuiltinRoleCode(code string) bool {
 	switch normalizeCode(code) {
-	case model.RolePlatformOwner, model.RoleOwner, model.RoleAdmin, model.RoleMember:
+	case model.RolePlatformOwner, model.RoleOwner, model.RoleAdmin, model.RoleModerator, model.RoleOperator, model.RoleMember:
 		return true
 	default:
 		return false
@@ -4150,7 +4170,10 @@ var builtinPermissions = []permissionSeed{
 	{Code: "media:delete", Scope: model.PermissionScopePlatform, Name: "Delete media", Description: "Delete media assets"},
 	{Code: "notification:read", Scope: model.PermissionScopePlatform, Name: "Read notification outbox", Description: "Read sanitized IAM notification delivery tasks"},
 	{Code: "notification:retry", Scope: model.PermissionScopePlatform, Name: "Retry notification outbox", Description: "Retry pending or failed IAM notification delivery tasks"},
+	{Code: "community_account:read", Scope: model.PermissionScopeTenant, Name: "Read community accounts", Description: "Read community account profiles and statuses"},
+	{Code: "community_account:update", Scope: model.PermissionScopeTenant, Name: "Update community accounts", Description: "Update community account role and status"},
 	{Code: "community_submission:review", Scope: model.PermissionScopeTenant, Name: "Review community submissions", Description: "Review community video submission metadata and update publish status"},
+	{Code: "community_report:review", Scope: model.PermissionScopeTenant, Name: "Review community reports", Description: "Review and resolve community content reports"},
 	{Code: "permission:read", Scope: model.PermissionScopeTenant, Name: "Read tenant permissions", Description: "Read tenant permissions"},
 	{Code: "permission:read", Scope: model.PermissionScopePlatform, Name: "Read platform permissions", Description: "Read platform API and permission catalog"},
 	{Code: "permission:sync", Scope: model.PermissionScopePlatform, Name: "Sync permissions", Description: "Sync permissions from registered APIs"},

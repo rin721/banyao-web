@@ -26,6 +26,13 @@ const (
 	CommunityReportReasonMisleading = "misleading"
 	CommunityReportReasonOther      = "other"
 	CommunityReportStatusPending    = "pending"
+	CommunityReportStatusResolved   = "resolved"
+	CommunityReportStatusRejected   = "rejected"
+
+	CommunityAccountRoleRegistered = "registered"
+	CommunityAccountRoleCreator    = "creator"
+	CommunityAccountStatusActive   = "active"
+	CommunityAccountStatusDisabled = "disabled"
 
 	CommunityNotificationKindComment     = "comment"
 	CommunityNotificationKindDanmaku     = "danmaku"
@@ -110,6 +117,44 @@ type VideoHistory struct {
 
 func (VideoHistory) TableName() string { return "community_video_history" }
 
+// CommunityAccount is the public community identity used by the Nuxt frontend.
+// It is intentionally separate from IAM users and never grants console access.
+type CommunityAccount struct {
+	ID           int64      `gorm:"column:id;primaryKey" json:"id,string"`
+	Handle       string     `gorm:"column:handle;size:96;not null;uniqueIndex" json:"handle"`
+	Email        string     `gorm:"column:email;size:255;not null;uniqueIndex" json:"email"`
+	PasswordHash string     `gorm:"column:password_hash;size:255;not null" json:"-"`
+	DisplayName  string     `gorm:"column:display_name;size:120;not null" json:"displayName"`
+	Role         string     `gorm:"column:role;size:32;not null;default:registered;index" json:"role"`
+	Status       string     `gorm:"column:status;size:32;not null;default:active;index" json:"status"`
+	LastLoginAt  *time.Time `gorm:"column:last_login_at" json:"lastLoginAt,omitempty"`
+	CreatedAt    time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt    time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
+	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CommunityAccount) TableName() string { return "community_accounts" }
+
+// CommunitySession stores community-only access and refresh tokens.
+type CommunitySession struct {
+	ID               int64      `gorm:"column:id;primaryKey" json:"id,string"`
+	AccountID        int64      `gorm:"column:account_id;not null;index" json:"accountId,string"`
+	AccessTokenHash  string     `gorm:"column:access_token_hash;size:128;not null;uniqueIndex" json:"-"`
+	RefreshTokenHash string     `gorm:"column:refresh_token_hash;size:128;not null;uniqueIndex" json:"-"`
+	ProductCode      string     `gorm:"column:product_code;size:64;not null;default:'';index" json:"productCode"`
+	ClientType       string     `gorm:"column:client_type;size:64;not null;default:'';index" json:"clientType"`
+	IPAddress        string     `gorm:"column:ip_address;size:64;not null;default:''" json:"ipAddress"`
+	UserAgent        string     `gorm:"column:user_agent;size:512;not null;default:''" json:"userAgent"`
+	AccessExpiresAt  time.Time  `gorm:"column:access_expires_at;not null;index" json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time  `gorm:"column:refresh_expires_at;not null;index" json:"refreshExpiresAt"`
+	RevokedAt        *time.Time `gorm:"column:revoked_at;index" json:"revokedAt,omitempty"`
+	CreatedAt        time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt        time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
+	DeletedAt        *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CommunitySession) TableName() string { return "community_sessions" }
+
 // CommunityReport 保存匿名客户端提交的社区内容举报记录。
 type CommunityReport struct {
 	ID         string     `gorm:"column:id;primaryKey;size:96" json:"id"`
@@ -120,6 +165,9 @@ type CommunityReport struct {
 	Reason     string     `gorm:"column:reason;size:32;not null" json:"reason"`
 	Detail     string     `gorm:"column:detail;size:500;not null" json:"detail"`
 	Status     string     `gorm:"column:status;size:32;not null;default:pending" json:"status"`
+	ReviewNote string     `gorm:"column:review_note;size:720;not null;default:''" json:"reviewNote"`
+	ReviewerID string     `gorm:"column:reviewer_id;size:96;not null;default:'';index" json:"reviewerId"`
+	ReviewedAt *time.Time `gorm:"column:reviewed_at;index" json:"reviewedAt"`
 	CreatedAt  time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
 	UpdatedAt  time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
 	DeletedAt  *time.Time `gorm:"column:deleted_at" json:"-"`
@@ -433,6 +481,88 @@ type ReviewCommunitySubmissionRequest struct {
 	Slug             string `json:"slug,omitempty"`
 }
 
+type CommunitySignupRequest struct {
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	DisplayName string `json:"displayName,omitempty"`
+}
+
+type CommunityLoginRequest struct {
+	Identifier string `json:"identifier"`
+	Email      string `json:"email,omitempty"`
+	Password   string `json:"password"`
+}
+
+type CommunityAccountSession struct {
+	ID          string     `json:"id"`
+	Handle      string     `json:"handle"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"displayName"`
+	Role        string     `json:"role"`
+	Status      string     `json:"status"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+type CommunityAuthSessionSnapshot struct {
+	Authenticated    bool                     `json:"authenticated"`
+	Account          *CommunityAccountSession `json:"account,omitempty"`
+	User             *CommunityAccountSession `json:"user,omitempty"`
+	UserID           *string                  `json:"userId,omitempty"`
+	SessionID        *string                  `json:"sessionId,omitempty"`
+	CSRFToken        *string                  `json:"csrfToken,omitempty"`
+	ExpiresAt        *time.Time               `json:"expiresAt,omitempty"`
+	AccessExpiresAt  *time.Time               `json:"accessExpiresAt,omitempty"`
+	RefreshExpiresAt *time.Time               `json:"refreshExpiresAt,omitempty"`
+	Message          *string                  `json:"message,omitempty"`
+}
+
+type CommunitySignupResult struct {
+	Status                 string                        `json:"status"`
+	Session                *CommunityAuthSessionSnapshot `json:"session,omitempty"`
+	DebugVerificationToken string                        `json:"debugVerificationToken,omitempty"`
+	DebugVerificationURL   string                        `json:"debugVerificationUrl,omitempty"`
+}
+
+type CommunityAccountFilter struct {
+	Keyword string
+	Role    string
+	Status  string
+	Limit   int
+}
+
+type CommunityAccountItem struct {
+	ID          string     `json:"id"`
+	Handle      string     `json:"handle"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"displayName"`
+	Role        string     `json:"role"`
+	Status      string     `json:"status"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+}
+
+type CommunityAccountPayload struct {
+	Items PageResult[CommunityAccountItem] `json:"items"`
+}
+
+type UpdateCommunityAccountRequest struct {
+	Role   string `json:"role,omitempty"`
+	Status string `json:"status,omitempty"`
+}
+
+type CommunityReportFilter struct {
+	Status string
+	Limit  int
+}
+
+type ReviewCommunityReportRequest struct {
+	Status     string `json:"status"`
+	ReviewNote string `json:"reviewNote"`
+}
+
 type CommunityDynamicFilter struct {
 	ClientID   string
 	CreatorIDs []string
@@ -573,6 +703,26 @@ type CommunityReportReceipt struct {
 	Reason     string    `json:"reason"`
 	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"createdAt"`
+}
+
+type CommunityReportItem struct {
+	ID         string     `json:"id"`
+	TargetKind string     `json:"targetKind"`
+	TargetID   string     `json:"targetId"`
+	VideoID    string     `json:"videoId"`
+	ClientID   string     `json:"clientId"`
+	Reason     string     `json:"reason"`
+	Detail     string     `json:"detail"`
+	Status     string     `json:"status"`
+	ReviewNote string     `json:"reviewNote,omitempty"`
+	ReviewerID string     `json:"reviewerId,omitempty"`
+	ReviewedAt *time.Time `json:"reviewedAt,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
+}
+
+type CommunityReportPayload struct {
+	Items PageResult[CommunityReportItem] `json:"items"`
 }
 
 type Announcement struct {

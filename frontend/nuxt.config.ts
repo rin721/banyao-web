@@ -13,8 +13,8 @@ const communityApiBaseURL = shouldProxyBackend
 const authApiBaseURL = shouldProxyBackend
   ? "/api/v1"
   : process.env.NUXT_PUBLIC_AUTH_API_BASE_URL || communityApiBaseURL.replace(/\/public\/community\/?$/, "")
-const csrfCookieName = process.env.NUXT_PUBLIC_AUTH_CSRF_COOKIE_NAME || "console_csrf"
-const csrfHeaderName = process.env.NUXT_PUBLIC_AUTH_CSRF_HEADER_NAME || "X-CSRF-Token"
+const csrfCookieName = process.env.NUXT_PUBLIC_AUTH_CSRF_COOKIE_NAME || "community_csrf"
+const csrfHeaderName = process.env.NUXT_PUBLIC_AUTH_CSRF_HEADER_NAME || "X-Community-CSRF-Token"
 const backendRouteRules = shouldProxyBackend
   ? {
       "/api/v1/**": { proxy: `${backendOrigin}/api/v1/**` },

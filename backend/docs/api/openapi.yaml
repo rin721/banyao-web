@@ -1996,6 +1996,458 @@
       "tags":
         - "IAM 账号"
       "x-scope": "tenant"
+  "/api/v1/community/accounts":
+    "get":
+      "operationId": "community.accounts.list"
+      "parameters":
+        -
+          "in": "query"
+          "name": "keyword"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "role"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "status"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "limit"
+          "required": false
+          "schema":
+            "format": "int32"
+            "type": "integer"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "items":
+                        "properties":
+                          "items":
+                            "items":
+                              "properties":
+                                "createdAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "displayName":
+                                  "type": "string"
+                                "email":
+                                  "type": "string"
+                                "handle":
+                                  "type": "string"
+                                "id":
+                                  "type": "string"
+                                "lastLoginAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "role":
+                                  "type": "string"
+                                "status":
+                                  "type": "string"
+                                "updatedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                              "type": "object"
+                            "type": "array"
+                          "nextCursor":
+                            "type": "string"
+                        "type": "object"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询社区账号"
+      "tags":
+        - "Community"
+      "x-permission": "community_account:read"
+      "x-scope": "tenant"
+  "/api/v1/community/accounts/{accountId}":
+    "patch":
+      "operationId": "community.accounts.update"
+      "parameters":
+        -
+          "in": "path"
+          "name": "accountId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "role":
+                  "type": "string"
+                "status":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "displayName":
+                        "type": "string"
+                      "email":
+                        "type": "string"
+                      "handle":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "lastLoginAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "role":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "更新社区账号状态或角色"
+      "tags":
+        - "Community"
+      "x-permission": "community_account:update"
+      "x-scope": "tenant"
+  "/api/v1/community/reports":
+    "get":
+      "operationId": "community.reports.list"
+      "parameters":
+        -
+          "in": "query"
+          "name": "status"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "limit"
+          "required": false
+          "schema":
+            "format": "int32"
+            "type": "integer"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "items":
+                        "properties":
+                          "items":
+                            "items":
+                              "properties":
+                                "clientId":
+                                  "type": "string"
+                                "createdAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "detail":
+                                  "type": "string"
+                                "id":
+                                  "type": "string"
+                                "reason":
+                                  "type": "string"
+                                "reviewNote":
+                                  "type": "string"
+                                "reviewedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "reviewerId":
+                                  "type": "string"
+                                "status":
+                                  "type": "string"
+                                "targetId":
+                                  "type": "string"
+                                "targetKind":
+                                  "type": "string"
+                                "updatedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "videoId":
+                                  "type": "string"
+                              "type": "object"
+                            "type": "array"
+                          "nextCursor":
+                            "type": "string"
+                        "type": "object"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询社区举报队列"
+      "tags":
+        - "Community"
+      "x-permission": "community_report:review"
+      "x-scope": "tenant"
+  "/api/v1/community/reports/{reportId}":
+    "patch":
+      "operationId": "community.reports.review"
+      "parameters":
+        -
+          "in": "path"
+          "name": "reportId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "reviewNote":
+                  "type": "string"
+                "status":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "clientId":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "detail":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "reason":
+                        "type": "string"
+                      "reviewNote":
+                        "type": "string"
+                      "reviewedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "reviewerId":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "targetId":
+                        "type": "string"
+                      "targetKind":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "处理社区举报"
+      "tags":
+        - "Community"
+      "x-permission": "community_report:review"
+      "x-scope": "tenant"
   "/api/v1/community/submissions":
     "get":
       "operationId": "community.submissions.review-list"
@@ -7950,19 +8402,12 @@
           "application/json":
             "schema":
               "properties":
-                "captchaCode":
-                  "type": "string"
-                "captchaId":
+                "email":
                   "type": "string"
                 "identifier":
                   "type": "string"
-                "mfaCode":
-                  "type": "string"
                 "password":
                   "type": "string"
-              "required":
-                - "identifier"
-                - "password"
               "type": "object"
         "required": true
       "responses":
@@ -7981,23 +8426,62 @@
                         "type": "string"
                       "account":
                         "properties":
+                          "createdAt":
+                            "format": "date-time"
+                            "type": "string"
                           "displayName":
+                            "type": "string"
+                          "email":
                             "type": "string"
                           "handle":
                             "type": "string"
                           "id":
-                            "format": "int64"
-                            "type": "integer"
+                            "type": "string"
+                          "lastLoginAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "role":
+                            "type": "string"
+                          "status":
+                            "type": "string"
                         "type": "object"
+                      "authenticated":
+                        "type": "boolean"
+                      "csrfToken":
+                        "type": "string"
+                      "expiresAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "message":
+                        "type": "string"
                       "refreshExpiresAt":
                         "format": "date-time"
                         "type": "string"
                       "sessionId":
-                        "format": "int64"
-                        "type": "integer"
+                        "type": "string"
+                      "user":
+                        "properties":
+                          "createdAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "displayName":
+                            "type": "string"
+                          "email":
+                            "type": "string"
+                          "handle":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                          "lastLoginAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "role":
+                            "type": "string"
+                          "status":
+                            "type": "string"
+                        "type": "object"
                       "userId":
-                        "format": "int64"
-                        "type": "integer"
+                        "type": "string"
                     "type": "object"
                   "message":
                     "type": "string"
@@ -8140,23 +8624,62 @@
                         "type": "string"
                       "account":
                         "properties":
+                          "createdAt":
+                            "format": "date-time"
+                            "type": "string"
                           "displayName":
+                            "type": "string"
+                          "email":
                             "type": "string"
                           "handle":
                             "type": "string"
                           "id":
-                            "format": "int64"
-                            "type": "integer"
+                            "type": "string"
+                          "lastLoginAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "role":
+                            "type": "string"
+                          "status":
+                            "type": "string"
                         "type": "object"
+                      "authenticated":
+                        "type": "boolean"
+                      "csrfToken":
+                        "type": "string"
+                      "expiresAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "message":
+                        "type": "string"
                       "refreshExpiresAt":
                         "format": "date-time"
                         "type": "string"
                       "sessionId":
-                        "format": "int64"
-                        "type": "integer"
+                        "type": "string"
+                      "user":
+                        "properties":
+                          "createdAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "displayName":
+                            "type": "string"
+                          "email":
+                            "type": "string"
+                          "handle":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                          "lastLoginAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "role":
+                            "type": "string"
+                          "status":
+                            "type": "string"
+                        "type": "object"
                       "userId":
-                        "format": "int64"
-                        "type": "integer"
+                        "type": "string"
                     "type": "object"
                   "message":
                     "type": "string"
@@ -8223,10 +8746,6 @@
                   "type": "string"
                 "username":
                   "type": "string"
-              "required":
-                - "username"
-                - "email"
-                - "password"
               "type": "object"
         "required": true
       "responses":
@@ -8240,15 +8759,10 @@
                     "type": "integer"
                   "data":
                     "properties":
-                      "delivery":
-                        "properties":
-                          "debug":
-                            "type": "boolean"
-                          "token":
-                            "type": "string"
-                          "url":
-                            "type": "string"
-                        "type": "object"
+                      "debugVerificationToken":
+                        "type": "string"
+                      "debugVerificationUrl":
+                        "type": "string"
                       "session":
                         "properties":
                           "accessExpiresAt":
@@ -8256,23 +8770,62 @@
                             "type": "string"
                           "account":
                             "properties":
+                              "createdAt":
+                                "format": "date-time"
+                                "type": "string"
                               "displayName":
+                                "type": "string"
+                              "email":
                                 "type": "string"
                               "handle":
                                 "type": "string"
                               "id":
-                                "format": "int64"
-                                "type": "integer"
+                                "type": "string"
+                              "lastLoginAt":
+                                "format": "date-time"
+                                "type": "string"
+                              "role":
+                                "type": "string"
+                              "status":
+                                "type": "string"
                             "type": "object"
+                          "authenticated":
+                            "type": "boolean"
+                          "csrfToken":
+                            "type": "string"
+                          "expiresAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "message":
+                            "type": "string"
                           "refreshExpiresAt":
                             "format": "date-time"
                             "type": "string"
                           "sessionId":
-                            "format": "int64"
-                            "type": "integer"
+                            "type": "string"
+                          "user":
+                            "properties":
+                              "createdAt":
+                                "format": "date-time"
+                                "type": "string"
+                              "displayName":
+                                "type": "string"
+                              "email":
+                                "type": "string"
+                              "handle":
+                                "type": "string"
+                              "id":
+                                "type": "string"
+                              "lastLoginAt":
+                                "format": "date-time"
+                                "type": "string"
+                              "role":
+                                "type": "string"
+                              "status":
+                                "type": "string"
+                            "type": "object"
                           "userId":
-                            "format": "int64"
-                            "type": "integer"
+                            "type": "string"
                         "type": "object"
                       "status":
                         "type": "string"

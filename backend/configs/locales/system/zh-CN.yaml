@@ -333,3 +333,7 @@ menu.workspace.label: 工作台
 dictionary.system.status.name: 系统状态
 dictionary.system.status.enabled: 启用
 dictionary.system.status.disabled: 禁用
+menus.groups.community.label: 社区管理
+menus.items.communityAccounts.label: 社区账号
+menus.items.communitySubmissions.label: 投稿审核
+menus.items.communityReports.label: 举报处理

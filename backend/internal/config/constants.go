@@ -84,6 +84,7 @@ const (
 	AppCORSName      = "cors"
 	AppRPCName       = "rpc"
 	AppAuthName      = "auth"
+	AppCommunityName = "community"
 	AppSystemName    = "system"
 	AppMigrationName = "migration"
 	AppWebUIName     = "webui"

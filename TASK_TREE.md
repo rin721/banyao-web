@@ -4,10 +4,10 @@
 
 ## 当前阶段
 
-- 阶段编号：`P7`
-- 阶段主题：社区账号 CORS / CSRF 真实联调修复
-- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成评论 / 动态本人编辑删除、投稿审核状态流转、审核发布生成社区视频记录和 system media 受控关联；`P4` 已完成少量真实内容视觉节奏与社区前端 Cookie / CSRF 凭证链路；`P5` 已完成后端社区 HTTP 返回面真实数据来源收敛；`P6` 已完成真实 API smoke 的登录注册与账号态页面覆盖；`P7` 修复分端口直连模式下账号写请求的 CORS 预检缺口，让后端 CORS 允许头由默认平台头和当前 `auth.csrf.header_name` 补齐，避免浏览器在进入真实 handler 前阻断 `X-CSRF-Token`。转码、公开播放源治理和后台可视化审核页仍是后续独立叶节点。
-- 影响范围：`backend/internal/config/app_cors.go`、`backend/internal/app/initapp/transport.go`、后端配置示例、`backend/configs/config.local.yaml` 本地旧配置、配置测试、`frontend/README.md`、`backend/docs/environment/configuration.md`、`TASK_TREE.md`；不改变 HTTP path、DTO 字段名、OpenAPI schema、数据库迁移、Nuxt mock fixture 或生产业务行为。
+- 阶段编号：`P8`
+- 阶段主题：社区账号隔离、控制台社区管理与角色矩阵落地
+- 当前结论：`P1` 已完成社区 setup 边界与真实 API smoke；`P2` 已完成核心页面视觉 QA 与移动端导航避让；`P3` 已完成评论 / 动态本人编辑删除、投稿审核状态流转、审核发布生成社区视频记录和 system media 受控关联；`P4` 已完成少量真实内容视觉节奏与社区前端 Cookie / CSRF 凭证链路；`P5` 已完成后端社区 HTTP 返回面真实数据来源收敛；`P6` 已完成真实 API smoke 的登录注册与账号态页面覆盖；`P7` 已完成分端口直连模式下账号写请求 CORS / CSRF 修复；`P8` 将社区注册 / 登录从 IAM 控制台账号体系拆出，新增独立 `community_accounts` / `community_sessions`，新增 IAM `moderator` / `operator` 角色，落地后台“社区管理”WebUI，并从 Nuxt 首页移除社区动态区块。普通注册用户和内容创作者只使用社区前台，不能进入 `/admin`。
+- 影响范围：`backend/internal/modules/community/**`、`backend/internal/modules/iam/**`、`backend/internal/modules/system/**`、`backend/internal/config/**`、`backend/internal/migrations/**`、`backend/internal/transport/http/**`、`backend/web/app/**`、`frontend/**`、`scripts/check-frontend-community-*.ps1`、配置示例、OpenAPI、社区模块文档、权限矩阵、known gaps 和 `TASK_TREE.md`。
 
 ## 设计语言蒸馏
 
@@ -64,8 +64,13 @@
         [x] 子叶节点 B3.1.d.2：真实媒体上传与 system media / community submission 的受控关联
         [ ] 子叶节点 B3.1.d.3：转码任务、播放源生成和媒体处理状态回写
         [ ] 子叶节点 B3.1.d.4：后台可视化审核页与审核操作体验
+      [x] 叶节点 B3.1.e：后台社区管理 WebUI 覆盖社区账号、投稿审核和举报处理，页面只消费真实 `/api/v1/community/*` 契约
     [ ] 子分支 B3.2：登录态与匿名关系归并
-    [ ] 子分支 B3.3：创作者后台、举报处理和外部通知投递
+    [ ] 子分支 B3.3：创作者后台、活动运营、批量评论治理和外部通知投递
+    [x] 子分支 B3.4：社区账号与 IAM 控制台身份隔离
+      [x] 叶节点 B3.4.a：社区注册 / 登录改为 `community_accounts` 与 `community_sessions`，不再创建 IAM 用户、`community-*` 组织、`owner` 角色或 `console_*` 会话
+      [x] 叶节点 B3.4.b：历史 `community-*` IAM 账号迁移为社区账号并撤销控制台会话，真正后台管理员、运营和审核员继续保留 IAM 身份
+      [x] 叶节点 B3.4.c：新增 IAM `moderator` 与 `operator` 内建角色，并按社区审核 / 运营能力赋予最小权限
 
 [ ] 主干 C：前后端数据接入与 Mock 边界
   [x] 分支 C1：前端真实 API 封装
@@ -77,6 +82,7 @@
     [x] 子分支 C2.1：`useHomeFeed()` 暴露 `setupRequired`
     [x] 子分支 C2.2：首页展示初始化引导，避免把未联调状态伪装成真实数据
     [x] 子分支 C2.3：设置高级页展示数据源、接口状态、初始化状态和端点清单
+    [x] 子分支 C2.4：首页移除社区动态区块，动态能力保留在动态页 / 关注流并由页面 smoke 断言 `home pulse=0`
   [x] 分支 C3：Mock 与真实数据验证
     [x] 子分支 C3.1：Nuxt mock `/api/mock/status` 返回 setup 已完成状态
     [x] 子分支 C3.2：真实 API smoke 先完成最小 setup，再验证社区数据
@@ -116,21 +122,33 @@
     [x] 子分支 D3.1：新增社区全栈协作 skill
     [x] 子分支 D3.2：运行 `scripts/check-agent-skills.ps1`
 
-[ ] 主干 E：验证与收敛
+[x] 主干 E：验证与收敛
   [x] 分支 E1：后端验证
+    [x] 子分支 E1.0：`go test ./internal/migrations -count=1 -mod=readonly`
     [x] 子分支 E1.1：`go test ./internal/transport/http -count=1 -mod=readonly`
     [x] 子分支 E1.2：`go test ./internal/modules/community/... -count=1 -mod=readonly`
     [x] 子分支 E1.3：`go run ./cmd/console api openapi --output docs/api/openapi.yaml`
-  [x] 分支 E2：前端验证
-    [x] 子分支 E2.1：`pnpm --dir frontend typecheck`
-    [x] 子分支 E2.2：`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1`
-    [x] 子分支 E2.3：`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1`
-    [x] 子分支 E2.4：`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-page-smoke.ps1`
-    [x] 子分支 E2.5：`pnpm --dir frontend build`
-  [x] 分支 E3：收敛检查
-    [x] 子分支 E3.1：`powershell -ExecutionPolicy Bypass -File scripts/check-agent-skills.ps1`
-    [x] 子分支 E3.2：`git diff --check`
-    [x] 子分支 E3.3：确认未混入本地运行态目录、生成目录、无关用户改动
+    [x] 子分支 E1.4：`go test ./internal/modules/iam/... -count=1 -mod=readonly`
+    [x] 子分支 E1.5：`go test ./... -count=1 -mod=readonly`
+    [x] 子分支 E1.6：`powershell -ExecutionPolicy Bypass -File scripts/check-error-result-boundaries.ps1`
+  [x] 分支 E2：后台 React WebUI 验证
+    [x] 子分支 E2.1：`pnpm --dir backend/web/app typecheck`
+    [x] 子分支 E2.2：`pnpm --dir backend/web/app lint:i18n`
+    [x] 子分支 E2.3：`pnpm --dir backend/web/app test`
+    [x] 子分支 E2.4：`pnpm --dir backend/web/app build`
+    [x] 子分支 E2.5：`powershell -ExecutionPolicy Bypass -File backend/scripts/visual-qa.ps1 -Grep "admin community routes render backend community management"`
+  [x] 分支 E3：Nuxt 前台验证
+    [x] 子分支 E3.1：`pnpm --dir frontend typecheck`
+    [x] 子分支 E3.2：`pnpm --dir frontend build`
+    [x] 子分支 E3.3：`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1`
+    [x] 子分支 E3.4：`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1`
+    [x] 子分支 E3.5：`powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-page-smoke.ps1`
+  [x] 分支 E4：收敛检查
+    [x] 子分支 E4.1：`Push-Location backend; powershell -ExecutionPolicy Bypass -File scripts/check-plugin-removal.ps1; Pop-Location`
+    [x] 子分支 E4.2：`Push-Location backend; powershell -ExecutionPolicy Bypass -File scripts/check-doc-links.ps1; Pop-Location`
+    [x] 子分支 E4.3：`powershell -ExecutionPolicy Bypass -File scripts/check-agent-skills.ps1`
+    [x] 子分支 E4.4：`git diff --check`
+    [x] 子分支 E4.5：确认未混入本地运行态目录、生成目录、无关用户改动
 ```
 
 ## 下一阶段进入条件
@@ -262,3 +280,13 @@
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-api-smoke.ps1` 通过，账号注册、登录、登出、账号动态、关注、历史和通知真实后端链路继续可用。
 - [x] `powershell -ExecutionPolicy Bypass -File scripts/check-frontend-community-boundary.ps1` 通过。
 - [x] 临时真实后端预检验证通过：使用用户报告的同类社区账号写请求 CORS 预检场景，后端返回 `204`，响应包含明确来源、凭证允许标记，并在 `Access-Control-Allow-Headers` 中补齐当前 CSRF header。
+
+### P8：社区账号隔离、控制台社区管理与角色矩阵落地
+
+- [x] 社区注册 / 登录改为独立 `community_accounts` 与 `community_sessions`，响应保持社区前台兼容字段，不再复用 IAM `Signup/Login`。
+- [x] 新增迁移 `backend/internal/migrations/20260627000400_create_community_accounts.sql`，创建社区账号 / 会话表，迁移仅属于 `community-*` 组织的历史错误 IAM 社区用户，并撤销其控制台会话和组织成员关系。
+- [x] 新增 IAM `moderator` 与 `operator` 内建角色；`moderator` 默认获得投稿审核与举报处理权限，`operator` 默认获得社区账号管理、投稿审核和举报处理权限。
+- [x] 后台新增“社区管理”菜单组与 `/admin/community/accounts`、`/admin/community/submissions`、`/admin/community/reports`，统一使用 React API client、query keys、权限态和 i18n。
+- [x] Nuxt 首页移除 `CommunityPulse` 动态区，动态能力保留给动态页 / 关注流；页面 smoke 已断言桌面和移动首页 `pulse=0`。
+- [x] 后台社区页视觉 QA 已通过：`powershell -ExecutionPolicy Bypass -File backend/scripts/visual-qa.ps1 -Grep "admin community routes render backend community management"` 覆盖 desktop `1440x900` 与 mobile `390x844`。
+- [x] 全量后端、后台 WebUI、Nuxt 前台、真实 API smoke、页面 smoke、后端治理脚本、agent skill 检查和 `git diff --check` 均已在本阶段最终收口时通过。

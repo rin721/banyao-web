@@ -39,6 +39,15 @@ export const API_ENDPOINTS = {
     signup: `${apiV1}/auth/signup`,
     switchOrg: `${apiV1}/auth/switch-org`,
   },
+  community: {
+    account: (accountId: EndpointID) => `${apiV1}/community/accounts/${pathValue(accountId)}`,
+    accounts: `${apiV1}/community/accounts`,
+    report: (reportId: EndpointID) => `${apiV1}/community/reports/${pathValue(reportId)}`,
+    reports: `${apiV1}/community/reports`,
+    submissionReview: (submissionId: EndpointID) =>
+      `${apiV1}/community/submissions/${pathValue(submissionId)}/review`,
+    submissions: `${apiV1}/community/submissions`,
+  },
   health: "/health",
   invitations: {
     accept: (token: string) => `${apiV1}/invitations/${pathValue(token)}/accept`,

@@ -30,6 +30,7 @@ import (
 	systemservice "github.com/open-console/console-platform/internal/modules/system/service"
 	"github.com/open-console/console-platform/internal/ports"
 	"github.com/open-console/console-platform/pkg/web"
+	authtypes "github.com/open-console/console-platform/types/auth"
 	appconstants "github.com/open-console/console-platform/types/constants"
 	apperrors "github.com/open-console/console-platform/types/errors"
 )
@@ -175,6 +176,96 @@ type apiPermissionSyncResponse struct {
 		StorageStatus string `json:"storageStatus"`
 		Total         int    `json:"total"`
 	} `json:"data"`
+}
+
+type fakeCommunityAuthService struct {
+	communityservice.Service
+
+	signupCalls       int
+	lastSignupRequest communitymodel.CommunitySignupRequest
+	loginCalls        int
+	lastLoginRequest  communitymodel.CommunityLoginRequest
+	sessionCalls      int
+	logoutCalls       int
+}
+
+func (s *fakeCommunityAuthService) SignupCommunityAccount(_ context.Context, req communitymodel.CommunitySignupRequest, _ communityservice.SessionIssueInput) (communitymodel.CommunityAuthSessionSnapshot, communityservice.SessionTokens, error) {
+	s.signupCalls++
+	s.lastSignupRequest = req
+	displayName := strings.TrimSpace(req.DisplayName)
+	if displayName == "" {
+		displayName = "Rin721"
+	}
+	return fakeCommunitySessionSnapshot("rin721", displayName, req.Email), fakeCommunitySessionTokens(), nil
+}
+
+func (s *fakeCommunityAuthService) LoginCommunityAccount(_ context.Context, req communitymodel.CommunityLoginRequest, _ communityservice.SessionIssueInput) (communitymodel.CommunityAuthSessionSnapshot, communityservice.SessionTokens, error) {
+	s.loginCalls++
+	s.lastLoginRequest = req
+	return fakeCommunitySessionSnapshot("rin721", "Rin721", "rin@example.com"), fakeCommunitySessionTokens(), nil
+}
+
+func (s *fakeCommunityAuthService) AuthenticateToken(_ context.Context, token string) (authtypes.Principal, error) {
+	if strings.TrimSpace(token) == "" {
+		return authtypes.Principal{}, communityservice.ErrUnauthorized
+	}
+	return authtypes.Principal{
+		UserID:      207,
+		SessionID:   409,
+		ProductCode: "console-platform",
+		ClientType:  "community_web",
+		Username:    "rin721",
+		DisplayName: "Rin721",
+		Email:       "rin@example.com",
+		RoleCode:    communitymodel.CommunityAccountRoleRegistered,
+	}, nil
+}
+
+func (s *fakeCommunityAuthService) CommunityAuthSession(context.Context, authtypes.Principal) (communitymodel.CommunityAuthSessionSnapshot, error) {
+	s.sessionCalls++
+	return fakeCommunitySessionSnapshot("rin721", "Rin721", "rin@example.com"), nil
+}
+
+func (s *fakeCommunityAuthService) LogoutCommunityAccount(context.Context, authtypes.Principal) error {
+	s.logoutCalls++
+	return nil
+}
+
+func fakeCommunitySessionSnapshot(handle string, displayName string, email string) communitymodel.CommunityAuthSessionSnapshot {
+	now := time.Now().UTC()
+	accessExpiresAt := now.Add(time.Hour)
+	refreshExpiresAt := now.Add(24 * time.Hour)
+	userID := "207"
+	sessionID := "409"
+	account := communitymodel.CommunityAccountSession{
+		ID:          userID,
+		Handle:      handle,
+		Email:       email,
+		DisplayName: displayName,
+		Role:        communitymodel.CommunityAccountRoleRegistered,
+		Status:      communitymodel.CommunityAccountStatusActive,
+		CreatedAt:   now,
+	}
+	return communitymodel.CommunityAuthSessionSnapshot{
+		Authenticated:    true,
+		Account:          &account,
+		User:             &account,
+		UserID:           &userID,
+		SessionID:        &sessionID,
+		ExpiresAt:        &accessExpiresAt,
+		AccessExpiresAt:  &accessExpiresAt,
+		RefreshExpiresAt: &refreshExpiresAt,
+	}
+}
+
+func fakeCommunitySessionTokens() communityservice.SessionTokens {
+	now := time.Now().UTC()
+	return communityservice.SessionTokens{
+		AccessToken:      "community-access",
+		RefreshToken:     "community-refresh",
+		AccessExpiresAt:  now.Add(time.Hour),
+		RefreshExpiresAt: now.Add(24 * time.Hour),
+	}
 }
 
 type fakeIAMService struct {
@@ -446,27 +537,30 @@ func TestNewRouterSignupEndpointIsPublic(t *testing.T) {
 
 func TestNewRouterCommunitySignupEndpointUsesCommunityPayload(t *testing.T) {
 	iamSvc := &fakeIAMService{}
+	communitySvc := &fakeCommunityAuthService{}
 	setupProvider := &fakeCommunitySetupProvider{status: communitymodel.SetupStatus{Completed: true}}
 	router := newTestRouter(RouterDeps{
 		CommunitySetupStatusProvider: setupProvider,
+		CommunityHandler:             communityhandler.New(communitySvc, nil),
+		CommunityAuth:                communitySvc,
 		IAMHandler:                   iamhandler.New(iamSvc, nil),
 		IAMAuth:                      iamSvc,
 		IAMAuthz:                     iamSvc,
 	})
 
-	recorder := performJSONRouterRequest(router, http.MethodPost, "/api/v1/public/community/auth/signup", `{"username":"Rin 721","displayName":"Rin","email":"rin@example.com","password":"password123"}`)
+	recorder := performJSONRouterRequest(router, http.MethodPost, "/api/v1/public/community/auth/signup", `{"username":"rin721","displayName":"Rin","email":"rin@example.com","password":"password123"}`)
 
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected community signup status %d, got %d body %s", http.StatusOK, recorder.Code, recorder.Body.String())
 	}
-	if iamSvc.signupCalls != 1 {
-		t.Fatalf("expected signup call count 1, got %d", iamSvc.signupCalls)
+	if communitySvc.signupCalls != 1 {
+		t.Fatalf("expected community signup call count 1, got %d", communitySvc.signupCalls)
 	}
-	if iamSvc.lastSignupInput.Username != "Rin 721" || iamSvc.lastSignupInput.DisplayName != "Rin" || iamSvc.lastSignupInput.Email != "rin@example.com" {
-		t.Fatalf("unexpected community signup identity input: %#v", iamSvc.lastSignupInput)
+	if iamSvc.signupCalls != 0 {
+		t.Fatalf("community signup must not call IAM signup, got %d calls", iamSvc.signupCalls)
 	}
-	if iamSvc.lastSignupInput.OrgCode != "community-rin-721" || iamSvc.lastSignupInput.OrgName != "Rin" {
-		t.Fatalf("unexpected community signup account bridge: %#v", iamSvc.lastSignupInput)
+	if communitySvc.lastSignupRequest.Username != "rin721" || communitySvc.lastSignupRequest.DisplayName != "Rin" || communitySvc.lastSignupRequest.Email != "rin@example.com" {
+		t.Fatalf("unexpected community signup input: %#v", communitySvc.lastSignupRequest)
 	}
 	if strings.Contains(recorder.Body.String(), "orgId") || strings.Contains(recorder.Body.String(), "permissions") || strings.Contains(recorder.Body.String(), "roles") {
 		t.Fatalf("community signup response should expose a compact community session, got %s", recorder.Body.String())
@@ -478,9 +572,12 @@ func TestNewRouterCommunitySignupEndpointUsesCommunityPayload(t *testing.T) {
 
 func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
 	iamSvc := &fakeIAMService{}
+	communitySvc := &fakeCommunityAuthService{}
 	setupProvider := &fakeCommunitySetupProvider{status: communitymodel.SetupStatus{Completed: true}}
 	router := newTestRouter(RouterDeps{
 		CommunitySetupStatusProvider: setupProvider,
+		CommunityHandler:             communityhandler.New(communitySvc, nil),
+		CommunityAuth:                communitySvc,
 		IAMHandler:                   iamhandler.New(iamSvc, nil),
 		IAMAuth:                      iamSvc,
 		IAMAuthz:                     iamSvc,
@@ -490,11 +587,14 @@ func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
 	if login.Code != http.StatusOK {
 		t.Fatalf("expected community login status %d, got %d body %s", http.StatusOK, login.Code, login.Body.String())
 	}
-	if iamSvc.loginCalls != 1 {
-		t.Fatalf("expected login call count 1, got %d", iamSvc.loginCalls)
+	if communitySvc.loginCalls != 1 {
+		t.Fatalf("expected community login call count 1, got %d", communitySvc.loginCalls)
 	}
-	if iamSvc.lastLoginInput.Identifier != "rin@example.com" || iamSvc.lastLoginInput.OrgCode != "" {
-		t.Fatalf("unexpected community login input: %#v", iamSvc.lastLoginInput)
+	if iamSvc.loginCalls != 0 {
+		t.Fatalf("community login must not call IAM login, got %d calls", iamSvc.loginCalls)
+	}
+	if communitySvc.lastLoginRequest.Identifier != "rin@example.com" {
+		t.Fatalf("unexpected community login input: %#v", communitySvc.lastLoginRequest)
 	}
 	if strings.Contains(login.Body.String(), "orgId") || strings.Contains(login.Body.String(), "permissions") || strings.Contains(login.Body.String(), "roles") {
 		t.Fatalf("community login response should expose a compact community session, got %s", login.Body.String())
@@ -516,6 +616,9 @@ func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
 	if !strings.Contains(session.Body.String(), `"account"`) || !strings.Contains(session.Body.String(), `"displayName":"Rin721"`) {
 		t.Fatalf("community session response should expose community account identity, got %s", session.Body.String())
 	}
+	if communitySvc.sessionCalls != 1 {
+		t.Fatalf("expected community session call count 1, got %d", communitySvc.sessionCalls)
+	}
 
 	anonymousSession := httptest.NewRecorder()
 	anonymousSessionRequest := httptest.NewRequest(http.MethodGet, "/api/v1/public/community/auth/session", nil)
@@ -536,6 +639,9 @@ func TestNewRouterCommunityAuthEndpointsUseCommunityPayload(t *testing.T) {
 	}
 	if !strings.Contains(logout.Body.String(), "loggedOut") {
 		t.Fatalf("expected community logout response, got %s", logout.Body.String())
+	}
+	if communitySvc.logoutCalls != 1 {
+		t.Fatalf("expected community logout call count 1, got %d", communitySvc.logoutCalls)
 	}
 }
 

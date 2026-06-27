@@ -20,6 +20,7 @@ type Config struct {
 	CORS        CORSConfig        `mapstructure:"cors"`
 	RPC         RPCConfig         `mapstructure:"rpc"`
 	Auth        AuthConfig        `mapstructure:"auth"`
+	Community   CommunityConfig   `mapstructure:"community"`
 	System      SystemConfig      `mapstructure:"system"`
 	Migration   MigrationConfig   `mapstructure:"migration"`
 	WebUI       WebUIConfig       `mapstructure:"webui"`
@@ -45,6 +46,7 @@ func (c *Config) Validate() error {
 		&c.CORS,
 		&c.RPC,
 		&c.Auth,
+		&c.Community,
 		&c.System,
 		&c.Migration,
 		&c.WebUI,

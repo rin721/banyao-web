@@ -150,6 +150,7 @@ cors:
     - X-Locale
     - X-Setup-Token
     - X-CSRF-Token
+    - X-Community-CSRF-Token
   expose_headers:
     - X-Request-ID
   allow_credentials: ${APP_CORS_ALLOW_CREDENTIALS:false}
@@ -219,6 +220,22 @@ auth:
     require_number: ${APP_AUTH_PASSWORD_REQUIRE_NUMBER:true}
     require_symbol: ${APP_AUTH_PASSWORD_REQUIRE_SYMBOL:false}
   casbin_reload_interval_seconds: ${APP_AUTH_CASBIN_RELOAD_INTERVAL_SECONDS:300}
+
+community:
+  auth:
+    access_token_ttl_seconds: ${APP_COMMUNITY_AUTH_ACCESS_TOKEN_TTL_SECONDS:900}
+    refresh_token_ttl_seconds: ${APP_COMMUNITY_AUTH_REFRESH_TOKEN_TTL_SECONDS:604800}
+    default_client_type: ${APP_COMMUNITY_AUTH_DEFAULT_CLIENT_TYPE:community_web}
+    cookie:
+      name_prefix: ${APP_COMMUNITY_AUTH_COOKIE_NAME_PREFIX:community}
+      domain: ${APP_COMMUNITY_AUTH_COOKIE_DOMAIN:}
+      path: ${APP_COMMUNITY_AUTH_COOKIE_PATH:/}
+      same_site: ${APP_COMMUNITY_AUTH_COOKIE_SAME_SITE:lax}
+      secure: ${APP_COMMUNITY_AUTH_COOKIE_SECURE:true}
+    csrf:
+      enabled: ${APP_COMMUNITY_AUTH_CSRF_ENABLED:true}
+      cookie_name: ${APP_COMMUNITY_AUTH_CSRF_COOKIE_NAME:community_csrf}
+      header_name: ${APP_COMMUNITY_AUTH_CSRF_HEADER_NAME:X-Community-CSRF-Token}
 
 migration:
   auto_apply: ${APP_MIGRATION_AUTO_APPLY:false}

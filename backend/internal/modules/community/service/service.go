@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"regexp"
 	"sort"
 	"strconv"
@@ -21,12 +25,25 @@ var (
 	ErrDataInconsistent   = errors.New("community data inconsistent")
 	ErrNotFound           = errors.New("community resource not found")
 	ErrStorageUnavailable = errors.New("community storage unavailable")
+	ErrUnauthorized       = errors.New("community unauthorized")
+	ErrDuplicate          = errors.New("community duplicate")
+	ErrForbidden          = errors.New("community forbidden")
 )
 
 var danmakuColorPattern = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)
+var communityHandlePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_-]{2,63}$`)
 
 // Service 定义视频社区公开只读能力。
 type Service interface {
+	AuthenticateToken(context.Context, string) (authtypes.Principal, error)
+	SignupCommunityAccount(context.Context, model.CommunitySignupRequest, SessionIssueInput) (model.CommunityAuthSessionSnapshot, SessionTokens, error)
+	LoginCommunityAccount(context.Context, model.CommunityLoginRequest, SessionIssueInput) (model.CommunityAuthSessionSnapshot, SessionTokens, error)
+	CommunityAuthSession(context.Context, authtypes.Principal) (model.CommunityAuthSessionSnapshot, error)
+	LogoutCommunityAccount(context.Context, authtypes.Principal) error
+	ListCommunityAccounts(context.Context, model.CommunityAccountFilter) (model.CommunityAccountPayload, error)
+	UpdateCommunityAccount(context.Context, string, model.UpdateCommunityAccountRequest) (model.CommunityAccountItem, error)
+	ListCommunityReports(context.Context, model.CommunityReportFilter) (model.CommunityReportPayload, error)
+	ReviewCommunityReport(context.Context, authtypes.Principal, string, model.ReviewCommunityReportRequest) (model.CommunityReportItem, error)
 	CommunityStatus(context.Context) model.APIStatus
 	GetCreatorProfile(context.Context, string) (model.CreatorProfile, error)
 	GetHomePayload(context.Context) (model.HomePayload, error)
@@ -86,6 +103,20 @@ type Service interface {
 
 // Repository 是社区服务需要的最小持久化端口。
 type Repository interface {
+	CreateCommunityAccount(context.Context, model.CommunityAccount) error
+	FindCommunityAccountByID(context.Context, int64) (*model.CommunityAccount, error)
+	FindCommunityAccountByHandleOrEmail(context.Context, string) (*model.CommunityAccount, error)
+	FindCommunityAccountByHandle(context.Context, string) (*model.CommunityAccount, error)
+	FindCommunityAccountByEmail(context.Context, string) (*model.CommunityAccount, error)
+	UpdateCommunityAccount(context.Context, model.CommunityAccount) error
+	CreateCommunitySession(context.Context, model.CommunitySession) error
+	FindCommunitySessionByAccessTokenHash(context.Context, string, time.Time) (*model.CommunitySession, error)
+	FindCommunitySessionByID(context.Context, int64) (*model.CommunitySession, error)
+	RevokeCommunitySession(context.Context, int64, time.Time) error
+	ListCommunityAccounts(context.Context, model.CommunityAccountFilter) ([]model.CommunityAccount, error)
+	ListCommunityReports(context.Context, model.CommunityReportFilter) ([]model.CommunityReport, error)
+	FindCommunityReport(context.Context, string) (*model.CommunityReport, error)
+	UpdateCommunityReportReview(context.Context, model.CommunityReport) error
 	FindCreatorByHandle(context.Context, string) (*model.Creator, error)
 	FindCreatorFollow(context.Context, string, string) (*model.CreatorFollow, error)
 	FindVideoComment(context.Context, string, string) (*model.VideoComment, error)
@@ -139,12 +170,37 @@ type Config struct {
 	BasePath                 string
 	HomeAnnouncementProvider HomeAnnouncementProvider
 	NewID                    func() string
+	NewIntID                 func() int64
+	Passwords                PasswordCrypto
+	AccessTokenTTL           time.Duration
+	RefreshTokenTTL          time.Duration
+	DefaultProductCode       string
+	DefaultClientType        string
 	Now                      func() time.Time
 }
 
 type service struct {
 	cfg  Config
 	repo Repository
+}
+
+type PasswordCrypto interface {
+	HashPassword(password string) (string, error)
+	VerifyPassword(hashedPassword, password string) error
+}
+
+type SessionIssueInput struct {
+	UserAgent   string
+	IPAddress   string
+	ProductCode string
+	ClientType  string
+}
+
+type SessionTokens struct {
+	AccessToken      string
+	RefreshToken     string
+	AccessExpiresAt  time.Time
+	RefreshExpiresAt time.Time
 }
 
 func New(repo Repository, cfg Config) Service {
@@ -154,10 +210,245 @@ func New(repo Repository, cfg Config) Service {
 	if cfg.NewID == nil {
 		cfg.NewID = func() string { return strconv.FormatInt(time.Now().UTC().UnixNano(), 10) }
 	}
+	if cfg.NewIntID == nil {
+		cfg.NewIntID = func() int64 { return time.Now().UTC().UnixNano() }
+	}
+	if cfg.AccessTokenTTL <= 0 {
+		cfg.AccessTokenTTL = 15 * time.Minute
+	}
+	if cfg.RefreshTokenTTL <= 0 {
+		cfg.RefreshTokenTTL = 7 * 24 * time.Hour
+	}
+	if strings.TrimSpace(cfg.DefaultClientType) == "" {
+		cfg.DefaultClientType = "pc_web"
+	}
 	if strings.TrimSpace(cfg.BasePath) == "" {
 		cfg.BasePath = "/api/v1/public/community"
 	}
 	return &service{cfg: cfg, repo: repo}
+}
+
+func (s *service) SignupCommunityAccount(ctx context.Context, req model.CommunitySignupRequest, input SessionIssueInput) (model.CommunityAuthSessionSnapshot, SessionTokens, error) {
+	if s.repo == nil || s.cfg.Passwords == nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrStorageUnavailable
+	}
+	handle, email, displayName, password, err := normalizeCommunitySignup(req)
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, err
+	}
+	if _, err := s.repo.FindCommunityAccountByHandle(ctx, handle); err == nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrDuplicate
+	} else if !errors.Is(err, ErrNotFound) {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, mapStorageError(err)
+	}
+	if _, err := s.repo.FindCommunityAccountByEmail(ctx, email); err == nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrDuplicate
+	} else if !errors.Is(err, ErrNotFound) {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, mapStorageError(err)
+	}
+	hash, err := s.cfg.Passwords.HashPassword(password)
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrInvalidInput
+	}
+	now := s.now()
+	account := model.CommunityAccount{
+		ID:           s.cfg.NewIntID(),
+		Handle:       handle,
+		Email:        email,
+		PasswordHash: hash,
+		DisplayName:  displayName,
+		Role:         model.CommunityAccountRoleRegistered,
+		Status:       model.CommunityAccountStatusActive,
+		LastLoginAt:  &now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	if err := s.repo.CreateCommunityAccount(ctx, account); err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, mapStorageError(err)
+	}
+	snapshot, tokens, err := s.issueCommunitySession(ctx, &account, input)
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, err
+	}
+	return snapshot, tokens, nil
+}
+
+func (s *service) LoginCommunityAccount(ctx context.Context, req model.CommunityLoginRequest, input SessionIssueInput) (model.CommunityAuthSessionSnapshot, SessionTokens, error) {
+	if s.repo == nil || s.cfg.Passwords == nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrStorageUnavailable
+	}
+	identifier := strings.ToLower(strings.TrimSpace(firstNonEmpty(req.Identifier, req.Email)))
+	if identifier == "" || strings.TrimSpace(req.Password) == "" {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrInvalidInput
+	}
+	account, err := s.repo.FindCommunityAccountByHandleOrEmail(ctx, identifier)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrUnauthorized
+		}
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, mapStorageError(err)
+	}
+	if account.Status != model.CommunityAccountStatusActive {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrForbidden
+	}
+	if err := s.cfg.Passwords.VerifyPassword(account.PasswordHash, strings.TrimSpace(req.Password)); err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrUnauthorized
+	}
+	now := s.now()
+	account.LastLoginAt = &now
+	account.UpdatedAt = now
+	if err := s.repo.UpdateCommunityAccount(ctx, *account); err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, mapStorageError(err)
+	}
+	return s.issueCommunitySession(ctx, account, input)
+}
+
+func (s *service) AuthenticateToken(ctx context.Context, token string) (authtypes.Principal, error) {
+	if s.repo == nil {
+		return authtypes.Principal{}, ErrStorageUnavailable
+	}
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return authtypes.Principal{}, ErrUnauthorized
+	}
+	session, err := s.repo.FindCommunitySessionByAccessTokenHash(ctx, hashToken(token), s.now())
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return authtypes.Principal{}, ErrUnauthorized
+		}
+		return authtypes.Principal{}, mapStorageError(err)
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, session.AccountID)
+	if err != nil {
+		return authtypes.Principal{}, mapStorageError(err)
+	}
+	if account.Status != model.CommunityAccountStatusActive {
+		return authtypes.Principal{}, ErrForbidden
+	}
+	return s.communityPrincipal(account, session), nil
+}
+
+func (s *service) CommunityAuthSession(ctx context.Context, principal authtypes.Principal) (model.CommunityAuthSessionSnapshot, error) {
+	if s.repo == nil {
+		return model.CommunityAuthSessionSnapshot{}, ErrStorageUnavailable
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, mapStorageError(err)
+	}
+	session, err := s.repo.FindCommunitySessionByID(ctx, principal.SessionID)
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, mapStorageError(err)
+	}
+	snapshot := communityAuthSnapshot(*account, *session)
+	return snapshot, nil
+}
+
+func (s *service) LogoutCommunityAccount(ctx context.Context, principal authtypes.Principal) error {
+	if s.repo == nil {
+		return ErrStorageUnavailable
+	}
+	if principal.SessionID <= 0 {
+		return ErrUnauthorized
+	}
+	return mapStorageError(s.repo.RevokeCommunitySession(ctx, principal.SessionID, s.now()))
+}
+
+func (s *service) ListCommunityAccounts(ctx context.Context, filter model.CommunityAccountFilter) (model.CommunityAccountPayload, error) {
+	if s.repo == nil {
+		return model.CommunityAccountPayload{}, ErrStorageUnavailable
+	}
+	accounts, err := s.repo.ListCommunityAccounts(ctx, filter)
+	if err != nil {
+		return model.CommunityAccountPayload{}, mapStorageError(err)
+	}
+	items := make([]model.CommunityAccountItem, 0, len(accounts))
+	for _, account := range accounts {
+		items = append(items, communityAccountItem(account))
+	}
+	return model.CommunityAccountPayload{Items: model.PageResult[model.CommunityAccountItem]{Items: items}}, nil
+}
+
+func (s *service) UpdateCommunityAccount(ctx context.Context, accountID string, req model.UpdateCommunityAccountRequest) (model.CommunityAccountItem, error) {
+	if s.repo == nil {
+		return model.CommunityAccountItem{}, ErrStorageUnavailable
+	}
+	id, err := strconv.ParseInt(strings.TrimSpace(accountID), 10, 64)
+	if err != nil || id <= 0 {
+		return model.CommunityAccountItem{}, ErrInvalidInput
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, id)
+	if err != nil {
+		return model.CommunityAccountItem{}, mapStorageError(err)
+	}
+	if role := strings.TrimSpace(req.Role); role != "" {
+		normalized, err := normalizeCommunityAccountRole(role)
+		if err != nil {
+			return model.CommunityAccountItem{}, err
+		}
+		account.Role = normalized
+	}
+	if status := strings.TrimSpace(req.Status); status != "" {
+		normalized, err := normalizeCommunityAccountStatus(status)
+		if err != nil {
+			return model.CommunityAccountItem{}, err
+		}
+		account.Status = normalized
+	}
+	account.UpdatedAt = s.now()
+	if err := s.repo.UpdateCommunityAccount(ctx, *account); err != nil {
+		return model.CommunityAccountItem{}, mapStorageError(err)
+	}
+	return communityAccountItem(*account), nil
+}
+
+func (s *service) ListCommunityReports(ctx context.Context, filter model.CommunityReportFilter) (model.CommunityReportPayload, error) {
+	if s.repo == nil {
+		return model.CommunityReportPayload{}, ErrStorageUnavailable
+	}
+	if strings.TrimSpace(filter.Status) != "" {
+		status, err := normalizeCommunityReportStatus(filter.Status)
+		if err != nil {
+			return model.CommunityReportPayload{}, err
+		}
+		filter.Status = status
+	}
+	reports, err := s.repo.ListCommunityReports(ctx, filter)
+	if err != nil {
+		return model.CommunityReportPayload{}, mapStorageError(err)
+	}
+	items := make([]model.CommunityReportItem, 0, len(reports))
+	for _, report := range reports {
+		items = append(items, communityReportItem(report))
+	}
+	return model.CommunityReportPayload{Items: model.PageResult[model.CommunityReportItem]{Items: items}}, nil
+}
+
+func (s *service) ReviewCommunityReport(ctx context.Context, principal authtypes.Principal, reportID string, req model.ReviewCommunityReportRequest) (model.CommunityReportItem, error) {
+	if s.repo == nil {
+		return model.CommunityReportItem{}, ErrStorageUnavailable
+	}
+	if principal.UserID <= 0 {
+		return model.CommunityReportItem{}, ErrInvalidInput
+	}
+	nextStatus, err := normalizeCommunityReportReviewStatus(req.Status)
+	if err != nil {
+		return model.CommunityReportItem{}, err
+	}
+	report, err := s.repo.FindCommunityReport(ctx, reportID)
+	if err != nil {
+		return model.CommunityReportItem{}, mapStorageError(err)
+	}
+	now := s.now()
+	report.Status = nextStatus
+	report.ReviewNote = strings.TrimSpace(req.ReviewNote)
+	report.ReviewerID = strconv.FormatInt(principal.UserID, 10)
+	report.ReviewedAt = &now
+	report.UpdatedAt = now
+	if err := s.repo.UpdateCommunityReportReview(ctx, *report); err != nil {
+		return model.CommunityReportItem{}, mapStorageError(err)
+	}
+	return communityReportItem(*report), nil
 }
 
 func (s *service) CommunityStatus(context.Context) model.APIStatus {
@@ -2733,6 +3024,215 @@ func mapStorageError(err error) error {
 		return ErrStorageUnavailable
 	}
 	return err
+}
+
+func normalizeCommunitySignup(req model.CommunitySignupRequest) (string, string, string, string, error) {
+	handle := strings.ToLower(strings.TrimSpace(req.Username))
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	displayName := strings.TrimSpace(req.DisplayName)
+	password := strings.TrimSpace(req.Password)
+	if !communityHandlePattern.MatchString(handle) || !validCommunityEmail(email) || len(password) < 8 {
+		return "", "", "", "", ErrInvalidInput
+	}
+	if displayName == "" {
+		displayName = handle
+	}
+	if len(displayName) > 120 {
+		return "", "", "", "", ErrInvalidInput
+	}
+	return handle, email, displayName, password, nil
+}
+
+func validCommunityEmail(value string) bool {
+	at := strings.Index(value, "@")
+	return at > 0 && at < len(value)-1 && strings.Contains(value[at+1:], ".") && !strings.ContainsAny(value, " \t\r\n")
+}
+
+func (s *service) issueCommunitySession(ctx context.Context, account *model.CommunityAccount, input SessionIssueInput) (model.CommunityAuthSessionSnapshot, SessionTokens, error) {
+	if account == nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, ErrInvalidInput
+	}
+	accessToken, err := randomToken()
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, err
+	}
+	refreshToken, err := randomToken()
+	if err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, err
+	}
+	now := s.now()
+	session := model.CommunitySession{
+		ID:               s.cfg.NewIntID(),
+		AccountID:        account.ID,
+		AccessTokenHash:  hashToken(accessToken),
+		RefreshTokenHash: hashToken(refreshToken),
+		ProductCode:      strings.TrimSpace(firstNonEmpty(input.ProductCode, s.cfg.DefaultProductCode)),
+		ClientType:       strings.TrimSpace(firstNonEmpty(input.ClientType, s.cfg.DefaultClientType)),
+		IPAddress:        trimMax(input.IPAddress, 64),
+		UserAgent:        trimMax(input.UserAgent, 512),
+		AccessExpiresAt:  now.Add(s.cfg.AccessTokenTTL),
+		RefreshExpiresAt: now.Add(s.cfg.RefreshTokenTTL),
+		CreatedAt:        now,
+		UpdatedAt:        now,
+	}
+	if err := s.repo.CreateCommunitySession(ctx, session); err != nil {
+		return model.CommunityAuthSessionSnapshot{}, SessionTokens{}, mapStorageError(err)
+	}
+	tokens := SessionTokens{
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		AccessExpiresAt:  session.AccessExpiresAt,
+		RefreshExpiresAt: session.RefreshExpiresAt,
+	}
+	return communityAuthSnapshot(*account, session), tokens, nil
+}
+
+func (s *service) communityPrincipal(account *model.CommunityAccount, session *model.CommunitySession) authtypes.Principal {
+	return authtypes.Principal{
+		UserID:      account.ID,
+		SessionID:   session.ID,
+		ProductCode: strings.TrimSpace(firstNonEmpty(session.ProductCode, s.cfg.DefaultProductCode)),
+		ClientType:  strings.TrimSpace(firstNonEmpty(session.ClientType, s.cfg.DefaultClientType)),
+		Username:    account.Handle,
+		DisplayName: account.DisplayName,
+		Email:       account.Email,
+		RoleCode:    account.Role,
+	}
+}
+
+func communityAuthSnapshot(account model.CommunityAccount, session model.CommunitySession) model.CommunityAuthSessionSnapshot {
+	userID := strconv.FormatInt(account.ID, 10)
+	sessionID := strconv.FormatInt(session.ID, 10)
+	expiresAt := session.AccessExpiresAt
+	refreshExpiresAt := session.RefreshExpiresAt
+	accountView := model.CommunityAccountSession{
+		ID:          strconv.FormatInt(account.ID, 10),
+		Handle:      account.Handle,
+		Email:       account.Email,
+		DisplayName: account.DisplayName,
+		Role:        account.Role,
+		Status:      account.Status,
+		LastLoginAt: account.LastLoginAt,
+		CreatedAt:   account.CreatedAt,
+	}
+	return model.CommunityAuthSessionSnapshot{
+		Authenticated:    true,
+		Account:          &accountView,
+		User:             &accountView,
+		UserID:           &userID,
+		SessionID:        &sessionID,
+		ExpiresAt:        &expiresAt,
+		AccessExpiresAt:  &expiresAt,
+		RefreshExpiresAt: &refreshExpiresAt,
+	}
+}
+
+func communityAccountItem(account model.CommunityAccount) model.CommunityAccountItem {
+	return model.CommunityAccountItem{
+		ID:          strconv.FormatInt(account.ID, 10),
+		Handle:      account.Handle,
+		Email:       account.Email,
+		DisplayName: account.DisplayName,
+		Role:        account.Role,
+		Status:      account.Status,
+		LastLoginAt: account.LastLoginAt,
+		CreatedAt:   account.CreatedAt,
+		UpdatedAt:   account.UpdatedAt,
+	}
+}
+
+func communityReportItem(report model.CommunityReport) model.CommunityReportItem {
+	return model.CommunityReportItem{
+		ID:         report.ID,
+		TargetKind: report.TargetKind,
+		TargetID:   report.TargetID,
+		VideoID:    report.VideoID,
+		ClientID:   report.ClientID,
+		Reason:     report.Reason,
+		Detail:     report.Detail,
+		Status:     report.Status,
+		ReviewNote: report.ReviewNote,
+		ReviewerID: report.ReviewerID,
+		ReviewedAt: report.ReviewedAt,
+		CreatedAt:  report.CreatedAt,
+		UpdatedAt:  report.UpdatedAt,
+	}
+}
+
+func normalizeCommunityAccountRole(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case model.CommunityAccountRoleRegistered:
+		return model.CommunityAccountRoleRegistered, nil
+	case model.CommunityAccountRoleCreator:
+		return model.CommunityAccountRoleCreator, nil
+	default:
+		return "", ErrInvalidInput
+	}
+}
+
+func normalizeCommunityAccountStatus(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case model.CommunityAccountStatusActive:
+		return model.CommunityAccountStatusActive, nil
+	case model.CommunityAccountStatusDisabled:
+		return model.CommunityAccountStatusDisabled, nil
+	default:
+		return "", ErrInvalidInput
+	}
+}
+
+func normalizeCommunityReportStatus(value string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case model.CommunityReportStatusPending:
+		return model.CommunityReportStatusPending, nil
+	case model.CommunityReportStatusResolved:
+		return model.CommunityReportStatusResolved, nil
+	case model.CommunityReportStatusRejected:
+		return model.CommunityReportStatusRejected, nil
+	default:
+		return "", ErrInvalidInput
+	}
+}
+
+func normalizeCommunityReportReviewStatus(value string) (string, error) {
+	status, err := normalizeCommunityReportStatus(value)
+	if err != nil {
+		return "", err
+	}
+	if status == model.CommunityReportStatusPending {
+		return "", ErrInvalidInput
+	}
+	return status, nil
+}
+
+func randomToken() (string, error) {
+	raw := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, raw); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func hashToken(value string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(value)))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
+func trimMax(value string, max int) string {
+	value = strings.TrimSpace(value)
+	if max <= 0 || len(value) <= max {
+		return value
+	}
+	return value[:max]
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func reportReceipt(report model.CommunityReport) model.CommunityReportReceipt {

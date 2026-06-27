@@ -1,14 +1,14 @@
 # Community 模块
 
-`backend/internal/modules/community` 为 `frontend/` Nuxt 视频社区提供公开社区数据接口。当前模块覆盖社区账号注册与会话、首页聚合、分类树、视频列表与详情、弹幕、评论发布与本人编辑删除、搜索、创作者资料、关注动态、动态发布与本人编辑删除、视频互动、收藏 / 稍后看、观看历史、投稿元数据、受控审核队列、发布视频 ID 回写、审核发布时关联 system media 资产并生成社区视频记录、举报和通知收件箱。
+`backend/internal/modules/community` 为 `frontend/` Nuxt 视频社区提供公开社区数据接口，并为后台控制台提供社区业务管理契约。当前模块覆盖独立社区账号注册与会话、首页聚合、分类树、视频列表与详情、弹幕、评论发布与本人编辑删除、搜索、创作者资料、关注动态、动态发布与本人编辑删除、视频互动、收藏 / 稍后看、观看历史、投稿元数据、受控审核队列、发布视频 ID 回写、审核发布时关联 system media 资产并生成社区视频记录、举报处理和通知收件箱。
 
 ## 当前能力
 
 | 能力 | 路由 | 说明 |
 | --- | --- | --- |
 | API 状态 | `GET /api/v1/public/community/status` | 始终可读，返回数据源模式、base path、由真实 route contract 注册结果派生的端点清单、响应耗时、更新时间和 `setup.required/completed/currentStep` |
-| 社区账号 | `POST /auth/signup`、`POST /auth/login`、`GET /auth/session`、`POST /auth/logout` | 使用普通社区账号语义，只向前端暴露 `userId`、`sessionId`、过期时间和 `account.id/handle/displayName` |
-| 首页聚合 | `GET /home` | 返回公告模块中的真实已发布公告、分类树、最新视频和社区动态；没有已发布公告时 `announcement` 为 `null` |
+| 社区账号 | `POST /auth/signup`、`POST /auth/login`、`GET /auth/session`、`POST /auth/logout` | 使用独立 `community_accounts` / `community_sessions` 和 `community_*` Cookie，不创建 IAM 用户、`community-*` 组织、`owner` 角色或 `console_*` 会话；只向前端暴露 `userId`、`sessionId`、过期时间和 `account.id/handle/displayName` |
+| 首页聚合 | `GET /home` | 返回公告模块中的真实已发布公告、分类树、最新视频和兼容动态数据；没有已发布公告时 `announcement` 为 `null`；Nuxt 首页不再渲染社区动态区块，动态能力保留在动态 / 关注流专门页面 |
 | 分类与视频 | `GET /categories`、`GET /videos`、`GET /videos/:idOrSlug` | 支持分类、关键词、游标和数量限制，视频详情包含播放源、标签和相关推荐 |
 | 弹幕 | `GET /videos/:idOrSlug/danmaku`、`POST /videos/:idOrSlug/danmaku` | 读取初始弹幕并支持轻量发布；发布失败时前端可降级到浏览器体验层 |
 | 评论 | `GET /videos/:idOrSlug/comments`、`POST /videos/:idOrSlug/comments`、`PATCH/DELETE /videos/:idOrSlug/comments/:commentId`、`PATCH/DELETE /account/videos/:idOrSlug/comments/:commentId` | 支持 `sort=newest/oldest` 与数量限制；发布、本人编辑和本人删除按匿名或账号 `clientId` 归属校验，删除后同步视频评论数；列表可通过 `clientId` 返回 `ownedByCurrentClient` |
@@ -17,7 +17,9 @@
 | 资料库 | `GET /library`、`GET /account/library` | 读取收藏和稍后看列表 |
 | 投稿元数据 | `GET/POST /submissions`、`GET/POST /account/submissions` | 保存作者、标题、简介、分类、标签、可见性和文件元数据，不保存文件字节 |
 | 投稿审核 | `GET /api/v1/community/submissions`、`PATCH /api/v1/community/submissions/:submissionId/review` | 主系统 IAM 权限 `community_submission:review` 保护；支持 `approved`、`rejected`、`published` 状态，写入审核备注、审核人、审核时间、受控 `mediaAssetId` 和发布视频 ID；`published` 可绑定既有视频 ID，也可在请求携带 `mediaAssetId` 与 `durationSeconds` 时从 `system_media_assets` 生成 `community_videos`、默认播放源、分类关联和标签记录；`sourceUrl` / `durationSeconds` 仍保留为过渡发布路径 |
+| 社区账号管理 | `GET /api/v1/community/accounts`、`PATCH /api/v1/community/accounts/:accountId` | 主系统 IAM 权限 `community_account:read` / `community_account:update` 保护；后台 `/admin/community/accounts` 只管理社区账号角色 `registered/creator` 与状态 `active/disabled`，不授予控制台角色 |
 | 举报 | `POST /videos/:idOrSlug/reports` | 保存匿名 `clientId`、原因、补充说明和待处理状态 |
+| 举报处理 | `GET /api/v1/community/reports`、`PATCH /api/v1/community/reports/:reportId` | 主系统 IAM 权限 `community_report:review` 保护；后台 `/admin/community/reports` 可将举报标记为 `resolved` 或 `rejected` 并写入处理备注 |
 | 通知 | `GET /notifications`、`POST /notifications/read`、`GET /account/notifications`、`POST /account/notifications/read` | 评论、弹幕、举报、关注和视频互动写入轻量消息流，支持标记已读 |
 | 动态流 | `GET /dynamics`、`POST /dynamics`、`PATCH/DELETE /dynamics/:dynamicId`、`POST /account/dynamics`、`PATCH/DELETE /account/dynamics/:dynamicId` | 查询公开动态时间线，匿名或账号发布、本人编辑和本人删除轻量动态，可绑定视频摘要；列表通过 `clientId` 返回 `ownedByCurrentClient` |
 | 创作者关注 | `GET /users/:handle`、`GET /users/:handle/follow-state`、`POST/DELETE /users/:handle/follow`、`GET /feed/following` | 匿名或账号关注创作者，并返回关注创作者的视频与动态 |
@@ -33,8 +35,8 @@
 ## 边界
 
 - 社区公开接口不提供 IAM 权限码，也不写入 `system_apis` 的受保护权限目录；它们仍通过 route contract 生成 OpenAPI。
-- 社区账号用于普通观看、创作者互动和投稿流程，不暴露后台组织、角色、权限或控制台身份字段。
-- 当前评论、弹幕、动态、投稿和举报是轻量生产接口；评论和动态支持本人编辑 / 删除，投稿支持主系统权限保护的审核状态流转、发布视频 ID 回写，并能在审核请求携带受控 `mediaAssetId` 时从 system media 资产生成社区视频记录。普通社区投稿创建仍只保存文件元数据，真实文件字节通过主系统 system media 上传入口进入平台；转码、公开播放源生成、后台可视化审核页、举报处理、登录态与匿名关系归并、外部通知投递和创作者后台管理仍属于后续任务。
+- 社区账号用于普通观看、创作者互动和投稿流程，不暴露后台组织、角色、权限或控制台身份字段；普通注册用户和内容创作者不能凭社区账号进入 `/admin`。
+- 当前评论、弹幕、动态、投稿和举报是轻量生产接口；评论和动态支持本人编辑 / 删除，投稿支持主系统权限保护的审核状态流转、发布视频 ID 回写，并能在审核请求携带受控 `mediaAssetId` 时从 system media 资产生成社区视频记录。普通社区投稿创建仍只保存文件元数据，真实文件字节通过主系统 system media 上传入口进入平台；后台社区 WebUI 当前覆盖社区账号、投稿审核和举报处理。转码、公开播放源生成、创作者中心、活动运营、批量评论治理、登录态与匿名关系归并、外部通知投递仍属于后续任务，不在当前控制台伪造入口。
 - 浏览器本地状态只保存匿名 `clientId`、显示偏好、必要降级缓存和上传草稿文件元数据；不得保存文件字节、后台权限 payload 或不可恢复的大对象。
 
 ## 数据与装配
@@ -53,6 +55,7 @@
 - 迁移 `internal/migrations/20260627000100_add_community_submission_review_state.sql` 为投稿元数据补充审核备注、审核人、审核时间、发布视频 ID 和发布时间，用于主系统审核队列与发布状态回写；审核发布生成视频复用既有 `community_videos`、`community_video_sources`、`community_video_categories` 和 `community_video_tags` 表，不为发布链路新增专门表结构。
 - 迁移 `internal/migrations/20260627000200_remove_community_demo_content.sql` 只按固定 demo ID 清理早期演示视频、创作者、动态、评论、弹幕、播放源、标签、视频分类和相关派生记录；不删除社区基础分类 taxonomy。
 - 迁移 `internal/migrations/20260627000300_add_community_submission_media_asset.sql` 为投稿元数据补充 `media_asset_id`，用于记录审核发布时关联的 `system_media_assets` 资产；社区 service 只读取最小媒体资产投影，不复制 system media 上传逻辑。
+- 迁移 `internal/migrations/20260627000400_create_community_accounts.sql` 创建 `community_accounts`、`community_sessions`，补充举报审核字段，并迁移仅属于 `community-*` 组织的历史错误 IAM 社区用户；迁移会撤销这些账号的控制台会话、禁用 IAM 用户并软删除对应 `community-*` 组织关系，保留真正的后台管理员、运营和审核员控制台身份。
 - 应用装配位于 `internal/app/initapp`，setup 状态由 `internal/app/initcenter` 适配为社区 `SetupStatus`，首页公告由公告模块已发布列表适配为社区 `Announcement`，HTTP contract 位于 `internal/transport/http/contracts.go`，真实路由注册位于 `internal/transport/http/router.go`。
 - 视频摘要装饰只消费持久化的视频分类关联和真实创作者记录；缺失创作者或指向不存在分类的关联会暴露为后端数据一致性错误，不返回 `Unknown` 上传者或按标题猜测分类。
 - OpenAPI 由 route contract 生成到 `docs/api/openapi.yaml`，不得手写维护。
@@ -69,6 +72,7 @@
 go test ./internal/modules/community/... -count=1 -mod=readonly
 go test ./internal/transport/http -count=1 -mod=readonly
 go run ./cmd/console api openapi --output docs/api/openapi.yaml
+powershell -ExecutionPolicy Bypass -File backend/scripts/visual-qa.ps1 -Grep "admin community routes render backend community management"
 ```
 
 聚合仓库根目录还提供社区前后端联调烟测：

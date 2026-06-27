@@ -723,7 +723,7 @@ func TestOverrideWithEnvUsesEnvnameTagsForNonDatabaseConfigs(t *testing.T) {
 	}
 	if cfg.CORS.Enabled || !reflect.DeepEqual(cfg.CORS.AllowOrigins, []string{"https://app.example.com", "https://admin.example.com"}) ||
 		!reflect.DeepEqual(cfg.CORS.AllowMethods, []string{"GET", "POST"}) ||
-		!reflect.DeepEqual(cfg.CORS.AllowHeaders, []string{"Origin", "X-Request-ID", "Content-Type", "Authorization", "X-Locale", "X-Setup-Token", DefaultAuthCSRFHeaderName}) ||
+		!reflect.DeepEqual(cfg.CORS.AllowHeaders, []string{"Origin", "X-Request-ID", "Content-Type", "Authorization", "X-Locale", "X-Setup-Token", DefaultAuthCSRFHeaderName, DefaultCommunityAuthCSRFHeaderName}) ||
 		!reflect.DeepEqual(cfg.CORS.ExposeHeaders, []string{"X-Request-ID", "X-Total-Count"}) ||
 		cfg.CORS.AllowCredentials || cfg.CORS.MaxAge != 7200 {
 		t.Fatalf("CORS override mismatch: %#v", cfg.CORS)
@@ -934,6 +934,22 @@ func testCompleteConfig() *Config {
 			ProductName: "Console Platform",
 			ProductCode: "console-platform",
 			VersionName: "Community",
+		},
+		Community: CommunityConfig{
+			Auth: CommunityAuthConfig{
+				AccessTokenTTLSeconds:  DefaultCommunityAuthAccessTokenTTLSeconds,
+				RefreshTokenTTLSeconds: DefaultCommunityAuthRefreshTokenTTLSeconds,
+				Cookie: CommunityAuthCookieConfig{
+					NamePrefix: DefaultCommunityAuthCookieNamePrefix,
+					Path:       DefaultCommunityAuthCookiePath,
+					SameSite:   DefaultCommunityAuthCookieSameSite,
+				},
+				CSRF: CommunityAuthCSRFConfig{
+					CookieName: DefaultCommunityAuthCSRFCookieName,
+					HeaderName: DefaultCommunityAuthCSRFHeaderName,
+				},
+				DefaultClientType: DefaultCommunityAuthClientType,
+			},
 		},
 		Executor: ExecutorConfig{
 			Enabled: true,

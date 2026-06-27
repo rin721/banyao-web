@@ -183,7 +183,7 @@ async function main() {
     }
 
     for (const result of results) {
-      console.log(`[${result.viewport}] auth account=${result.auth.accountHandle}, relogin=${result.auth.relogin}; home videos=${result.home.videoCards}, dynamics=${result.home.dynamicCards}; category cards=${result.category.categoryCards}, maxCardWidth=${result.category.maxCategoryCardWidth}px; search videos=${result.search.videoCards}, creators=${result.search.creatorCards}; creator videos=${result.creator.videoCards}, stats=${result.creator.statCards}, followRoundTrip=${result.accountFollow.roundTrip}; following dynamics=${result.following.dynamicCards}, actions=${result.following.ownerActions}; video comments=${result.video.commentItems}, danmaku=${result.video.danmakuItems}, favorite=${result.video.favoriteActive}, watchLater=${result.video.watchLaterActive}; history cards=${result.history.cards}; collections favorites=${result.collections.favoriteCards}, watchLater=${result.collections.watchLaterCards}; notifications cards=${result.notifications.cards}, unreadAfterRead=${result.notifications.unreadAfterRead}; upload panels=${result.upload.panels}, stats=${result.upload.statCards}; settings panels=${result.settings.panels}, endpoints=${result.settings.endpoints}`)
+      console.log(`[${result.viewport}] auth account=${result.auth.accountHandle}, relogin=${result.auth.relogin}; home videos=${result.home.videoCards}, pulse=${result.home.dynamicCards}; category cards=${result.category.categoryCards}, maxCardWidth=${result.category.maxCategoryCardWidth}px; search videos=${result.search.videoCards}, creators=${result.search.creatorCards}; creator videos=${result.creator.videoCards}, stats=${result.creator.statCards}, followRoundTrip=${result.accountFollow.roundTrip}; following dynamics=${result.following.dynamicCards}, actions=${result.following.ownerActions}; video comments=${result.video.commentItems}, danmaku=${result.video.danmakuItems}, favorite=${result.video.favoriteActive}, watchLater=${result.video.watchLaterActive}; history cards=${result.history.cards}; collections favorites=${result.collections.favoriteCards}, watchLater=${result.collections.watchLaterCards}; notifications cards=${result.notifications.cards}, unreadAfterRead=${result.notifications.unreadAfterRead}; upload panels=${result.upload.panels}, stats=${result.upload.statCards}; settings panels=${result.settings.panels}, endpoints=${result.settings.endpoints}`)
     }
     console.log(`Frontend community page smoke passed. Screenshots: ${screenshotsPath}`)
   } finally {
@@ -331,7 +331,7 @@ async function checkAuthPages(page, viewport, account) {
   ])
   await submitForm(page, ".auth-panel")
   await page.waitForSelector(".auth-panel .aoi-status-message--success", { timeout: timeoutMs })
-  await page.waitForFunction(() => document.cookie.includes("console_csrf="), null, { timeout: timeoutMs })
+  await page.waitForFunction(() => document.cookie.includes("community_csrf="), null, { timeout: timeoutMs })
   await stabilizeScreenshotState(page)
   await capturePageScreenshot(page, viewport, "register")
   await verifySharedLayout(page, viewport, "register")
@@ -474,7 +474,7 @@ async function checkHomePage(page, viewport) {
     if (document.querySelector(".page-state__title")?.textContent?.includes("失败")) {
       throw new Error("Home page rendered an API failure state")
     }
-    if (home.videoCards < 1 || home.dynamicCards < 1) {
+    if (home.videoCards < 1 || home.dynamicCards !== 0) {
       throw new Error(`Home page did not render backend feed data: ${JSON.stringify(home)}`)
     }
     if (

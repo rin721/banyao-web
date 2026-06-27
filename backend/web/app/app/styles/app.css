@@ -2542,6 +2542,40 @@ a {
   align-items: center;
 }
 
+.console-community-identity {
+  display: grid;
+  min-width: 0;
+  gap: var(--console-space-1);
+}
+
+.console-community-identity > strong,
+.console-community-identity > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.console-community-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--console-space-2);
+  align-items: center;
+}
+
+.console-community-row-actions select {
+  min-height: 38px;
+  border: 1px solid var(--console-color-border-subtle);
+  border-radius: var(--console-radius-control);
+  background: var(--console-color-surface-default);
+  color: var(--console-color-text-primary);
+  padding: 0 var(--console-space-3);
+}
+
+.console-community-review-actions {
+  display: grid;
+  min-width: 220px;
+  gap: var(--console-space-2);
+}
+
 .console-admin-pager {
   align-items: center;
   justify-content: flex-end;
@@ -4414,18 +4448,25 @@ a {
 }
 
 .console-iam-status[data-status="active"],
+.console-iam-status[data-status="approved"],
+.console-iam-status[data-status="creator"],
+.console-iam-status[data-status="published"],
+.console-iam-status[data-status="resolved"],
 .console-iam-status[data-status="used"] {
   background: color-mix(in oklab, var(--console-color-state-success), white 88%);
   color: var(--console-color-state-success);
 }
 
-.console-iam-status[data-status="pending"] {
+.console-iam-status[data-status="pending"],
+.console-iam-status[data-status="pending_review"],
+.console-iam-status[data-status="registered"] {
   background: color-mix(in oklab, var(--console-color-state-info), white 86%);
   color: var(--console-color-state-info);
 }
 
 .console-iam-status[data-status="disabled"],
 .console-iam-status[data-status="expired"],
+.console-iam-status[data-status="rejected"],
 .console-iam-status[data-status="revoked"] {
   background: color-mix(in oklab, var(--console-color-state-warning), white 88%);
   color: var(--console-color-state-warning);

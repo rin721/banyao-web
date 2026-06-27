@@ -2,10 +2,13 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/open-console/console-platform/internal/middleware"
 	"github.com/open-console/console-platform/internal/modules/community/model"
@@ -21,14 +24,89 @@ type Handler struct {
 	service             service.Service
 	setupStatusProvider SetupStatusProvider
 	statusEndpoints     []string
+	config              RuntimeConfig
 }
 
 type SetupStatusProvider interface {
 	CommunitySetupStatus(context.Context) (model.SetupStatus, error)
 }
 
-func New(service service.Service, logger ports.Logger) *Handler {
-	return &Handler{service: service, logger: logger}
+type RuntimeConfig struct {
+	CookieNamePrefix string
+	CookieDomain     string
+	CookiePath       string
+	CookieSameSite   string
+	CookieSecure     bool
+	CSRFEnabled      bool
+	CSRFCookieName   string
+	CSRFHeaderName   string
+	ProductHeader    string
+	ClientTypeHeader string
+	DefaultProduct   string
+	DefaultClient    string
+}
+
+func New(service service.Service, logger ports.Logger, configs ...RuntimeConfig) *Handler {
+	cfg := RuntimeConfig{}
+	if len(configs) > 0 {
+		cfg = configs[0]
+	}
+	cfg.applyDefaults()
+	return &Handler{service: service, logger: logger, config: cfg}
+}
+
+func (cfg *RuntimeConfig) applyDefaults() {
+	if strings.TrimSpace(cfg.CookieNamePrefix) == "" {
+		cfg.CookieNamePrefix = "community"
+	}
+	if strings.TrimSpace(cfg.CookiePath) == "" {
+		cfg.CookiePath = "/"
+	}
+	if strings.TrimSpace(cfg.CookieSameSite) == "" {
+		cfg.CookieSameSite = "lax"
+	}
+	if strings.TrimSpace(cfg.CSRFCookieName) == "" {
+		cfg.CSRFCookieName = cfg.CookieNamePrefix + "_csrf"
+	}
+	if strings.TrimSpace(cfg.CSRFHeaderName) == "" {
+		cfg.CSRFHeaderName = "X-Community-CSRF-Token"
+	}
+	if strings.TrimSpace(cfg.ProductHeader) == "" {
+		cfg.ProductHeader = "X-Product-Code"
+	}
+	if strings.TrimSpace(cfg.ClientTypeHeader) == "" {
+		cfg.ClientTypeHeader = "X-Client-Type"
+	}
+	if strings.TrimSpace(cfg.DefaultProduct) == "" {
+		cfg.DefaultProduct = "platform"
+	}
+	if strings.TrimSpace(cfg.DefaultClient) == "" {
+		cfg.DefaultClient = "community_web"
+	}
+}
+
+func (cfg RuntimeConfig) AccessCookieName() string {
+	return strings.TrimSpace(cfg.CookieNamePrefix) + "_access"
+}
+
+func (cfg RuntimeConfig) RefreshCookieName() string {
+	return strings.TrimSpace(cfg.CookieNamePrefix) + "_refresh"
+}
+
+func (cfg RuntimeConfig) AuthMiddlewareConfig() middleware.AuthConfig {
+	return middleware.AuthConfig{AccessCookieName: cfg.AccessCookieName()}
+}
+
+func (cfg RuntimeConfig) CSRFMiddlewareConfig() middleware.CSRFConfig {
+	return middleware.CSRFConfig{Enabled: cfg.CSRFEnabled, CookieName: cfg.CSRFCookieName, HeaderName: cfg.CSRFHeaderName}
+}
+
+func (h *Handler) AuthMiddlewareConfig() middleware.AuthConfig {
+	return h.config.AuthMiddlewareConfig()
+}
+
+func (h *Handler) CSRFMiddlewareConfig() middleware.CSRFConfig {
+	return h.config.CSRFMiddlewareConfig()
 }
 
 func (h *Handler) UseSetupStatusProvider(provider SetupStatusProvider) {
@@ -59,6 +137,72 @@ func (h *Handler) Status(c ports.HTTPContext) {
 	}
 	status.Setup = setup
 	result.OK(c, status)
+}
+
+func (h *Handler) AuthSignup(c ports.HTTPContext) {
+	var req model.CommunitySignupRequest
+	if !bind(c, &req) {
+		return
+	}
+	productCode, clientType := h.requestSessionContext(c)
+	snapshot, tokens, err := h.service.SignupCommunityAccount(c.RequestContext(), req, service.SessionIssueInput{
+		UserAgent:   c.GetHeader("User-Agent"),
+		IPAddress:   c.ClientIP(),
+		ProductCode: productCode,
+		ClientType:  clientType,
+	})
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	h.setAuthCookies(c, tokens, &snapshot)
+	result.OK(c, model.CommunitySignupResult{Status: "authenticated", Session: &snapshot})
+}
+
+func (h *Handler) AuthLogin(c ports.HTTPContext) {
+	var req model.CommunityLoginRequest
+	if !bind(c, &req) {
+		return
+	}
+	productCode, clientType := h.requestSessionContext(c)
+	snapshot, tokens, err := h.service.LoginCommunityAccount(c.RequestContext(), req, service.SessionIssueInput{
+		UserAgent:   c.GetHeader("User-Agent"),
+		IPAddress:   c.ClientIP(),
+		ProductCode: productCode,
+		ClientType:  clientType,
+	})
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	h.setAuthCookies(c, tokens, &snapshot)
+	result.OK(c, snapshot)
+}
+
+func (h *Handler) AuthSession(c ports.HTTPContext) {
+	principal, ok := h.optionalPrincipal(c)
+	if !ok {
+		result.OK[*model.CommunityAuthSessionSnapshot](c, nil)
+		return
+	}
+	snapshot, err := h.service.CommunityAuthSession(c.RequestContext(), principal)
+	if err != nil {
+		h.clearAuthCookies(c)
+		h.writeError(c, err)
+		return
+	}
+	h.ensureCSRFToken(c, &snapshot)
+	result.OK(c, snapshot)
+}
+
+func (h *Handler) AuthLogout(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	err := h.service.LogoutCommunityAccount(c.RequestContext(), principal)
+	h.clearAuthCookies(c)
+	writeOK(c, map[string]bool{"loggedOut": true}, err, h.writeError)
 }
 
 func (h *Handler) Home(c ports.HTTPContext) {
@@ -187,6 +331,63 @@ func (h *Handler) ReviewSubmission(c ports.HTTPContext) {
 		return
 	}
 	item, err := h.service.ReviewCommunitySubmission(c.RequestContext(), principal, c.Param("submissionId"), req)
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) Accounts(c ports.HTTPContext) {
+	if _, ok := requirePrincipal(c); !ok {
+		return
+	}
+	limit, ok := parseIntQuery(c, "limit", 48)
+	if !ok {
+		return
+	}
+	payload, err := h.service.ListCommunityAccounts(c.RequestContext(), model.CommunityAccountFilter{
+		Keyword: queryValue(c, "keyword"),
+		Role:    queryValue(c, "role"),
+		Status:  queryValue(c, "status"),
+		Limit:   limit,
+	})
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) UpdateAccount(c ports.HTTPContext) {
+	if _, ok := requirePrincipal(c); !ok {
+		return
+	}
+	var req model.UpdateCommunityAccountRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.UpdateCommunityAccount(c.RequestContext(), c.Param("accountId"), req)
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) Reports(c ports.HTTPContext) {
+	if _, ok := requirePrincipal(c); !ok {
+		return
+	}
+	limit, ok := parseIntQuery(c, "limit", 48)
+	if !ok {
+		return
+	}
+	payload, err := h.service.ListCommunityReports(c.RequestContext(), model.CommunityReportFilter{
+		Status: queryValue(c, "status"),
+		Limit:  limit,
+	})
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) ReviewReport(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.ReviewCommunityReportRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.ReviewCommunityReport(c.RequestContext(), principal, c.Param("reportId"), req)
 	writeOK(c, item, err, h.writeError)
 }
 
@@ -569,12 +770,133 @@ func (h *Handler) MarkAccountNotificationsRead(c ports.HTTPContext) {
 	writeOK(c, payload, err, h.writeError)
 }
 
+func (h *Handler) requestSessionContext(c ports.HTTPContext) (string, string) {
+	productCode := strings.TrimSpace(c.GetHeader(h.config.ProductHeader))
+	if productCode == "" {
+		productCode = h.config.DefaultProduct
+	}
+	clientType := strings.TrimSpace(c.GetHeader(h.config.ClientTypeHeader))
+	if clientType == "" {
+		clientType = h.config.DefaultClient
+	}
+	return productCode, clientType
+}
+
+func (h *Handler) optionalPrincipal(c ports.HTTPContext) (authtypes.Principal, bool) {
+	token := bearerToken(c.GetHeader("Authorization"))
+	if token == "" {
+		if cookieValue, err := c.Cookie(h.config.AccessCookieName()); err == nil {
+			token = strings.TrimSpace(cookieValue)
+		}
+	}
+	if token == "" {
+		return authtypes.Principal{}, false
+	}
+	principal, err := h.service.AuthenticateToken(c.RequestContext(), token)
+	if err != nil {
+		h.clearAuthCookies(c)
+		return authtypes.Principal{}, false
+	}
+	return principal, true
+}
+
+func bearerToken(header string) string {
+	parts := strings.Fields(header)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return ""
+	}
+	return parts[1]
+}
+
+func (h *Handler) setAuthCookies(c ports.HTTPContext, tokens service.SessionTokens, snapshot *model.CommunityAuthSessionSnapshot) {
+	h.setCookie(c, h.config.AccessCookieName(), tokens.AccessToken, tokens.AccessExpiresAt, true)
+	h.setCookie(c, h.config.RefreshCookieName(), tokens.RefreshToken, tokens.RefreshExpiresAt, true)
+	if h.config.CSRFEnabled {
+		token := newCSRFToken()
+		h.setCookie(c, h.config.CSRFCookieName, token, tokens.RefreshExpiresAt, false)
+		if snapshot != nil {
+			snapshot.CSRFToken = &token
+		}
+	}
+}
+
+func (h *Handler) ensureCSRFToken(c ports.HTTPContext, snapshot *model.CommunityAuthSessionSnapshot) {
+	if !h.config.CSRFEnabled || snapshot == nil {
+		return
+	}
+	if cookieValue, err := c.Cookie(h.config.CSRFCookieName); err == nil && strings.TrimSpace(cookieValue) != "" {
+		token := strings.TrimSpace(cookieValue)
+		snapshot.CSRFToken = &token
+		return
+	}
+	token := newCSRFToken()
+	expiresAt := time.Now().UTC().Add(15 * time.Minute)
+	if snapshot.ExpiresAt != nil {
+		expiresAt = *snapshot.ExpiresAt
+	}
+	h.setCookie(c, h.config.CSRFCookieName, token, expiresAt, false)
+	snapshot.CSRFToken = &token
+}
+
+func (h *Handler) clearAuthCookies(c ports.HTTPContext) {
+	expired := time.Unix(0, 0).UTC()
+	h.setCookie(c, h.config.AccessCookieName(), "", expired, true)
+	h.setCookie(c, h.config.RefreshCookieName(), "", expired, true)
+	if h.config.CSRFEnabled {
+		h.setCookie(c, h.config.CSRFCookieName, "", expired, false)
+	}
+}
+
+func (h *Handler) setCookie(c ports.HTTPContext, name string, value string, expires time.Time, httpOnly bool) {
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     h.config.CookiePath,
+		Domain:   strings.TrimSpace(h.config.CookieDomain),
+		Expires:  expires,
+		HttpOnly: httpOnly,
+		Secure:   h.config.CookieSecure,
+		SameSite: cookieSameSite(h.config.CookieSameSite),
+	}
+	if value == "" || expires.Before(time.Now()) {
+		cookie.MaxAge = -1
+	} else if seconds := int(time.Until(expires).Seconds()); seconds > 0 {
+		cookie.MaxAge = seconds
+	}
+	c.SetCookie(cookie)
+}
+
+func cookieSameSite(value string) http.SameSite {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
+}
+
+func newCSRFToken() string {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
 func (h *Handler) writeError(c ports.HTTPContext, err error) {
 	switch {
 	case errors.Is(err, context.Canceled):
 		result.Fail(c, http.StatusRequestTimeout, "api.common.requestCanceled")
 	case errors.Is(err, service.ErrInvalidInput):
 		result.BadRequest(c, result.MessageKeyInvalidRequest)
+	case errors.Is(err, service.ErrDuplicate):
+		result.BadRequest(c, result.MessageKeyInvalidRequest)
+	case errors.Is(err, service.ErrUnauthorized):
+		result.Unauthorized(c, result.MessageKeyUnauthorized)
+	case errors.Is(err, service.ErrForbidden):
+		result.Forbidden(c, result.MessageKeyForbidden)
 	case errors.Is(err, service.ErrDataInconsistent):
 		result.InternalError(c, result.MessageKeyInternalError)
 	case errors.Is(err, service.ErrNotFound):

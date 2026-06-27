@@ -2,7 +2,9 @@ import {
   BookOpenText,
   Building2,
   Bug,
+  ClipboardCheck,
   Code2,
+  Flag,
   HeartPulse,
   History,
   ImageUp,
@@ -23,12 +25,20 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
 import type { SystemMenuGroup, SystemMenuItem } from "~/lib/api/types";
 
-type AdminNavGroupId = "workspace" | "identity" | "system" | "logs" | "media" | "integration";
+type AdminNavGroupId =
+  | "workspace"
+  | "identity"
+  | "community"
+  | "system"
+  | "logs"
+  | "media"
+  | "integration";
 
 export type AdminNavItem = {
   end?: boolean;
@@ -107,6 +117,31 @@ export const adminNavGroups: AdminNavGroup[] = [
       },
     ],
     labelKey: "admin.navGroups.identity",
+  },
+  {
+    icon: UsersRound,
+    id: "community",
+    items: [
+      {
+        icon: UsersRound,
+        id: "community-accounts",
+        labelKey: "admin.nav.communityAccounts",
+        to: "/admin/community/accounts",
+      },
+      {
+        icon: ClipboardCheck,
+        id: "community-submissions",
+        labelKey: "admin.nav.communitySubmissions",
+        to: "/admin/community/submissions",
+      },
+      {
+        icon: Flag,
+        id: "community-reports",
+        labelKey: "admin.nav.communityReports",
+        to: "/admin/community/reports",
+      },
+    ],
+    labelKey: "admin.navGroups.community",
   },
   {
     icon: Settings,
@@ -217,6 +252,7 @@ export const minimalAdminNavGroups: AdminNavGroup[] = [
 ];
 
 const adminNavGroupIds = new Set<AdminNavGroupId>([
+  "community",
   "identity",
   "integration",
   "logs",
@@ -234,7 +270,9 @@ const iconBySystemName: Record<string, LucideIcon> = {
   "book-open": BookOpenText,
   "building-2": Building2,
   bug: Bug,
+  "clipboard-check": ClipboardCheck,
   "code-2": Code2,
+  flag: Flag,
   "heart-pulse": HeartPulse,
   history: History,
   "image-up": ImageUp,
@@ -256,6 +294,7 @@ const iconBySystemName: Record<string, LucideIcon> = {
   "sliders-horizontal": SlidersHorizontal,
   "upload-cloud": ImageUp,
   users: Users,
+  "users-round": UsersRound,
 };
 
 export function adminNavGroupsFromSystemMenus(

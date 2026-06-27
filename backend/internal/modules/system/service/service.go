@@ -2144,9 +2144,19 @@ var baseMenus = []model.MenuGroup{
 		},
 	},
 	{
+		Code:     "community",
+		LabelKey: "system.menus.groups.community.label",
+		Order:    30,
+		Items: []model.MenuItem{
+			{Code: "community-accounts", LabelKey: "system.menus.items.communityAccounts.label", Icon: "users-round", Path: "/community/accounts", Permission: "community_account:read", Scope: permissionScopeTenant, Order: 10},
+			{Code: "community-submissions", LabelKey: "system.menus.items.communitySubmissions.label", Icon: "clipboard-check", Path: "/community/submissions", Permission: "community_submission:review", Scope: permissionScopeTenant, Order: 20},
+			{Code: "community-reports", LabelKey: "system.menus.items.communityReports.label", Icon: "flag", Path: "/community/reports", Permission: "community_report:review", Scope: permissionScopeTenant, Order: 30},
+		},
+	},
+	{
 		Code:     "system",
 		LabelKey: "system.menus.groups.system.label",
-		Order:    30,
+		Order:    40,
 		Items: []model.MenuItem{
 			{Code: "probes", LabelKey: "system.menus.items.probes.label", Icon: "heart-pulse", Path: "/probes", Order: 10},
 			{Code: "menus", LabelKey: "system.menus.items.menus.label", Icon: "panel-left", Path: "/menus", Permission: "permission:read", Scope: permissionScopePlatform, Order: 20},
@@ -2159,7 +2169,7 @@ var baseMenus = []model.MenuGroup{
 	{
 		Code:     "logs",
 		LabelKey: "system.menus.groups.logs.label",
-		Order:    40,
+		Order:    50,
 		Items: []model.MenuItem{
 			{Code: "operation-records", LabelKey: "system.menus.items.operationRecords.label", Icon: "history", Path: "/operation-records", Permission: "operation:read", Scope: permissionScopePlatform, Order: 10},
 			{Code: "audit-logs", LabelKey: "system.menus.items.auditLogs.label", Icon: "scroll-text", Path: "/audit-logs", Permission: "audit:read", Scope: permissionScopeTenant, Order: 20},
@@ -2171,7 +2181,7 @@ var baseMenus = []model.MenuGroup{
 	{
 		Code:     "media",
 		LabelKey: "system.menus.groups.media.label",
-		Order:    50,
+		Order:    60,
 		Items: []model.MenuItem{
 			{Code: "media", LabelKey: "system.menus.items.media.label", Icon: "image-up", Path: "/media", Permission: "media:read", Scope: permissionScopePlatform, Order: 10},
 			{Code: "media-resumable", LabelKey: "system.menus.items.mediaResumable.label", Icon: "image-up", Path: "/media/resumable", Permission: "media:upload", Scope: permissionScopePlatform, Order: 20},
@@ -2180,7 +2190,7 @@ var baseMenus = []model.MenuGroup{
 	{
 		Code:     "integration",
 		LabelKey: "system.menus.groups.integration.label",
-		Order:    60,
+		Order:    70,
 		Items: []model.MenuItem{
 			{Code: "apis", LabelKey: "system.menus.items.apis.label", Icon: "code-2", Path: "/apis", Permission: "permission:read", Scope: permissionScopePlatform, Order: 10},
 			{Code: "versions", LabelKey: "system.menus.items.versions.label", Icon: "package-check", Path: "/versions", Permission: "version:read", Scope: permissionScopePlatform, Order: 20},
