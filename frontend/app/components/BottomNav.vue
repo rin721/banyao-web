@@ -27,12 +27,13 @@ const { mobilePrimaryItems } = useAoiNavigation()
   inset: auto 0 0;
   z-index: var(--aoi-z-nav);
   display: none;
-  height: var(--aoi-mobile-nav-height);
+  height: var(--aoi-mobile-bottom-nav-height);
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--aoi-border);
   background: var(--aoi-nav-bg);
   backdrop-filter: blur(var(--aoi-nav-surface-blur));
   padding: var(--aoi-bottom-nav-padding);
+  padding-bottom: calc(var(--aoi-bottom-nav-padding-block-end) + env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-nav__item {

@@ -618,7 +618,7 @@ a {
   }
 
   .aoi-shell::after {
-    bottom: var(--aoi-mobile-nav-height);
+    bottom: var(--aoi-mobile-bottom-nav-height);
   }
 
   .aoi-page {
@@ -626,6 +626,7 @@ a {
     max-width: 100%;
     overflow-x: clip;
     padding: var(--aoi-page-padding-mobile);
+    padding-bottom: var(--aoi-mobile-content-bottom-space);
   }
 
   .settings-stat-grid {

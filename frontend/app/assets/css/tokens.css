@@ -39,6 +39,8 @@
   --aoi-page-padding-block-end: 56px;
   --aoi-page-padding-inline: 5vw;
   --aoi-page-padding-mobile: 16px 12px 78px;
+  --aoi-mobile-bottom-nav-height: calc(var(--aoi-mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+  --aoi-mobile-content-bottom-space: max(calc(var(--aoi-mobile-bottom-nav-height) + 32px), 96px);
   --aoi-panel-padding: 18px;
   --aoi-row-padding: 12px;
   --aoi-card-padding: 14px;
@@ -198,7 +200,8 @@
   --aoi-rubber-band-edge-size: 56px;
   --aoi-nav-surface-blur: 18px;
   --aoi-bottom-nav-icon-size: 20px;
-  --aoi-bottom-nav-padding: 5px 8px 6px;
+  --aoi-bottom-nav-padding-block-end: 6px;
+  --aoi-bottom-nav-padding: 5px 8px var(--aoi-bottom-nav-padding-block-end);
   --aoi-bottom-nav-item-gap: 2px;
   --aoi-bottom-nav-icon-min-height: 22px;
   --aoi-bottom-nav-label-padding-inline: 3px;
