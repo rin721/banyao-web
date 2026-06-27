@@ -1263,6 +1263,8 @@ type fakeRepository struct {
 	mediaAssets   map[int64]model.CommunityMediaAsset
 	reports       []model.CommunityReport
 	submissions   []model.CommunitySubmission
+	videoJobs     []model.CommunityVideoJob
+	renditions    map[string][]model.CommunityVideoRendition
 	sources       map[string][]model.VideoSourceOption
 	tags          map[string][]string
 }
@@ -1306,6 +1308,7 @@ func newFakeRepository() *fakeRepository {
 		histories:    map[string][]model.VideoHistory{},
 		interactions: map[string][]model.VideoInteraction{},
 		mediaAssets:  map[int64]model.CommunityMediaAsset{},
+		renditions:   map[string][]model.CommunityVideoRendition{},
 		sources: map[string][]model.VideoSourceOption{
 			"video-aoi-alpha": {{ID: "s1", VideoID: "video-aoi-alpha", Src: "https://example.invalid/a.mp4", Kind: model.VideoSourceKindNative, Label: "主源", IsDefault: true}},
 		},
@@ -1715,6 +1718,10 @@ func (r *fakeRepository) CreateCommunitySubmission(_ context.Context, submission
 }
 
 func (r *fakeRepository) CreateVideoFromSubmission(_ context.Context, creator model.Creator, video model.Video, source model.VideoSourceOption, categorySlugs []string, tags []string) error {
+	return r.CreateVideoFromSubmissionSources(context.Background(), creator, video, []model.VideoSourceOption{source}, categorySlugs, tags)
+}
+
+func (r *fakeRepository) CreateVideoFromSubmissionSources(_ context.Context, creator model.Creator, video model.Video, sources []model.VideoSourceOption, categorySlugs []string, tags []string) error {
 	foundCreator := false
 	for index := range r.creators {
 		if r.creators[index].ID != creator.ID {
@@ -1730,9 +1737,14 @@ func (r *fakeRepository) CreateVideoFromSubmission(_ context.Context, creator mo
 		r.creators = append(r.creators, creator)
 	}
 	r.videos = append([]model.Video{video}, r.videos...)
-	r.sources[video.ID] = []model.VideoSourceOption{source}
+	r.sources[video.ID] = append([]model.VideoSourceOption(nil), sources...)
 	r.categorySlugs[video.ID] = append([]string(nil), categorySlugs...)
 	r.tags[video.ID] = append([]string(nil), tags...)
+	return nil
+}
+
+func (r *fakeRepository) CreateMediaAsset(_ context.Context, asset model.CommunityMediaAsset) error {
+	r.mediaAssets[asset.ID] = asset
 	return nil
 }
 
@@ -1752,6 +1764,59 @@ func (r *fakeRepository) FindMediaAssetByID(_ context.Context, id int64) (*model
 		return nil, ErrNotFound
 	}
 	return &asset, nil
+}
+
+func (r *fakeRepository) CreateCommunityVideoJob(_ context.Context, job model.CommunityVideoJob) error {
+	r.videoJobs = append([]model.CommunityVideoJob{job}, r.videoJobs...)
+	return nil
+}
+
+func (r *fakeRepository) UpdateCommunityVideoJob(_ context.Context, job model.CommunityVideoJob) error {
+	for index := range r.videoJobs {
+		if r.videoJobs[index].ID != job.ID || r.videoJobs[index].DeletedAt != nil {
+			continue
+		}
+		r.videoJobs[index] = job
+		return nil
+	}
+	return ErrNotFound
+}
+
+func (r *fakeRepository) FindCommunityVideoJob(_ context.Context, jobID string) (*model.CommunityVideoJob, error) {
+	for index := range r.videoJobs {
+		if r.videoJobs[index].ID == jobID && r.videoJobs[index].DeletedAt == nil {
+			return &r.videoJobs[index], nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (r *fakeRepository) ListCommunityVideoJobs(_ context.Context, filter model.CommunityVideoJobFilter) ([]model.CommunityVideoJob, error) {
+	items := make([]model.CommunityVideoJob, 0)
+	for _, job := range r.videoJobs {
+		if job.DeletedAt != nil {
+			continue
+		}
+		if filter.Status != "" && job.Status != filter.Status {
+			continue
+		}
+		items = append(items, job)
+	}
+	if filter.Limit > 0 && len(items) > filter.Limit {
+		return items[:filter.Limit], nil
+	}
+	return items, nil
+}
+
+func (r *fakeRepository) CreateCommunityVideoRenditions(_ context.Context, renditions []model.CommunityVideoRendition) error {
+	for _, rendition := range renditions {
+		r.renditions[rendition.JobID] = append(r.renditions[rendition.JobID], rendition)
+	}
+	return nil
+}
+
+func (r *fakeRepository) ListCommunityVideoRenditions(_ context.Context, jobID string) ([]model.CommunityVideoRendition, error) {
+	return append([]model.CommunityVideoRendition(nil), r.renditions[jobID]...), nil
 }
 
 func (r *fakeRepository) UpdateCommunitySubmissionReview(_ context.Context, submission model.CommunitySubmission) error {

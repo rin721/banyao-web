@@ -204,6 +204,52 @@ export type CommunityReviewSubmissionInput = {
   thumbnailUrl?: string;
 };
 
+export type CommunityCreateVideoJobInput = {
+  durationSeconds?: number;
+  slug?: string;
+  thumbnailUrl?: string;
+};
+
+export type CommunityVideoJobStatus = BackendString<
+  "canceled" | "failed" | "queued" | "running" | "succeeded"
+>;
+
+export type CommunityVideoRendition = {
+  bitrateKbps: number;
+  createdAt: string;
+  height: number;
+  id: string;
+  jobId: string;
+  playlistUrl: string;
+  qualityLabel: string;
+  storageKey: string;
+  videoId: string;
+  width: number;
+};
+
+export type CommunityVideoJob = {
+  createdAt: string;
+  errorMessage?: string;
+  finishedAt?: string | null;
+  id: string;
+  inputStorageKey?: string;
+  mediaAssetId?: number | string;
+  outputPublicUrl?: string;
+  outputStorageKey?: string;
+  progress: number;
+  provider: string;
+  renditions?: CommunityVideoRendition[];
+  startedAt?: string | null;
+  status: CommunityVideoJobStatus;
+  submissionId: string;
+  updatedAt: string;
+  videoId?: string;
+};
+
+export type CommunityVideoJobPayload = {
+  items: CommunityPageResult<CommunityVideoJob>;
+};
+
 export type CommunityReportStatus = BackendString<"pending" | "rejected" | "resolved">;
 
 export type CommunityReport = {

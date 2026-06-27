@@ -334,6 +334,94 @@ func (h *Handler) ReviewSubmission(c ports.HTTPContext) {
 	writeOK(c, item, err, h.writeError)
 }
 
+func (h *Handler) UploadAccountSubmissionSource(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	req := c.Request()
+	if err := req.ParseMultipartForm(64 << 20); err != nil {
+		result.BadRequest(c, result.MessageKeyInvalidRequest)
+		return
+	}
+	file, header, err := req.FormFile("file")
+	if err != nil {
+		result.BadRequest(c, result.MessageKeyInvalidRequest)
+		return
+	}
+	defer file.Close()
+	item, err := h.service.UploadCommunityAccountSubmissionSource(c.RequestContext(), principal, service.UploadSourceInput{
+		Filename:    header.Filename,
+		ContentType: header.Header.Get("Content-Type"),
+		Size:        header.Size,
+		Reader:      file,
+	})
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) TranscodeSubmission(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.CreateCommunityVideoJobRequest
+	if !bind(c, &req) {
+		return
+	}
+	item, err := h.service.CreateCommunitySubmissionTranscodeJob(c.RequestContext(), principal, c.Param("submissionId"), req)
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) VideoJobs(c ports.HTTPContext) {
+	if _, ok := requirePrincipal(c); !ok {
+		return
+	}
+	limit, ok := parseIntQuery(c, "limit", 48)
+	if !ok {
+		return
+	}
+	payload, err := h.service.ListCommunityVideoJobs(c.RequestContext(), model.CommunityVideoJobFilter{
+		Status: queryValue(c, "status"),
+		Limit:  limit,
+	})
+	writeOK(c, payload, err, h.writeError)
+}
+
+func (h *Handler) VideoJob(c ports.HTTPContext) {
+	if _, ok := requirePrincipal(c); !ok {
+		return
+	}
+	item, err := h.service.GetCommunityVideoJob(c.RequestContext(), c.Param("jobId"))
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) RetryVideoJob(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	item, err := h.service.RetryCommunityVideoJob(c.RequestContext(), principal, c.Param("jobId"))
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) VideoAsset(c ports.HTTPContext) {
+	asset, err := h.service.GetCommunityVideoAsset(c.RequestContext(), c.Param("assetPath"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.Data(http.StatusOK, asset.ContentType, asset.Data)
+}
+
+func (h *Handler) SourceAsset(c ports.HTTPContext) {
+	asset, err := h.service.GetCommunitySourceAsset(c.RequestContext(), c.Param("assetId"))
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	c.Data(http.StatusOK, asset.ContentType, asset.Data)
+}
+
 func (h *Handler) Accounts(c ports.HTTPContext) {
 	if _, ok := requirePrincipal(c); !ok {
 		return

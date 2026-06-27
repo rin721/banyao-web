@@ -46,7 +46,13 @@ export const API_ENDPOINTS = {
     reports: `${apiV1}/community/reports`,
     submissionReview: (submissionId: EndpointID) =>
       `${apiV1}/community/submissions/${pathValue(submissionId)}/review`,
+    submissionTranscode: (submissionId: EndpointID) =>
+      `${apiV1}/community/submissions/${pathValue(submissionId)}/transcode`,
     submissions: `${apiV1}/community/submissions`,
+    videoJob: (jobId: EndpointID) => `${apiV1}/community/video-jobs/${pathValue(jobId)}`,
+    videoJobRetry: (jobId: EndpointID) =>
+      `${apiV1}/community/video-jobs/${pathValue(jobId)}/retry`,
+    videoJobs: `${apiV1}/community/video-jobs`,
   },
   health: "/health",
   invitations: {

@@ -236,6 +236,38 @@ community:
       enabled: ${APP_COMMUNITY_AUTH_CSRF_ENABLED:true}
       cookie_name: ${APP_COMMUNITY_AUTH_CSRF_COOKIE_NAME:community_csrf}
       header_name: ${APP_COMMUNITY_AUTH_CSRF_HEADER_NAME:X-Community-CSRF-Token}
+  video:
+    mode: ${APP_COMMUNITY_VIDEO_MODE:local}
+    local:
+      ffmpegPath: ${APP_COMMUNITY_VIDEO_LOCAL_FFMPEG_PATH:ffmpeg}
+      ffprobePath: ${APP_COMMUNITY_VIDEO_LOCAL_FFPROBE_PATH:ffprobe}
+      sourceRoot: ${APP_COMMUNITY_VIDEO_LOCAL_SOURCE_ROOT:community/sources}
+      outputRoot: ${APP_COMMUNITY_VIDEO_LOCAL_OUTPUT_ROOT:community/hls}
+      publicBaseUrl: ${APP_COMMUNITY_VIDEO_LOCAL_PUBLIC_BASE_URL:/api/v1/public/community/hls}
+    hls:
+      segmentSeconds: ${APP_COMMUNITY_VIDEO_HLS_SEGMENT_SECONDS:6}
+      renditions:
+        - label: 360p
+          width: 640
+          height: 360
+          videoKbps: 800
+          audioKbps: 96
+        - label: 720p
+          width: 1280
+          height: 720
+          videoKbps: 2800
+          audioKbps: 128
+        - label: 1080p
+          width: 1920
+          height: 1080
+          videoKbps: 5000
+          audioKbps: 160
+    cloud:
+      provider: ${APP_COMMUNITY_VIDEO_CLOUD_PROVIDER:}
+      objectStorage: ${APP_COMMUNITY_VIDEO_CLOUD_OBJECT_STORAGE:}
+      bucket: ${APP_COMMUNITY_VIDEO_CLOUD_BUCKET:}
+      cdnBaseUrl: ${APP_COMMUNITY_VIDEO_CLOUD_CDN_BASE_URL:}
+      callbackSecret: ${APP_COMMUNITY_VIDEO_CLOUD_CALLBACK_SECRET:}
 
 migration:
   auto_apply: ${APP_MIGRATION_AUTO_APPLY:false}

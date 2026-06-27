@@ -170,6 +170,12 @@ func multipartParam(name string, typ string, required bool) RouteParam {
 	return RouteParam{Name: name, In: ParamInMultipart, Type: typ, Required: required}
 }
 
+func multipartAuthRoute(id string, method string, path string, tag string, summary string, response reflect.Type, params ...RouteParam) RouteContract {
+	contract := authRoute(id, method, path, tag, summary, nil, response, params...)
+	contract.RequestContent = ContentMultipart
+	return contract
+}
+
 func multipartPermissionRoute(id string, method string, path string, tag string, summary string, permission string, response reflect.Type, params ...RouteParam) RouteContract {
 	contract := permissionRoute(id, method, path, tag, summary, permission, nil, response, params...)
 	contract.RequestContent = ContentMultipart
@@ -184,6 +190,13 @@ func multipartPlatformPermissionRoute(id string, method string, path string, tag
 
 func binaryPermissionRoute(id string, method string, path string, tag string, summary string, permission string, params ...RouteParam) RouteContract {
 	contract := permissionRoute(id, method, path, tag, summary, permission, nil, nil, params...)
+	contract.ResponseContent = ContentOctet
+	contract.RawResponse = true
+	return contract
+}
+
+func binaryPublicRoute(id string, method string, path string, tag string, summary string, params ...RouteParam) RouteContract {
+	contract := publicRoute(id, method, path, tag, summary, nil, nil, params...)
 	contract.ResponseContent = ContentOctet
 	contract.RawResponse = true
 	return contract
@@ -348,6 +361,10 @@ func communityRouteContracts() []RouteContract {
 		permissionRoute("community.accounts.update", http.MethodPatch, appconstants.APIPath("community", "accounts", ":accountId"), "Community", "更新社区账号状态或角色", "community_account:update", jsonType[communitymodel.UpdateCommunityAccountRequest](), jsonType[communitymodel.CommunityAccountItem](), pathString("accountId")),
 		permissionRoute("community.submissions.review-list", http.MethodGet, appconstants.APIPath("community", "submissions"), "Community", "查询社区投稿审核队列", "community_submission:review", nil, jsonType[communitymodel.CommunitySubmissionPayload](), queryParam("status", "string"), queryInt("limit")),
 		permissionRoute("community.submissions.review", http.MethodPatch, appconstants.APIPath("community", "submissions", ":submissionId", "review"), "Community", "审核社区投稿并回写发布状态", "community_submission:review", jsonType[communitymodel.ReviewCommunitySubmissionRequest](), jsonType[communitymodel.CommunitySubmissionItem](), pathString("submissionId")),
+		permissionRoute("community.submissions.transcode", http.MethodPost, appconstants.APIPath("community", "submissions", ":submissionId", "transcode"), "Community", "创建社区投稿转码发布任务", "community_video:transcode", jsonType[communitymodel.CreateCommunityVideoJobRequest](), jsonType[communitymodel.CommunityVideoJobItem](), pathString("submissionId")),
+		permissionRoute("community.video-jobs.list", http.MethodGet, appconstants.APIPath("community", "video-jobs"), "Community", "查询社区视频处理任务", "community_video:read", nil, jsonType[communitymodel.CommunityVideoJobPayload](), queryParam("status", "string"), queryInt("limit")),
+		permissionRoute("community.video-jobs.get", http.MethodGet, appconstants.APIPath("community", "video-jobs", ":jobId"), "Community", "查询社区视频处理任务详情", "community_video:read", nil, jsonType[communitymodel.CommunityVideoJobItem](), pathString("jobId")),
+		permissionRoute("community.video-jobs.retry", http.MethodPost, appconstants.APIPath("community", "video-jobs", ":jobId", "retry"), "Community", "重试社区视频处理任务", "community_video:retry", nil, jsonType[communitymodel.CommunityVideoJobItem](), pathString("jobId")),
 		permissionRoute("community.reports.list", http.MethodGet, appconstants.APIPath("community", "reports"), "Community", "查询社区举报队列", "community_report:review", nil, jsonType[communitymodel.CommunityReportPayload](), queryParam("status", "string"), queryInt("limit")),
 		permissionRoute("community.reports.review", http.MethodPatch, appconstants.APIPath("community", "reports", ":reportId"), "Community", "处理社区举报", "community_report:review", jsonType[communitymodel.ReviewCommunityReportRequest](), jsonType[communitymodel.CommunityReportItem](), pathString("reportId")),
 		authRoute("community.account.dynamics.create", http.MethodPost, appconstants.APIPath("public", "community", "account", "dynamics"), "Community", "发布社区账号动态", jsonType[communitymodel.CreateCommunityAccountDynamicRequest](), jsonType[communitymodel.CommunityDynamicItem]()),
@@ -364,6 +381,7 @@ func communityRouteContracts() []RouteContract {
 		authRoute("community.account.notifications.read", http.MethodPost, appconstants.APIPath("public", "community", "account", "notifications", "read"), "Community", "标记社区账号通知为已读", nil, jsonType[communitymodel.CommunityNotificationPayload]()),
 		authRoute("community.account.submissions.list", http.MethodGet, appconstants.APIPath("public", "community", "account", "submissions"), "Community", "查询社区账号投稿记录", nil, jsonType[communitymodel.CommunitySubmissionPayload](), queryInt("limit")),
 		authRoute("community.account.submissions.create", http.MethodPost, appconstants.APIPath("public", "community", "account", "submissions"), "Community", "提交社区账号投稿元数据", jsonType[communitymodel.CreateCommunityAccountSubmissionRequest](), jsonType[communitymodel.CommunitySubmissionItem]()),
+		multipartAuthRoute("community.account.submissions.upload", http.MethodPost, appconstants.APIPath("public", "community", "account", "submissions", "upload"), "Community", "上传社区投稿源视频文件", jsonType[communitymodel.CommunitySubmissionUploadResult](), multipartParam("file", "string", true)),
 		authRoute("community.account.videos.interaction-state", http.MethodGet, appconstants.APIPath("public", "community", "account", "videos", ":idOrSlug", "interaction-state"), "Community", "查询社区账号视频互动状态", nil, jsonType[communitymodel.VideoInteractionState](), pathString("idOrSlug")),
 		authRoute("community.account.videos.interactions.set", http.MethodPost, appconstants.APIPath("public", "community", "account", "videos", ":idOrSlug", "interactions", ":kind"), "Community", "设置社区账号视频互动关系", nil, jsonType[communitymodel.VideoInteractionState](), pathString("idOrSlug"), pathString("kind")),
 		authRoute("community.account.videos.interactions.unset", http.MethodDelete, appconstants.APIPath("public", "community", "account", "videos", ":idOrSlug", "interactions", ":kind"), "Community", "取消社区账号视频互动关系", nil, jsonType[communitymodel.VideoInteractionState](), pathString("idOrSlug"), pathString("kind")),
@@ -371,6 +389,8 @@ func communityRouteContracts() []RouteContract {
 		authRoute("community.account.videos.comments.update", http.MethodPatch, appconstants.APIPath("public", "community", "account", "videos", ":idOrSlug", "comments", ":commentId"), "Community", "更新社区账号视频评论", jsonType[communitymodel.UpdateVideoCommentRequest](), jsonType[communitymodel.VideoComment](), pathString("idOrSlug"), pathString("commentId")),
 		authRoute("community.account.videos.comments.delete", http.MethodDelete, appconstants.APIPath("public", "community", "account", "videos", ":idOrSlug", "comments", ":commentId"), "Community", "删除社区账号视频评论", nil, jsonType[communitymodel.DeleteVideoCommentResult](), pathString("idOrSlug"), pathString("commentId")),
 		publicRoute("community.status", http.MethodGet, appconstants.APIPath("public", "community", "status"), "Community", "查询社区公开 API 状态", nil, jsonType[communitymodel.APIStatus]()),
+		binaryPublicRoute("community.hls.asset", http.MethodGet, appconstants.APIPath("public", "community", "hls", "*assetPath"), "Community", "读取社区 HLS 静态资源", pathString("assetPath")),
+		binaryPublicRoute("community.source.asset", http.MethodGet, appconstants.APIPath("public", "community", "source-assets", ":assetId"), "Community", "读取社区投稿源视频", pathID("assetId")),
 		publicRoute("community.home", http.MethodGet, appconstants.APIPath("public", "community", "home"), "Community", "查询社区首页聚合数据", nil, jsonType[communitymodel.HomePayload]()),
 		publicRoute("community.dynamics.list", http.MethodGet, appconstants.APIPath("public", "community", "dynamics"), "Community", "查询社区动态时间线", nil, jsonType[communitymodel.CommunityDynamicPayload](), queryParam("clientId", "string"), queryInt("limit")),
 		publicRoute("community.dynamics.create", http.MethodPost, appconstants.APIPath("public", "community", "dynamics"), "Community", "发布社区匿名动态", jsonType[communitymodel.CreateCommunityDynamicRequest](), jsonType[communitymodel.CommunityDynamicItem]()),

@@ -3,6 +3,7 @@ import { apiClient } from "./runtime";
 import type {
   CommunityAccount,
   CommunityAccountPayload,
+  CommunityCreateVideoJobInput,
   CommunityReport,
   CommunityReportPayload,
   CommunityReviewReportInput,
@@ -10,6 +11,8 @@ import type {
   CommunitySubmission,
   CommunitySubmissionPayload,
   CommunityUpdateAccountInput,
+  CommunityVideoJob,
+  CommunityVideoJobPayload,
 } from "./types";
 
 type RequestOptions = {
@@ -28,6 +31,11 @@ export type CommunityReviewQueueQuery = {
   status?: string;
 };
 
+export type CommunityVideoJobQuery = {
+  limit?: number;
+  status?: string;
+};
+
 export const communityApi = {
   listAccounts: (query: CommunityAccountListQuery = {}, options: RequestOptions = {}) =>
     apiClient.request<CommunityAccountPayload>(API_ENDPOINTS.community.accounts, {
@@ -41,6 +49,11 @@ export const communityApi = {
     }),
   listSubmissions: (query: CommunityReviewQueueQuery = {}, options: RequestOptions = {}) =>
     apiClient.request<CommunitySubmissionPayload>(API_ENDPOINTS.community.submissions, {
+      query,
+      signal: options.signal,
+    }),
+  listVideoJobs: (query: CommunityVideoJobQuery = {}, options: RequestOptions = {}) =>
+    apiClient.request<CommunityVideoJobPayload>(API_ENDPOINTS.community.videoJobs, {
       query,
       signal: options.signal,
     }),
@@ -62,6 +75,21 @@ export const communityApi = {
     apiClient.request<CommunitySubmission>(API_ENDPOINTS.community.submissionReview(submissionId), {
       body,
       method: "PATCH",
+      signal: options.signal,
+    }),
+  retryVideoJob: (jobId: number | string, options: RequestOptions = {}) =>
+    apiClient.request<CommunityVideoJob>(API_ENDPOINTS.community.videoJobRetry(jobId), {
+      method: "POST",
+      signal: options.signal,
+    }),
+  transcodeSubmission: (
+    submissionId: number | string,
+    body: CommunityCreateVideoJobInput = {},
+    options: RequestOptions = {},
+  ) =>
+    apiClient.request<CommunityVideoJob>(API_ENDPOINTS.community.submissionTranscode(submissionId), {
+      body,
+      method: "POST",
       signal: options.signal,
     }),
   updateAccount: (

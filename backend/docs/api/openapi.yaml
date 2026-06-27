@@ -2778,6 +2778,581 @@
         - "Community"
       "x-permission": "community_submission:review"
       "x-scope": "tenant"
+  "/api/v1/community/submissions/{submissionId}/transcode":
+    "post":
+      "operationId": "community.submissions.transcode"
+      "parameters":
+        -
+          "in": "path"
+          "name": "submissionId"
+          "required": true
+          "schema":
+            "type": "string"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "durationSeconds":
+                  "format": "int32"
+                  "type": "integer"
+                "slug":
+                  "type": "string"
+                "thumbnailUrl":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "errorMessage":
+                        "type": "string"
+                      "finishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "inputStorageKey":
+                        "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "outputPublicUrl":
+                        "type": "string"
+                      "outputStorageKey":
+                        "type": "string"
+                      "progress":
+                        "format": "int32"
+                        "type": "integer"
+                      "provider":
+                        "type": "string"
+                      "renditions":
+                        "items":
+                          "properties":
+                            "bitrateKbps":
+                              "format": "int32"
+                              "type": "integer"
+                            "createdAt":
+                              "format": "date-time"
+                              "type": "string"
+                            "height":
+                              "format": "int32"
+                              "type": "integer"
+                            "id":
+                              "type": "string"
+                            "jobId":
+                              "type": "string"
+                            "playlistUrl":
+                              "type": "string"
+                            "qualityLabel":
+                              "type": "string"
+                            "storageKey":
+                              "type": "string"
+                            "videoId":
+                              "type": "string"
+                            "width":
+                              "format": "int32"
+                              "type": "integer"
+                          "type": "object"
+                        "type": "array"
+                      "startedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "submissionId":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "创建社区投稿转码发布任务"
+      "tags":
+        - "Community"
+      "x-permission": "community_video:transcode"
+      "x-scope": "tenant"
+  "/api/v1/community/video-jobs":
+    "get":
+      "operationId": "community.video-jobs.list"
+      "parameters":
+        -
+          "in": "query"
+          "name": "status"
+          "required": false
+          "schema":
+            "type": "string"
+        -
+          "in": "query"
+          "name": "limit"
+          "required": false
+          "schema":
+            "format": "int32"
+            "type": "integer"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "items":
+                        "properties":
+                          "items":
+                            "items":
+                              "properties":
+                                "createdAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "errorMessage":
+                                  "type": "string"
+                                "finishedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "id":
+                                  "type": "string"
+                                "inputStorageKey":
+                                  "type": "string"
+                                "mediaAssetId":
+                                  "format": "int64"
+                                  "type": "integer"
+                                "outputPublicUrl":
+                                  "type": "string"
+                                "outputStorageKey":
+                                  "type": "string"
+                                "progress":
+                                  "format": "int32"
+                                  "type": "integer"
+                                "provider":
+                                  "type": "string"
+                                "renditions":
+                                  "items":
+                                    "properties":
+                                      "bitrateKbps":
+                                        "format": "int32"
+                                        "type": "integer"
+                                      "createdAt":
+                                        "format": "date-time"
+                                        "type": "string"
+                                      "height":
+                                        "format": "int32"
+                                        "type": "integer"
+                                      "id":
+                                        "type": "string"
+                                      "jobId":
+                                        "type": "string"
+                                      "playlistUrl":
+                                        "type": "string"
+                                      "qualityLabel":
+                                        "type": "string"
+                                      "storageKey":
+                                        "type": "string"
+                                      "videoId":
+                                        "type": "string"
+                                      "width":
+                                        "format": "int32"
+                                        "type": "integer"
+                                    "type": "object"
+                                  "type": "array"
+                                "startedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "status":
+                                  "type": "string"
+                                "submissionId":
+                                  "type": "string"
+                                "updatedAt":
+                                  "format": "date-time"
+                                  "type": "string"
+                                "videoId":
+                                  "type": "string"
+                              "type": "object"
+                            "type": "array"
+                          "nextCursor":
+                            "type": "string"
+                        "type": "object"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询社区视频处理任务"
+      "tags":
+        - "Community"
+      "x-permission": "community_video:read"
+      "x-scope": "tenant"
+  "/api/v1/community/video-jobs/{jobId}":
+    "get":
+      "operationId": "community.video-jobs.get"
+      "parameters":
+        -
+          "in": "path"
+          "name": "jobId"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "errorMessage":
+                        "type": "string"
+                      "finishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "inputStorageKey":
+                        "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "outputPublicUrl":
+                        "type": "string"
+                      "outputStorageKey":
+                        "type": "string"
+                      "progress":
+                        "format": "int32"
+                        "type": "integer"
+                      "provider":
+                        "type": "string"
+                      "renditions":
+                        "items":
+                          "properties":
+                            "bitrateKbps":
+                              "format": "int32"
+                              "type": "integer"
+                            "createdAt":
+                              "format": "date-time"
+                              "type": "string"
+                            "height":
+                              "format": "int32"
+                              "type": "integer"
+                            "id":
+                              "type": "string"
+                            "jobId":
+                              "type": "string"
+                            "playlistUrl":
+                              "type": "string"
+                            "qualityLabel":
+                              "type": "string"
+                            "storageKey":
+                              "type": "string"
+                            "videoId":
+                              "type": "string"
+                            "width":
+                              "format": "int32"
+                              "type": "integer"
+                          "type": "object"
+                        "type": "array"
+                      "startedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "submissionId":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询社区视频处理任务详情"
+      "tags":
+        - "Community"
+      "x-permission": "community_video:read"
+      "x-scope": "tenant"
+  "/api/v1/community/video-jobs/{jobId}/retry":
+    "post":
+      "operationId": "community.video-jobs.retry"
+      "parameters":
+        -
+          "in": "path"
+          "name": "jobId"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "errorMessage":
+                        "type": "string"
+                      "finishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "inputStorageKey":
+                        "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "outputPublicUrl":
+                        "type": "string"
+                      "outputStorageKey":
+                        "type": "string"
+                      "progress":
+                        "format": "int32"
+                        "type": "integer"
+                      "provider":
+                        "type": "string"
+                      "renditions":
+                        "items":
+                          "properties":
+                            "bitrateKbps":
+                              "format": "int32"
+                              "type": "integer"
+                            "createdAt":
+                              "format": "date-time"
+                              "type": "string"
+                            "height":
+                              "format": "int32"
+                              "type": "integer"
+                            "id":
+                              "type": "string"
+                            "jobId":
+                              "type": "string"
+                            "playlistUrl":
+                              "type": "string"
+                            "qualityLabel":
+                              "type": "string"
+                            "storageKey":
+                              "type": "string"
+                            "videoId":
+                              "type": "string"
+                            "width":
+                              "format": "int32"
+                              "type": "integer"
+                          "type": "object"
+                        "type": "array"
+                      "startedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "submissionId":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "videoId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "重试社区视频处理任务"
+      "tags":
+        - "Community"
+      "x-permission": "community_video:retry"
+      "x-scope": "tenant"
   "/api/v1/iam/notification-outbox":
     "get":
       "operationId": "iam.notification-outbox.list"
@@ -7404,6 +7979,9 @@
                   "type": "string"
                 "description":
                   "type": "string"
+                "mediaAssetId":
+                  "format": "int64"
+                  "type": "integer"
                 "sensitive":
                   "type": "boolean"
                 "sourceName":
@@ -7550,6 +8128,95 @@
                 "$ref": "#/components/schemas/ErrorResult"
           "description": "Internal server error"
       "summary": "提交社区账号投稿元数据"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+  "/api/v1/public/community/account/submissions/upload":
+    "post":
+      "operationId": "community.account.submissions.upload"
+      "requestBody":
+        "content":
+          "multipart/form-data":
+            "schema":
+              "properties":
+                "file":
+                  "format": "binary"
+                  "type": "string"
+              "required":
+                - "file"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "displayName":
+                        "type": "string"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "mimeType":
+                        "type": "string"
+                      "originalName":
+                        "type": "string"
+                      "sizeBytes":
+                        "format": "int64"
+                        "type": "integer"
+                      "url":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "上传社区投稿源视频文件"
       "tags":
         - "Community"
       "x-scope": "tenant"
@@ -10223,6 +10890,59 @@
       "tags":
         - "Community"
       "x-scope": "platform"
+  "/api/v1/public/community/hls/*assetPath":
+    "get":
+      "operationId": "community.hls.asset"
+      "parameters":
+        -
+          "in": "path"
+          "name": "assetPath"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/octet-stream":
+              "schema":
+                "format": "binary"
+                "type": "string"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "读取社区 HLS 静态资源"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
   "/api/v1/public/community/home":
     "get":
       "operationId": "community.home"
@@ -11227,6 +11947,60 @@
       "tags":
         - "Community"
       "x-scope": "platform"
+  "/api/v1/public/community/source-assets/{assetId}":
+    "get":
+      "operationId": "community.source.asset"
+      "parameters":
+        -
+          "in": "path"
+          "name": "assetId"
+          "required": true
+          "schema":
+            "format": "int64"
+            "type": "integer"
+      "responses":
+        "200":
+          "content":
+            "application/octet-stream":
+              "schema":
+                "format": "binary"
+                "type": "string"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "security": []
+      "summary": "读取社区投稿源视频"
+      "tags":
+        - "Community"
+      "x-scope": "platform"
   "/api/v1/public/community/status":
     "get":
       "operationId": "community.status"
@@ -11495,6 +12269,9 @@
                   "type": "string"
                 "description":
                   "type": "string"
+                "mediaAssetId":
+                  "format": "int64"
+                  "type": "integer"
                 "sensitive":
                   "type": "boolean"
                 "sourceName":

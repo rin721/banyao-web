@@ -56,6 +56,15 @@ const (
 	CommunitySubmissionVisibilityPublic    = "public"
 	CommunitySubmissionVisibilityUnlisted  = "unlisted"
 	CommunitySubmissionVisibilityPrivate   = "private"
+
+	CommunityVideoProviderLocal = "local"
+	CommunityVideoProviderCloud = "cloud"
+
+	CommunityVideoJobStatusQueued    = "queued"
+	CommunityVideoJobStatusRunning   = "running"
+	CommunityVideoJobStatusSucceeded = "succeeded"
+	CommunityVideoJobStatusFailed    = "failed"
+	CommunityVideoJobStatusCanceled  = "canceled"
 )
 
 // UserSummary 是社区公开接口中展示创作者的最小视图。
@@ -243,16 +252,61 @@ func (CommunitySubmission) TableName() string { return "community_submissions" }
 
 // CommunityMediaAsset is the minimal platform media projection needed by community review publishing.
 type CommunityMediaAsset struct {
-	ID           int64      `gorm:"column:id;primaryKey" json:"id,string"`
-	DisplayName  string     `gorm:"column:display_name;size:255;not null" json:"displayName"`
-	OriginalName string     `gorm:"column:original_name;size:255;not null" json:"originalName"`
-	URL          string     `gorm:"column:url;type:text;not null" json:"url"`
-	MIMEType     string     `gorm:"column:mime_type;size:128;not null" json:"mimeType"`
-	SizeBytes    int64      `gorm:"column:size_bytes;not null" json:"sizeBytes"`
-	DeletedAt    *time.Time `gorm:"column:deleted_at" json:"-"`
+	ID                 int64      `gorm:"column:id;primaryKey" json:"id,string"`
+	CategoryID         int64      `gorm:"column:category_id;not null;default:0" json:"categoryId,string,omitempty"`
+	DisplayName        string     `gorm:"column:display_name;size:255;not null" json:"displayName"`
+	OriginalName       string     `gorm:"column:original_name;size:255;not null" json:"originalName"`
+	StorageKey         string     `gorm:"column:storage_key;size:512;not null" json:"storageKey"`
+	URL                string     `gorm:"column:url;type:text;not null" json:"url"`
+	MIMEType           string     `gorm:"column:mime_type;size:128;not null" json:"mimeType"`
+	Extension          string     `gorm:"column:extension;size:32;not null" json:"extension"`
+	SizeBytes          int64      `gorm:"column:size_bytes;not null" json:"sizeBytes"`
+	Source             string     `gorm:"column:source;size:32;not null" json:"source"`
+	External           bool       `gorm:"column:external;not null;default:false" json:"external"`
+	UploadedBy         int64      `gorm:"column:uploaded_by;not null;default:0" json:"uploadedBy,string,omitempty"`
+	UploadedByUsername string     `gorm:"column:uploaded_by_username;size:128;not null" json:"uploadedByUsername,omitempty"`
+	CreatedAt          time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
+	DeletedAt          *time.Time `gorm:"column:deleted_at" json:"-"`
 }
 
 func (CommunityMediaAsset) TableName() string { return "system_media_assets" }
+
+type CommunityVideoJob struct {
+	ID               string     `gorm:"column:id;primaryKey;size:96" json:"id"`
+	SubmissionID     string     `gorm:"column:submission_id;size:96;not null;index" json:"submissionId"`
+	MediaAssetID     int64      `gorm:"column:media_asset_id;not null;default:0;index" json:"mediaAssetId,string,omitempty"`
+	VideoID          string     `gorm:"column:video_id;size:96;not null;default:'';index" json:"videoId,omitempty"`
+	Provider         string     `gorm:"column:provider;size:32;not null" json:"provider"`
+	Status           string     `gorm:"column:status;size:32;not null;index" json:"status"`
+	Progress         int        `gorm:"column:progress;not null;default:0" json:"progress"`
+	InputStorageKey  string     `gorm:"column:input_storage_key;size:512;not null;default:''" json:"inputStorageKey,omitempty"`
+	OutputStorageKey string     `gorm:"column:output_storage_key;size:512;not null;default:''" json:"outputStorageKey,omitempty"`
+	OutputPublicURL  string     `gorm:"column:output_public_url;size:512;not null;default:''" json:"outputPublicUrl,omitempty"`
+	ErrorMessage     string     `gorm:"column:error_message;type:text;not null" json:"errorMessage,omitempty"`
+	StartedAt        *time.Time `gorm:"column:started_at" json:"startedAt,omitempty"`
+	FinishedAt       *time.Time `gorm:"column:finished_at" json:"finishedAt,omitempty"`
+	CreatedAt        time.Time  `gorm:"column:created_at;not null" json:"createdAt"`
+	UpdatedAt        time.Time  `gorm:"column:updated_at;not null" json:"updatedAt"`
+	DeletedAt        *time.Time `gorm:"column:deleted_at" json:"-"`
+}
+
+func (CommunityVideoJob) TableName() string { return "community_video_jobs" }
+
+type CommunityVideoRendition struct {
+	ID           string    `gorm:"column:id;primaryKey;size:96" json:"id"`
+	JobID        string    `gorm:"column:job_id;size:96;not null;index" json:"jobId"`
+	VideoID      string    `gorm:"column:video_id;size:96;not null;index" json:"videoId"`
+	QualityLabel string    `gorm:"column:quality_label;size:64;not null" json:"qualityLabel"`
+	Width        int       `gorm:"column:width;not null" json:"width"`
+	Height       int       `gorm:"column:height;not null" json:"height"`
+	BitrateKbps  int       `gorm:"column:bitrate_kbps;not null;default:0" json:"bitrateKbps"`
+	PlaylistURL  string    `gorm:"column:playlist_url;size:512;not null" json:"playlistUrl"`
+	StorageKey   string    `gorm:"column:storage_key;size:512;not null" json:"storageKey"`
+	CreatedAt    time.Time `gorm:"column:created_at;not null" json:"createdAt"`
+}
+
+func (CommunityVideoRendition) TableName() string { return "community_video_renditions" }
 
 // Category 是社区内容分类的扁平持久化模型。
 type Category struct {
@@ -453,6 +507,7 @@ type CreateCommunitySubmissionRequest struct {
 	SourceName    string   `json:"sourceName"`
 	SourceSize    int64    `json:"sourceSize"`
 	SourceType    string   `json:"sourceType"`
+	MediaAssetID  int64    `json:"mediaAssetId,string,omitempty"`
 	AllowComments bool     `json:"allowComments"`
 	Sensitive     bool     `json:"sensitive"`
 }
@@ -466,8 +521,24 @@ type CreateCommunityAccountSubmissionRequest struct {
 	SourceName    string   `json:"sourceName"`
 	SourceSize    int64    `json:"sourceSize"`
 	SourceType    string   `json:"sourceType"`
+	MediaAssetID  int64    `json:"mediaAssetId,string,omitempty"`
 	AllowComments bool     `json:"allowComments"`
 	Sensitive     bool     `json:"sensitive"`
+}
+
+type CommunitySubmissionUploadResult struct {
+	MediaAssetID int64  `json:"mediaAssetId,string"`
+	DisplayName  string `json:"displayName"`
+	OriginalName string `json:"originalName"`
+	URL          string `json:"url"`
+	MIMEType     string `json:"mimeType"`
+	SizeBytes    int64  `json:"sizeBytes"`
+}
+
+type CreateCommunityVideoJobRequest struct {
+	DurationSeconds int    `json:"durationSeconds,omitempty"`
+	ThumbnailURL    string `json:"thumbnailUrl,omitempty"`
+	Slug            string `json:"slug,omitempty"`
 }
 
 type ReviewCommunitySubmissionRequest struct {
@@ -576,6 +647,11 @@ type CommunitySubmissionFilter struct {
 	Limit      int
 }
 
+type CommunityVideoJobFilter struct {
+	Status string
+	Limit  int
+}
+
 type CommunityDynamicItem struct {
 	ID         string        `json:"id"`
 	Kind       string        `json:"kind"`
@@ -628,6 +704,29 @@ type CommunitySubmissionPayload struct {
 	ClientID      *string                             `json:"clientId"`
 	Message       *string                             `json:"message"`
 	Items         PageResult[CommunitySubmissionItem] `json:"items"`
+}
+
+type CommunityVideoJobItem struct {
+	ID               string                    `json:"id"`
+	SubmissionID     string                    `json:"submissionId"`
+	MediaAssetID     int64                     `json:"mediaAssetId,string,omitempty"`
+	VideoID          string                    `json:"videoId,omitempty"`
+	Provider         string                    `json:"provider"`
+	Status           string                    `json:"status"`
+	Progress         int                       `json:"progress"`
+	InputStorageKey  string                    `json:"inputStorageKey,omitempty"`
+	OutputStorageKey string                    `json:"outputStorageKey,omitempty"`
+	OutputPublicURL  string                    `json:"outputPublicUrl,omitempty"`
+	ErrorMessage     string                    `json:"errorMessage,omitempty"`
+	Renditions       []CommunityVideoRendition `json:"renditions,omitempty"`
+	StartedAt        *time.Time                `json:"startedAt,omitempty"`
+	FinishedAt       *time.Time                `json:"finishedAt,omitempty"`
+	CreatedAt        time.Time                 `json:"createdAt"`
+	UpdatedAt        time.Time                 `json:"updatedAt"`
+}
+
+type CommunityVideoJobPayload struct {
+	Items PageResult[CommunityVideoJobItem] `json:"items"`
 }
 
 type CommunityNotificationFilter struct {

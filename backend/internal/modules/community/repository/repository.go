@@ -559,6 +559,10 @@ func (r *repository) CreateCommunitySubmission(ctx context.Context, submission m
 }
 
 func (r *repository) CreateVideoFromSubmission(ctx context.Context, creator model.Creator, video model.Video, source model.VideoSourceOption, categorySlugs []string, tags []string) error {
+	return r.CreateVideoFromSubmissionSources(ctx, creator, video, []model.VideoSourceOption{source}, categorySlugs, tags)
+}
+
+func (r *repository) CreateVideoFromSubmissionSources(ctx context.Context, creator model.Creator, video model.Video, sources []model.VideoSourceOption, categorySlugs []string, tags []string) error {
 	return r.withTx(ctx, func(ctx context.Context, exec database.Executor) error {
 		if err := upsertSubmissionCreator(ctx, exec, creator); err != nil {
 			return err
@@ -566,8 +570,10 @@ func (r *repository) CreateVideoFromSubmission(ctx context.Context, creator mode
 		if err := exec.Create(ctx, &video); err != nil {
 			return err
 		}
-		if err := exec.Create(ctx, &source); err != nil {
-			return err
+		for _, source := range sources {
+			if err := exec.Create(ctx, &source); err != nil {
+				return err
+			}
 		}
 		for _, slug := range categorySlugs {
 			slug = strings.TrimSpace(slug)
@@ -598,6 +604,10 @@ func (r *repository) CreateVideoFromSubmission(ctx context.Context, creator mode
 	})
 }
 
+func (r *repository) CreateMediaAsset(ctx context.Context, asset model.CommunityMediaAsset) error {
+	return r.db.Create(ctx, &asset)
+}
+
 func (r *repository) FindCommunitySubmission(ctx context.Context, submissionID string) (*model.CommunitySubmission, error) {
 	var submission model.CommunitySubmission
 	err := r.db.First(ctx, &submission, database.Where("id = ?", strings.TrimSpace(submissionID)), alive())
@@ -614,6 +624,76 @@ func (r *repository) FindMediaAssetByID(ctx context.Context, id int64) (*model.C
 		return nil, err
 	}
 	return &asset, nil
+}
+
+func (r *repository) CreateCommunityVideoJob(ctx context.Context, job model.CommunityVideoJob) error {
+	return r.db.Create(ctx, &job)
+}
+
+func (r *repository) UpdateCommunityVideoJob(ctx context.Context, job model.CommunityVideoJob) error {
+	result, err := r.db.Update(ctx, &model.CommunityVideoJob{}, map[string]any{
+		"video_id":           job.VideoID,
+		"status":             job.Status,
+		"progress":           job.Progress,
+		"input_storage_key":  job.InputStorageKey,
+		"output_storage_key": job.OutputStorageKey,
+		"output_public_url":  job.OutputPublicURL,
+		"error_message":      job.ErrorMessage,
+		"started_at":         job.StartedAt,
+		"finished_at":        job.FinishedAt,
+		"updated_at":         job.UpdatedAt,
+	}, database.Where("id = ?", strings.TrimSpace(job.ID)), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
+func (r *repository) FindCommunityVideoJob(ctx context.Context, jobID string) (*model.CommunityVideoJob, error) {
+	var job model.CommunityVideoJob
+	err := r.db.First(ctx, &job, database.Where("id = ?", strings.TrimSpace(jobID)), alive())
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
+}
+
+func (r *repository) ListCommunityVideoJobs(ctx context.Context, filter model.CommunityVideoJobFilter) ([]model.CommunityVideoJob, error) {
+	opts := []database.QueryOption{
+		alive(),
+		database.Order("created_at DESC, id DESC"),
+	}
+	if strings.TrimSpace(filter.Status) != "" {
+		opts = append(opts, database.Where("status = ?", strings.TrimSpace(filter.Status)))
+	}
+	if filter.Limit > 0 {
+		opts = append(opts, database.Limit(filter.Limit))
+	}
+	var jobs []model.CommunityVideoJob
+	err := r.db.Find(ctx, &jobs, opts...)
+	return jobs, err
+}
+
+func (r *repository) CreateCommunityVideoRenditions(ctx context.Context, renditions []model.CommunityVideoRendition) error {
+	for _, rendition := range renditions {
+		if err := r.db.Create(ctx, &rendition); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *repository) ListCommunityVideoRenditions(ctx context.Context, jobID string) ([]model.CommunityVideoRendition, error) {
+	opts := []database.QueryOption{
+		database.Where("job_id = ?", strings.TrimSpace(jobID)),
+		database.Order("height ASC, quality_label ASC"),
+	}
+	var renditions []model.CommunityVideoRendition
+	err := r.db.Find(ctx, &renditions, opts...)
+	return renditions, err
 }
 
 func (r *repository) UpdateCommunitySubmissionReview(ctx context.Context, submission model.CommunitySubmission) error {

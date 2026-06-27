@@ -36,6 +36,7 @@ export default [
     route("community/accounts", "./routes/admin/community-accounts.tsx"),
     route("community/submissions", "./routes/admin/community-submissions.tsx"),
     route("community/reports", "./routes/admin/community-reports.tsx"),
+    route("community/video-jobs", "./routes/admin/community-video-jobs.tsx"),
     route("probes", "./routes/admin/probes.tsx"),
     route("apis", "./routes/admin/apis.tsx"),
     route("menus", "./routes/admin/menus.tsx"),

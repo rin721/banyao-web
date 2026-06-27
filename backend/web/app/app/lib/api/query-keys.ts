@@ -56,6 +56,13 @@ export const queryKeys = {
         status?: string;
       } = {},
     ) => ["community", "submissions", locale, filters] as const,
+    videoJobs: (
+      locale: string,
+      filters: {
+        limit?: number;
+        status?: string;
+      } = {},
+    ) => ["community", "video-jobs", locale, filters] as const,
   },
   iam: {
     apiTokens: (

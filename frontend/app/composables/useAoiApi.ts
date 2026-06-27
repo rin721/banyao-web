@@ -11,6 +11,7 @@ import type {
   CommunitySetupStatus,
   CommunitySubmissionItem,
   CommunitySubmissionPayload,
+  CommunitySubmissionUploadResult,
   CreatorFollowState,
   CreateCommunityAccountDynamicRequest,
   CreateCommunityAccountSubmissionRequest,
@@ -165,6 +166,26 @@ export function useAoiApi() {
   async function createCommunityAccountSubmission(body: CreateCommunityAccountSubmissionRequest): Promise<CommunitySubmissionItem> {
     return await request<CommunitySubmissionItem>("/account/submissions", {
       body,
+      method: "POST"
+    })
+  }
+
+  async function uploadCommunityAccountSubmissionSource(file: File): Promise<CommunitySubmissionUploadResult> {
+    if (config.public.apiMock) {
+      return {
+        mediaAssetId: `mock-asset-${Date.now()}`,
+        sourceName: file.name,
+        sourceSize: file.size,
+        sourceType: file.type || "video/*",
+        sourceUrl: `/api/mock/account/submissions/upload/${encodeURIComponent(file.name)}`
+      }
+    }
+
+    const formData = new FormData()
+    formData.append("file", file)
+
+    return await request<CommunitySubmissionUploadResult>("/account/submissions/upload", {
+      body: formData,
       method: "POST"
     })
   }
@@ -459,6 +480,7 @@ export function useAoiApi() {
     getVideoComments,
     updateCommunityAccountDynamic,
     updateCommunityDynamic,
+    uploadCommunityAccountSubmissionSource,
     updateVideoComment,
     getVideoDetail,
     listCategories,

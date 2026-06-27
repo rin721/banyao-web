@@ -14,10 +14,18 @@ const (
 	DefaultCommunityAuthCSRFCookieName         = "community_csrf"
 	DefaultCommunityAuthCSRFHeaderName         = "X-Community-CSRF-Token"
 	DefaultCommunityAuthClientType             = "community_web"
+	DefaultCommunityVideoMode                  = "local"
+	DefaultCommunityVideoLocalFFmpegPath       = "ffmpeg"
+	DefaultCommunityVideoLocalFFprobePath      = "ffprobe"
+	DefaultCommunityVideoLocalOutputRoot       = "community/hls"
+	DefaultCommunityVideoLocalSourceRoot       = "community/sources"
+	DefaultCommunityVideoLocalPublicBaseURL    = "/api/v1/public/community/hls"
+	DefaultCommunityVideoHLSSegmentSeconds     = 6
 )
 
 type CommunityConfig struct {
-	Auth CommunityAuthConfig `mapstructure:"auth" json:"auth" yaml:"auth" toml:"auth"`
+	Auth  CommunityAuthConfig  `mapstructure:"auth" json:"auth" yaml:"auth" toml:"auth"`
+	Video CommunityVideoConfig `mapstructure:"video" json:"video" yaml:"video" toml:"video"`
 }
 
 type CommunityAuthConfig struct {
@@ -40,6 +48,42 @@ type CommunityAuthCSRFConfig struct {
 	Enabled    *bool  `mapstructure:"enabled" envname:"COMMUNITY_AUTH_CSRF_ENABLED" json:"enabled" yaml:"enabled" toml:"enabled"`
 	CookieName string `mapstructure:"cookie_name" envname:"COMMUNITY_AUTH_CSRF_COOKIE_NAME" json:"cookie_name" yaml:"cookie_name" toml:"cookie_name"`
 	HeaderName string `mapstructure:"header_name" envname:"COMMUNITY_AUTH_CSRF_HEADER_NAME" json:"header_name" yaml:"header_name" toml:"header_name"`
+}
+
+type CommunityVideoConfig struct {
+	Mode  string                    `mapstructure:"mode" envname:"COMMUNITY_VIDEO_MODE" json:"mode" yaml:"mode" toml:"mode"`
+	Local CommunityVideoLocalConfig `mapstructure:"local" json:"local" yaml:"local" toml:"local"`
+	HLS   CommunityVideoHLSConfig   `mapstructure:"hls" json:"hls" yaml:"hls" toml:"hls"`
+	Cloud CommunityVideoCloudConfig `mapstructure:"cloud" json:"cloud" yaml:"cloud" toml:"cloud"`
+}
+
+type CommunityVideoLocalConfig struct {
+	FFmpegPath    string `mapstructure:"ffmpegPath" envname:"COMMUNITY_VIDEO_LOCAL_FFMPEG_PATH" json:"ffmpegPath" yaml:"ffmpegPath" toml:"ffmpegPath"`
+	FFprobePath   string `mapstructure:"ffprobePath" envname:"COMMUNITY_VIDEO_LOCAL_FFPROBE_PATH" json:"ffprobePath" yaml:"ffprobePath" toml:"ffprobePath"`
+	OutputRoot    string `mapstructure:"outputRoot" envname:"COMMUNITY_VIDEO_LOCAL_OUTPUT_ROOT" json:"outputRoot" yaml:"outputRoot" toml:"outputRoot"`
+	SourceRoot    string `mapstructure:"sourceRoot" envname:"COMMUNITY_VIDEO_LOCAL_SOURCE_ROOT" json:"sourceRoot" yaml:"sourceRoot" toml:"sourceRoot"`
+	PublicBaseURL string `mapstructure:"publicBaseUrl" envname:"COMMUNITY_VIDEO_LOCAL_PUBLIC_BASE_URL" json:"publicBaseUrl" yaml:"publicBaseUrl" toml:"publicBaseUrl"`
+}
+
+type CommunityVideoHLSConfig struct {
+	SegmentSeconds int                          `mapstructure:"segmentSeconds" envname:"COMMUNITY_VIDEO_HLS_SEGMENT_SECONDS" json:"segmentSeconds" yaml:"segmentSeconds" toml:"segmentSeconds"`
+	Renditions     []CommunityVideoHLSRendition `mapstructure:"renditions" json:"renditions" yaml:"renditions" toml:"renditions"`
+}
+
+type CommunityVideoHLSRendition struct {
+	Label     string `mapstructure:"label" json:"label" yaml:"label" toml:"label"`
+	Width     int    `mapstructure:"width" json:"width" yaml:"width" toml:"width"`
+	Height    int    `mapstructure:"height" json:"height" yaml:"height" toml:"height"`
+	VideoKbps int    `mapstructure:"videoKbps" json:"videoKbps" yaml:"videoKbps" toml:"videoKbps"`
+	AudioKbps int    `mapstructure:"audioKbps" json:"audioKbps" yaml:"audioKbps" toml:"audioKbps"`
+}
+
+type CommunityVideoCloudConfig struct {
+	Provider       string `mapstructure:"provider" envname:"COMMUNITY_VIDEO_CLOUD_PROVIDER" json:"provider" yaml:"provider" toml:"provider"`
+	ObjectStorage  string `mapstructure:"objectStorage" envname:"COMMUNITY_VIDEO_CLOUD_OBJECT_STORAGE" json:"objectStorage" yaml:"objectStorage" toml:"objectStorage"`
+	Bucket         string `mapstructure:"bucket" envname:"COMMUNITY_VIDEO_CLOUD_BUCKET" json:"bucket" yaml:"bucket" toml:"bucket"`
+	CDNBaseURL     string `mapstructure:"cdnBaseUrl" envname:"COMMUNITY_VIDEO_CLOUD_CDN_BASE_URL" json:"cdnBaseUrl" yaml:"cdnBaseUrl" toml:"cdnBaseUrl"`
+	CallbackSecret string `mapstructure:"callbackSecret" envname:"COMMUNITY_VIDEO_CLOUD_CALLBACK_SECRET" json:"callbackSecret" yaml:"callbackSecret" toml:"callbackSecret"`
 }
 
 func (c CommunityAuthCSRFConfig) EnabledValue() bool {
@@ -79,6 +123,35 @@ func (c *CommunityConfig) Validate() error {
 	if strings.TrimSpace(c.Auth.DefaultClientType) == "" {
 		return fmt.Errorf("auth.default_client_type is required")
 	}
+	switch c.Video.Mode {
+	case "local":
+		if strings.TrimSpace(c.Video.Local.FFmpegPath) == "" || strings.TrimSpace(c.Video.Local.FFprobePath) == "" {
+			return fmt.Errorf("video.local ffmpegPath and ffprobePath are required")
+		}
+		if strings.TrimSpace(c.Video.Local.OutputRoot) == "" || strings.TrimSpace(c.Video.Local.SourceRoot) == "" {
+			return fmt.Errorf("video.local outputRoot and sourceRoot are required")
+		}
+		if strings.TrimSpace(c.Video.Local.PublicBaseURL) == "" {
+			return fmt.Errorf("video.local.publicBaseUrl is required")
+		}
+	case "cloud":
+		if strings.TrimSpace(c.Video.Cloud.Provider) == "" {
+			return fmt.Errorf("video.cloud.provider is required when video.mode is cloud")
+		}
+	default:
+		return fmt.Errorf("video.mode must be one of: local, cloud")
+	}
+	if c.Video.HLS.SegmentSeconds <= 0 {
+		return fmt.Errorf("video.hls.segmentSeconds must be positive")
+	}
+	if len(c.Video.HLS.Renditions) == 0 {
+		return fmt.Errorf("video.hls.renditions must not be empty")
+	}
+	for _, rendition := range c.Video.HLS.Renditions {
+		if strings.TrimSpace(rendition.Label) == "" || rendition.Width <= 0 || rendition.Height <= 0 || rendition.VideoKbps <= 0 {
+			return fmt.Errorf("video.hls.renditions entries require label, width, height and videoKbps")
+		}
+	}
 	return nil
 }
 
@@ -107,5 +180,34 @@ func (c *CommunityConfig) ApplyDefaults() {
 	}
 	if strings.TrimSpace(c.Auth.DefaultClientType) == "" {
 		c.Auth.DefaultClientType = DefaultCommunityAuthClientType
+	}
+	c.Video.Mode = strings.ToLower(strings.TrimSpace(c.Video.Mode))
+	if c.Video.Mode == "" {
+		c.Video.Mode = DefaultCommunityVideoMode
+	}
+	if strings.TrimSpace(c.Video.Local.FFmpegPath) == "" {
+		c.Video.Local.FFmpegPath = DefaultCommunityVideoLocalFFmpegPath
+	}
+	if strings.TrimSpace(c.Video.Local.FFprobePath) == "" {
+		c.Video.Local.FFprobePath = DefaultCommunityVideoLocalFFprobePath
+	}
+	if strings.TrimSpace(c.Video.Local.OutputRoot) == "" {
+		c.Video.Local.OutputRoot = DefaultCommunityVideoLocalOutputRoot
+	}
+	if strings.TrimSpace(c.Video.Local.SourceRoot) == "" {
+		c.Video.Local.SourceRoot = DefaultCommunityVideoLocalSourceRoot
+	}
+	if strings.TrimSpace(c.Video.Local.PublicBaseURL) == "" {
+		c.Video.Local.PublicBaseURL = DefaultCommunityVideoLocalPublicBaseURL
+	}
+	if c.Video.HLS.SegmentSeconds == 0 {
+		c.Video.HLS.SegmentSeconds = DefaultCommunityVideoHLSSegmentSeconds
+	}
+	if len(c.Video.HLS.Renditions) == 0 {
+		c.Video.HLS.Renditions = []CommunityVideoHLSRendition{
+			{Label: "360p", Width: 640, Height: 360, VideoKbps: 800, AudioKbps: 96},
+			{Label: "720p", Width: 1280, Height: 720, VideoKbps: 2800, AudioKbps: 128},
+			{Label: "1080p", Width: 1920, Height: 1080, VideoKbps: 5000, AudioKbps: 160},
+		}
 	}
 }

@@ -527,6 +527,7 @@ func (m *manager) copyConfig(src *Config) *Config {
 	dst.CORS.AllowHeaders = append([]string(nil), src.CORS.AllowHeaders...)
 	dst.CORS.ExposeHeaders = append([]string(nil), src.CORS.ExposeHeaders...)
 	dst.Auth.Audience = append([]string(nil), src.Auth.Audience...)
+	dst.Community.Video.HLS.Renditions = append([]CommunityVideoHLSRendition(nil), src.Community.Video.HLS.Renditions...)
 	dst.System = copySystemConfig(src.System)
 	dst.WebUI = copyWebUIConfig(src.WebUI)
 	dst.EnvOverride.DisabledPaths = append([]string(nil), src.EnvOverride.DisabledPaths...)

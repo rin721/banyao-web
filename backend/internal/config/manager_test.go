@@ -950,6 +950,24 @@ func testCompleteConfig() *Config {
 				},
 				DefaultClientType: DefaultCommunityAuthClientType,
 			},
+			Video: CommunityVideoConfig{
+				Mode: DefaultCommunityVideoMode,
+				Local: CommunityVideoLocalConfig{
+					FFmpegPath:    DefaultCommunityVideoLocalFFmpegPath,
+					FFprobePath:   DefaultCommunityVideoLocalFFprobePath,
+					OutputRoot:    DefaultCommunityVideoLocalOutputRoot,
+					SourceRoot:    DefaultCommunityVideoLocalSourceRoot,
+					PublicBaseURL: DefaultCommunityVideoLocalPublicBaseURL,
+				},
+				HLS: CommunityVideoHLSConfig{
+					SegmentSeconds: DefaultCommunityVideoHLSSegmentSeconds,
+					Renditions: []CommunityVideoHLSRendition{
+						{Label: "360p", Width: 640, Height: 360, VideoKbps: 800, AudioKbps: 96},
+						{Label: "720p", Width: 1280, Height: 720, VideoKbps: 2800, AudioKbps: 128},
+						{Label: "1080p", Width: 1920, Height: 1080, VideoKbps: 5000, AudioKbps: 160},
+					},
+				},
+			},
 		},
 		Executor: ExecutorConfig{
 			Enabled: true,

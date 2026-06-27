@@ -3351,12 +3351,12 @@ func (s *service) ensureBuiltins(ctx context.Context, repo Repository, orgID int
 			}
 		}
 	}
-	for _, code := range []string{"community_submission:review", "community_report:review"} {
+	for _, code := range []string{"community_submission:review", "community_report:review", "community_video:read"} {
 		if err := s.addTenantPermissionPolicy(ctx, repo, orgID, model.RoleModerator, code); err != nil {
 			return err
 		}
 	}
-	for _, code := range []string{"community_account:read", "community_account:update", "community_submission:review", "community_report:review"} {
+	for _, code := range []string{"community_account:read", "community_account:update", "community_submission:review", "community_report:review", "community_video:read", "community_video:transcode", "community_video:retry"} {
 		if err := s.addTenantPermissionPolicy(ctx, repo, orgID, model.RoleOperator, code); err != nil {
 			return err
 		}
@@ -4174,6 +4174,9 @@ var builtinPermissions = []permissionSeed{
 	{Code: "community_account:update", Scope: model.PermissionScopeTenant, Name: "Update community accounts", Description: "Update community account role and status"},
 	{Code: "community_submission:review", Scope: model.PermissionScopeTenant, Name: "Review community submissions", Description: "Review community video submission metadata and update publish status"},
 	{Code: "community_report:review", Scope: model.PermissionScopeTenant, Name: "Review community reports", Description: "Review and resolve community content reports"},
+	{Code: "community_video:read", Scope: model.PermissionScopeTenant, Name: "Read community video jobs", Description: "Read community video processing jobs"},
+	{Code: "community_video:transcode", Scope: model.PermissionScopeTenant, Name: "Transcode community videos", Description: "Create community video transcode and publish jobs"},
+	{Code: "community_video:retry", Scope: model.PermissionScopeTenant, Name: "Retry community video jobs", Description: "Retry failed community video processing jobs"},
 	{Code: "permission:read", Scope: model.PermissionScopeTenant, Name: "Read tenant permissions", Description: "Read tenant permissions"},
 	{Code: "permission:read", Scope: model.PermissionScopePlatform, Name: "Read platform permissions", Description: "Read platform API and permission catalog"},
 	{Code: "permission:sync", Scope: model.PermissionScopePlatform, Name: "Sync permissions", Description: "Sync permissions from registered APIs"},

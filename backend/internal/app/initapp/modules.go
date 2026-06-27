@@ -266,6 +266,8 @@ func NewCommunityModule(core Core, infra Infrastructure, announcements announcem
 		HomeAnnouncementProvider: communityHomeAnnouncementProvider{announcements: announcements},
 		NewID:                    core.IDGenerator.NextIDString,
 		NewIntID:                 core.IDGenerator.NextID,
+		Storage:                  infra.Storage,
+		Video:                    communityVideoServiceConfig(core.Config),
 		Passwords:                passwords,
 		AccessTokenTTL:           time.Duration(communityCfg.Auth.AccessTokenTTLSeconds) * time.Second,
 		RefreshTokenTTL:          time.Duration(communityCfg.Auth.RefreshTokenTTLSeconds) * time.Second,
@@ -286,6 +288,44 @@ func NewCommunityModule(core Core, infra Infrastructure, announcements announcem
 			DefaultProduct:   normalizeSystemProductCode(core.Config.Brand.ProductCode),
 			DefaultClient:    communityCfg.Auth.DefaultClientType,
 		}),
+	}
+}
+
+func communityVideoServiceConfig(cfg *config.Config) communityservice.VideoConfig {
+	communityCfg := cfg.Community
+	communityCfg.ApplyDefaults()
+	renditions := make([]communityservice.VideoRenditionConfig, 0, len(communityCfg.Video.HLS.Renditions))
+	for _, item := range communityCfg.Video.HLS.Renditions {
+		renditions = append(renditions, communityservice.VideoRenditionConfig{
+			Label:     item.Label,
+			Width:     item.Width,
+			Height:    item.Height,
+			VideoKbps: item.VideoKbps,
+			AudioKbps: item.AudioKbps,
+		})
+	}
+	return communityservice.VideoConfig{
+		Mode:          communityCfg.Video.Mode,
+		LocalBasePath: cfg.Storage.Local.BasePath,
+		LocalFSType:   cfg.Storage.Local.FSType,
+		Local: communityservice.VideoLocalConfig{
+			FFmpegPath:    communityCfg.Video.Local.FFmpegPath,
+			FFprobePath:   communityCfg.Video.Local.FFprobePath,
+			OutputRoot:    communityCfg.Video.Local.OutputRoot,
+			SourceRoot:    communityCfg.Video.Local.SourceRoot,
+			PublicBaseURL: communityCfg.Video.Local.PublicBaseURL,
+		},
+		HLS: communityservice.VideoHLSConfig{
+			SegmentSeconds: communityCfg.Video.HLS.SegmentSeconds,
+			Renditions:     renditions,
+		},
+		Cloud: communityservice.VideoCloudConfig{
+			Provider:       communityCfg.Video.Cloud.Provider,
+			ObjectStorage:  communityCfg.Video.Cloud.ObjectStorage,
+			Bucket:         communityCfg.Video.Cloud.Bucket,
+			CDNBaseURL:     communityCfg.Video.Cloud.CDNBaseURL,
+			CallbackSecret: communityCfg.Video.Cloud.CallbackSecret,
+		},
 	}
 }
 

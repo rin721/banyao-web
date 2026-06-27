@@ -520,6 +520,7 @@
       "notificationOutbox": "Notification queue",
       "communityAccounts": "Community accounts",
       "communitySubmissions": "Submission review",
+      "communityVideoJobs": "Video processing jobs",
       "communityReports": "Report handling",
       "media": "Media",
       "versions": "Versions",
@@ -2540,6 +2541,13 @@
         "rejected": "Rejected",
         "published": "Published"
       },
+      "videoJobStatus": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "canceled": "Canceled"
+      },
       "reportStatus": {
         "pending": "Pending",
         "resolved": "Resolved",
@@ -2620,6 +2628,7 @@
         "empty": "No submissions returned.",
         "actions": {
           "approve": "Approve",
+          "publish": "Transcode and publish",
           "reject": "Reject"
         },
         "metrics": {
@@ -2651,6 +2660,9 @@
           "description": "Current filters returned {{count}} submissions."
         },
         "messages": {
+          "publishFailedTitle": "Failed to publish \"{{title}}\"",
+          "publishSuccessTitle": "Video processing job created",
+          "publishSuccessDescription": "Job {{id}} is {{status}}. The video appears on the home and detail pages after it succeeds.",
           "reviewFailedTitle": "Failed to handle \"{{title}}\"",
           "reviewSuccessTitle": "Submission status saved",
           "reviewSuccessDescription": "\"{{title}}\" is now {{status}}."
@@ -2664,6 +2676,68 @@
           "permissionDescription": "The current session does not have the tenant community_submission:review grant.",
           "storageUnavailableTitle": "Submission storage unavailable",
           "storageUnavailableDescription": "The backend reports that community submissions are not persisted yet. Run the community module migration first."
+        }
+      },
+      "videoJobs": {
+        "title": "Video processing jobs",
+        "description": "Inspect HLS transcode and publish jobs created by the community video service. Local mode uses FFmpeg and static assets; cloud mode reports the configured provider boundary.",
+        "badge": "Community video",
+        "summaryLabel": "Video job summary",
+        "empty": "No video processing jobs returned.",
+        "actions": {
+          "retry": "Retry"
+        },
+        "metrics": {
+          "total": "Returned",
+          "running": "Running",
+          "succeeded": "Succeeded",
+          "failed": "Failed"
+        },
+        "filters": {
+          "title": "Job filters",
+          "description": "Read video jobs by status and inspect output paths, errors, and retry state.",
+          "status": "Job status",
+          "allStatuses": "All statuses"
+        },
+        "columns": {
+          "job": "Job",
+          "submission": "Submission / video",
+          "status": "Status",
+          "progress": "Progress",
+          "storage": "Storage",
+          "output": "Output",
+          "error": "Failure reason",
+          "createdAt": "Created at",
+          "actions": "Actions"
+        },
+        "labels": {
+          "asset": "Asset",
+          "provider": "Provider",
+          "renditions": "Renditions",
+          "source": "Source",
+          "sourceStorage": "Source storage",
+          "updatedAt": "Updated at"
+        },
+        "list": {
+          "title": "Processing queue",
+          "description": "Current filters returned {{count}} jobs."
+        },
+        "messages": {
+          "retryFailedTitle": "Failed to retry job {{id}}",
+          "retrySuccessTitle": "Video job retried",
+          "retrySuccessDescription": "Job {{id}} has been re-queued."
+        },
+        "states": {
+          "emptyTitle": "No video jobs",
+          "emptyDescription": "The backend response was empty, or no job matches the current filters.",
+          "errorTitle": "Video jobs unavailable",
+          "loadingDescription": "Reading video processing jobs.",
+          "permissionTitle": "Video job read permission required",
+          "permissionDescription": "The current session does not have the tenant community_video:read grant.",
+          "retryPermissionTitle": "Read-only access",
+          "retryPermissionDescription": "The current session does not have the tenant community_video:retry grant.",
+          "storageUnavailableTitle": "Video job storage unavailable",
+          "storageUnavailableDescription": "The backend reports that community video jobs are not persisted yet. Run the community video job migration first."
         }
       },
       "reports": {

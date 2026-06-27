@@ -338,6 +338,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 	public.Use(middleware.RateLimit(middleware.RateLimitConfig{Enabled: true, Limit: 240, Window: time.Minute}))
 	public.Use(communitySetupGate(deps.CommunitySetupStatusProvider, deps.Logger))
 	specs := []routeSpec{
+		routeSpecFor("community.hls.asset", deps.CommunityHandler.VideoAsset),
+		routeSpecFor("community.source.asset", deps.CommunityHandler.SourceAsset),
 		routeSpecFor("community.home", deps.CommunityHandler.Home),
 		routeSpecFor("community.dynamics.list", deps.CommunityHandler.Dynamics),
 		routeSpecFor("community.dynamics.create", deps.CommunityHandler.CreateDynamic),
@@ -393,6 +395,7 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.account.notifications.read", deps.CommunityHandler.MarkAccountNotificationsRead),
 		routeSpecFor("community.account.submissions.list", deps.CommunityHandler.AccountSubmissions),
 		routeSpecFor("community.account.submissions.create", deps.CommunityHandler.CreateAccountSubmission),
+		routeSpecFor("community.account.submissions.upload", deps.CommunityHandler.UploadAccountSubmissionSource),
 		routeSpecFor("community.account.videos.interaction-state", deps.CommunityHandler.AccountVideoInteractionState),
 		routeSpecFor("community.account.videos.interactions.set", deps.CommunityHandler.SetAccountVideoInteraction),
 		routeSpecFor("community.account.videos.interactions.unset", deps.CommunityHandler.UnsetAccountVideoInteraction),
@@ -412,6 +415,10 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.accounts.update", deps.CommunityHandler.UpdateAccount),
 		routeSpecFor("community.submissions.review-list", deps.CommunityHandler.ReviewSubmissions),
 		routeSpecFor("community.submissions.review", deps.CommunityHandler.ReviewSubmission),
+		routeSpecFor("community.submissions.transcode", deps.CommunityHandler.TranscodeSubmission),
+		routeSpecFor("community.video-jobs.list", deps.CommunityHandler.VideoJobs),
+		routeSpecFor("community.video-jobs.get", deps.CommunityHandler.VideoJob),
+		routeSpecFor("community.video-jobs.retry", deps.CommunityHandler.RetryVideoJob),
 		routeSpecFor("community.reports.list", deps.CommunityHandler.Reports),
 		routeSpecFor("community.reports.review", deps.CommunityHandler.ReviewReport),
 	}

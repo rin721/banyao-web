@@ -19,6 +19,7 @@ export type {
   CommunityReportReceipt,
   CommunitySetupStatus,
   CommunitySignupRequest,
+  CommunitySubmissionUploadResult,
   CommunitySubmissionItem,
   CommunitySubmissionPayload,
   CommunitySubmissionStatus,

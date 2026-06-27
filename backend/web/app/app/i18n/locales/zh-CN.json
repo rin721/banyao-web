@@ -521,6 +521,7 @@
       "communityAccounts": "社区账号",
       "communitySubmissions": "投稿审核",
       "communityReports": "举报处理",
+      "communityVideoJobs": "视频处理任务",
       "media": "媒体",
       "versions": "版本",
       "mediaResumable": "断点续传"
@@ -2540,6 +2541,13 @@
         "rejected": "已驳回",
         "published": "已发布"
       },
+      "videoJobStatus": {
+        "queued": "排队中",
+        "running": "处理中",
+        "succeeded": "已成功",
+        "failed": "已失败",
+        "canceled": "已取消"
+      },
       "reportStatus": {
         "pending": "待处理",
         "resolved": "已处理",
@@ -2620,7 +2628,8 @@
         "empty": "后端没有返回投稿记录。",
         "actions": {
           "approve": "通过",
-          "reject": "驳回"
+          "reject": "驳回",
+          "publish": "转码并发布"
         },
         "metrics": {
           "total": "当前返回",
@@ -2653,7 +2662,10 @@
         "messages": {
           "reviewFailedTitle": "投稿《{{title}}》处理失败",
           "reviewSuccessTitle": "投稿状态已保存",
-          "reviewSuccessDescription": "《{{title}}》已更新为 {{status}}。"
+          "reviewSuccessDescription": "《{{title}}》已更新为 {{status}}。",
+          "publishFailedTitle": "投稿《{{title}}》发布失败",
+          "publishSuccessTitle": "视频处理任务已创建",
+          "publishSuccessDescription": "任务 {{id}} 当前状态为 {{status}}，成功后视频会出现在首页和视频详情页。"
         },
         "states": {
           "emptyTitle": "没有投稿数据",
@@ -2664,6 +2676,68 @@
           "permissionDescription": "当前会话缺少租户级 community_submission:review 权限。",
           "storageUnavailableTitle": "投稿存储不可用",
           "storageUnavailableDescription": "后端报告社区投稿尚未持久化，请先运行社区模块迁移。"
+        }
+      },
+      "videoJobs": {
+        "title": "视频处理任务",
+        "description": "查看社区投稿转码、HLS 切片和发布任务，失败任务会保留 FFmpeg 或云服务返回的真实原因。",
+        "badge": "社区视频",
+        "summaryLabel": "视频处理任务摘要",
+        "empty": "后端没有返回视频处理任务。",
+        "actions": {
+          "retry": "重试"
+        },
+        "metrics": {
+          "total": "当前返回",
+          "running": "处理中",
+          "succeeded": "已成功",
+          "failed": "已失败"
+        },
+        "filters": {
+          "title": "任务筛选",
+          "description": "按处理状态读取视频任务队列。",
+          "status": "处理状态",
+          "allStatuses": "全部状态"
+        },
+        "columns": {
+          "job": "任务",
+          "submission": "投稿 / 视频",
+          "status": "状态",
+          "progress": "进度",
+          "storage": "存储",
+          "output": "输出地址",
+          "error": "失败原因",
+          "createdAt": "创建时间",
+          "actions": "操作"
+        },
+        "labels": {
+          "asset": "媒体资产",
+          "provider": "服务提供方",
+          "renditions": "清晰度",
+          "source": "源文件",
+          "sourceStorage": "源文件存储",
+          "updatedAt": "更新时间"
+        },
+        "list": {
+          "title": "任务队列",
+          "description": "当前筛选返回 {{count}} 个视频处理任务。"
+        },
+        "messages": {
+          "retryFailedTitle": "任务 {{id}} 重试失败",
+          "retrySuccessTitle": "视频任务已重试",
+          "retrySuccessDescription": "新任务当前状态为 {{status}}。"
+        },
+        "states": {
+          "emptyTitle": "没有视频任务数据",
+          "emptyDescription": "审核通过后的投稿需要执行“转码并发布”才会创建任务。",
+          "errorTitle": "视频任务队列不可用",
+          "loadingDescription": "正在读取社区视频处理任务。",
+          "permissionTitle": "需要视频任务读取权限",
+          "permissionDescription": "当前会话缺少租户级 community_video:read 权限。",
+          "retryPermissionTitle": "只读访问",
+          "retryPermissionDescription": "当前会话缺少租户级 community_video:retry 权限。",
+          "storageUnavailableTitle": "视频任务存储不可用",
+          "storageUnavailableDescription": "后端报告视频任务尚未持久化，请先运行社区视频任务迁移。"
         }
       },
       "reports": {

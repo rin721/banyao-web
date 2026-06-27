@@ -2151,6 +2151,7 @@ var baseMenus = []model.MenuGroup{
 			{Code: "community-accounts", LabelKey: "system.menus.items.communityAccounts.label", Icon: "users-round", Path: "/community/accounts", Permission: "community_account:read", Scope: permissionScopeTenant, Order: 10},
 			{Code: "community-submissions", LabelKey: "system.menus.items.communitySubmissions.label", Icon: "clipboard-check", Path: "/community/submissions", Permission: "community_submission:review", Scope: permissionScopeTenant, Order: 20},
 			{Code: "community-reports", LabelKey: "system.menus.items.communityReports.label", Icon: "flag", Path: "/community/reports", Permission: "community_report:review", Scope: permissionScopeTenant, Order: 30},
+			{Code: "community-video-jobs", LabelKey: "system.menus.items.communityVideoJobs.label", Icon: "file-video", Path: "/community/video-jobs", Permission: "community_video:read", Scope: permissionScopeTenant, Order: 40},
 		},
 	},
 	{

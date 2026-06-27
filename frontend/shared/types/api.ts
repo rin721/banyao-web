@@ -266,11 +266,20 @@ export interface CreateCommunitySubmissionRequest {
   sourceName: string
   sourceSize: number
   sourceType: string
+  mediaAssetId?: string
   allowComments: boolean
   sensitive: boolean
 }
 
 export type CreateCommunityAccountSubmissionRequest = Omit<CreateCommunitySubmissionRequest, "authorName" | "clientId">
+
+export interface CommunitySubmissionUploadResult {
+  mediaAssetId: string
+  sourceName: string
+  sourceSize: number
+  sourceType: string
+  sourceUrl: string
+}
 
 export interface CommunitySubmissionItem {
   id: string

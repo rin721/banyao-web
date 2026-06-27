@@ -215,6 +215,38 @@ community:
       enabled: true
       cookie_name: community_csrf
       header_name: X-Community-CSRF-Token
+  video:
+    mode: local
+    local:
+      ffmpegPath: ffmpeg
+      ffprobePath: ffprobe
+      sourceRoot: community/sources
+      outputRoot: community/hls
+      publicBaseUrl: /api/v1/public/community/hls
+    hls:
+      segmentSeconds: 6
+      renditions:
+        - label: 360p
+          width: 640
+          height: 360
+          videoKbps: 800
+          audioKbps: 96
+        - label: 720p
+          width: 1280
+          height: 720
+          videoKbps: 2800
+          audioKbps: 128
+        - label: 1080p
+          width: 1920
+          height: 1080
+          videoKbps: 5000
+          audioKbps: 160
+    cloud:
+      provider: ""
+      objectStorage: ""
+      bucket: ""
+      cdnBaseUrl: ""
+      callbackSecret: ""
 
 migration:
   auto_apply: false

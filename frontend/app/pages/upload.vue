@@ -27,6 +27,7 @@ const submissionsError = ref<string | null>(null)
 const submissionsLoaded = ref(false)
 const submissionsPending = ref(false)
 const submitting = ref(false)
+const selectedSourceFile = shallowRef<File | null>(null)
 
 const { data: categories, error: categoriesError, pending: categoriesPending, refresh: refreshCategories } = useAsyncData(
   "upload-categories",
@@ -67,6 +68,12 @@ const lastSavedLabel = computed(() => activeDraft.value
   ? formatDate(activeDraft.value.updatedAt)
   : t("upload.emptyValue"))
 const communityAccountActive = computed(() => authSession.authenticated)
+const sourceFileMatchesDraft = computed(() => {
+  const file = selectedSourceFile.value
+  const source = activeDraft.value?.source
+
+  return Boolean(file && source && file.name === source.name && file.size === source.size)
+})
 const submissionAuthorField = computed({
   get: () => communityAccountActive.value
     ? authSession.session?.account.displayName || authSession.session?.account.handle || t("upload.fields.accountAuthor")
@@ -79,6 +86,7 @@ const submissionAuthorField = computed({
 })
 const canSubmit = computed(() => Boolean(
   activeDraft.value?.source &&
+  sourceFileMatchesDraft.value &&
   validation.value.ready &&
   (communityAccountActive.value || submissionAuthorName.value.trim()) &&
   !submitting.value
@@ -140,6 +148,9 @@ const submissionSummary = computed(() => submissionsError.value
       count: formatCount(submissions.value.length)
     }))
 const categoryStatusMessage = computed(() => categoriesError.value ? t("upload.categoryLoadError") : "")
+const sourceFileStatusMessage = computed(() => activeDraft.value?.source && !sourceFileMatchesDraft.value
+  ? t("upload.source.emptyDescription")
+  : "")
 
 const draftTitle = computed({
   get: () => activeDraft.value?.title || "",
@@ -176,6 +187,10 @@ watch(() => drafts.hydrated, (hydrated) => {
   }
 }, { immediate: true })
 
+watch(() => activeDraft.value?.id, () => {
+  selectedSourceFile.value = null
+})
+
 onMounted(() => {
   submissionAuthorName.value = submissionAuthorName.value || t("upload.defaultAuthor")
   void refreshSessionAndSubmissions()
@@ -188,6 +203,7 @@ function onFileSelected(files: File[]) {
     return
   }
 
+  selectedSourceFile.value = file
   drafts.setActiveSource({
     name: file.name,
     size: file.size,
@@ -239,25 +255,30 @@ async function submitActiveDraft() {
   submissionError.value = null
 
   try {
+    if (!communityAccountActive.value) {
+      submissionError.value = t("auth.login.description")
+      return
+    }
+    if (!selectedSourceFile.value || !sourceFileMatchesDraft.value) {
+      submissionError.value = t("upload.validation.sourceRequired")
+      return
+    }
+
+    const uploadedSource = await api.uploadCommunityAccountSubmissionSource(selectedSourceFile.value)
     const submission = {
       allowComments: draft.allowComments,
       categorySlug: draft.categorySlug,
       description: draft.description,
+      mediaAssetId: uploadedSource.mediaAssetId,
       sensitive: draft.sensitive,
-      sourceName: source.name,
-      sourceSize: source.size,
-      sourceType: source.type || "video/*",
+      sourceName: uploadedSource.sourceName || source.name,
+      sourceSize: uploadedSource.sourceSize || source.size,
+      sourceType: uploadedSource.sourceType || source.type || "video/*",
       tags: draft.tags,
       title: draft.title,
       visibility: draft.visibility as CommunitySubmissionVisibility
     }
-    const item = communityAccountActive.value
-      ? await api.createCommunityAccountSubmission(submission)
-      : await api.createCommunitySubmission({
-          ...submission,
-          authorName: submissionAuthorName.value.trim(),
-          clientId: ensureCommunityClientId()
-        })
+    const item = await api.createCommunityAccountSubmission(submission)
     submissionReceipt.value = item
     drafts.updateDraft(draft.id, {
       status: "submitted",
@@ -536,6 +557,13 @@ useHead(() => ({
               :replace-label="t('upload.source.replace')"
               @change="onFileSelected"
             />
+            <AoiStatusMessage
+              v-if="sourceFileStatusMessage"
+              intent="warning"
+              icon="file-warning"
+            >
+              {{ sourceFileStatusMessage }}
+            </AoiStatusMessage>
           </AoiSurface>
 
           <AoiSurface

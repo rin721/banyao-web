@@ -79,6 +79,13 @@ type Service interface {
 	ReviewCommunitySubmission(context.Context, authtypes.Principal, string, model.ReviewCommunitySubmissionRequest) (model.CommunitySubmissionItem, error)
 	ListCommunityAccountSubmissions(context.Context, authtypes.Principal, int) (model.CommunitySubmissionPayload, error)
 	CreateCommunityAccountSubmission(context.Context, authtypes.Principal, model.CreateCommunityAccountSubmissionRequest) (model.CommunitySubmissionItem, error)
+	UploadCommunityAccountSubmissionSource(context.Context, authtypes.Principal, UploadSourceInput) (model.CommunitySubmissionUploadResult, error)
+	CreateCommunitySubmissionTranscodeJob(context.Context, authtypes.Principal, string, model.CreateCommunityVideoJobRequest) (model.CommunityVideoJobItem, error)
+	ListCommunityVideoJobs(context.Context, model.CommunityVideoJobFilter) (model.CommunityVideoJobPayload, error)
+	GetCommunityVideoJob(context.Context, string) (model.CommunityVideoJobItem, error)
+	RetryCommunityVideoJob(context.Context, authtypes.Principal, string) (model.CommunityVideoJobItem, error)
+	GetCommunityVideoAsset(context.Context, string) (VideoAsset, error)
+	GetCommunitySourceAsset(context.Context, string) (VideoAsset, error)
 	FollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
 	FollowAccountCreator(context.Context, authtypes.Principal, string) (model.CreatorFollowState, error)
 	UnfollowCreator(context.Context, string, model.CreatorFollowRequest) (model.CreatorFollowState, error)
@@ -136,8 +143,16 @@ type Repository interface {
 	CreateCommunitySubmission(context.Context, model.CommunitySubmission) error
 	FindCommunitySubmission(context.Context, string) (*model.CommunitySubmission, error)
 	FindMediaAssetByID(context.Context, int64) (*model.CommunityMediaAsset, error)
+	CreateMediaAsset(context.Context, model.CommunityMediaAsset) error
 	CreateVideoFromSubmission(context.Context, model.Creator, model.Video, model.VideoSourceOption, []string, []string) error
+	CreateVideoFromSubmissionSources(context.Context, model.Creator, model.Video, []model.VideoSourceOption, []string, []string) error
 	UpdateCommunitySubmissionReview(context.Context, model.CommunitySubmission) error
+	CreateCommunityVideoJob(context.Context, model.CommunityVideoJob) error
+	UpdateCommunityVideoJob(context.Context, model.CommunityVideoJob) error
+	FindCommunityVideoJob(context.Context, string) (*model.CommunityVideoJob, error)
+	ListCommunityVideoJobs(context.Context, model.CommunityVideoJobFilter) ([]model.CommunityVideoJob, error)
+	CreateCommunityVideoRenditions(context.Context, []model.CommunityVideoRendition) error
+	ListCommunityVideoRenditions(context.Context, string) ([]model.CommunityVideoRendition, error)
 	FollowCreator(context.Context, model.CreatorFollow) error
 	SetVideoInteraction(context.Context, model.VideoInteraction) error
 	SetVideoHistory(context.Context, model.VideoHistory) error
@@ -171,6 +186,9 @@ type Config struct {
 	HomeAnnouncementProvider HomeAnnouncementProvider
 	NewID                    func() string
 	NewIntID                 func() int64
+	Storage                  MediaStorage
+	Video                    VideoConfig
+	VideoService             VideoService
 	Passwords                PasswordCrypto
 	AccessTokenTTL           time.Duration
 	RefreshTokenTTL          time.Duration
@@ -180,8 +198,9 @@ type Config struct {
 }
 
 type service struct {
-	cfg  Config
-	repo Repository
+	cfg   Config
+	repo  Repository
+	video VideoService
 }
 
 type PasswordCrypto interface {
@@ -225,7 +244,13 @@ func New(repo Repository, cfg Config) Service {
 	if strings.TrimSpace(cfg.BasePath) == "" {
 		cfg.BasePath = "/api/v1/public/community"
 	}
-	return &service{cfg: cfg, repo: repo}
+	svc := &service{cfg: cfg, repo: repo}
+	if cfg.VideoService != nil {
+		svc.video = cfg.VideoService
+	} else {
+		svc.video = newConfiguredVideoService(svc, cfg.Video)
+	}
+	return svc
 }
 
 func (s *service) SignupCommunityAccount(ctx context.Context, req model.CommunitySignupRequest, input SessionIssueInput) (model.CommunityAuthSessionSnapshot, SessionTokens, error) {
@@ -1554,6 +1579,25 @@ func (s *service) CreateCommunitySubmission(ctx context.Context, req model.Creat
 	if err != nil {
 		return model.CommunitySubmissionItem{}, err
 	}
+	mediaAssetID, err := normalizeSubmissionMediaAssetID(req.MediaAssetID)
+	if err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	if mediaAssetID > 0 {
+		asset, err := s.repo.FindMediaAssetByID(ctx, mediaAssetID)
+		if err != nil {
+			return model.CommunitySubmissionItem{}, mapStorageError(err)
+		}
+		if sourceName == "" {
+			sourceName = trimRunes(firstNonEmpty(asset.OriginalName, asset.DisplayName), 240)
+		}
+		if sourceType == "" {
+			sourceType = trimRunes(asset.MIMEType, 120)
+		}
+		if req.SourceSize <= 0 {
+			req.SourceSize = asset.SizeBytes
+		}
+	}
 	tags := normalizeSubmissionTags(req.Tags)
 	tagsJSON, err := encodeSubmissionTags(tags)
 	if err != nil {
@@ -1575,6 +1619,7 @@ func (s *service) CreateCommunitySubmission(ctx context.Context, req model.Creat
 		SourceName:    sourceName,
 		SourceSize:    req.SourceSize,
 		SourceType:    sourceType,
+		MediaAssetID:  mediaAssetID,
 		AllowComments: req.AllowComments,
 		Sensitive:     req.Sensitive,
 		Status:        model.CommunitySubmissionStatusPendingReview,
@@ -1719,6 +1764,7 @@ func (s *service) CreateCommunityAccountSubmission(ctx context.Context, principa
 		SourceName:    req.SourceName,
 		SourceSize:    req.SourceSize,
 		SourceType:    req.SourceType,
+		MediaAssetID:  req.MediaAssetID,
 		Tags:          req.Tags,
 		Title:         req.Title,
 		Visibility:    req.Visibility,

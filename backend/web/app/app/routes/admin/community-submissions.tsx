@@ -81,6 +81,11 @@ export default function AdminCommunitySubmissionsRoute() {
     productCode: productCode || undefined,
     scope: "tenant",
   });
+  const canTranscodeSubmissions = hasSessionPermission(permissions, {
+    code: "community_video:transcode",
+    productCode: productCode || undefined,
+    scope: "tenant",
+  });
 
   const submissionsQueryKey = queryKeys.community.submissions(i18n.language, {
     ...filters,
@@ -114,6 +119,32 @@ export default function AdminCommunitySubmissionsRoute() {
           title: submission.title,
         }),
         title: t("admin.community.submissions.messages.reviewSuccessTitle"),
+      });
+    },
+  });
+
+  const transcodeSubmissionMutation = useMutation({
+    mutationFn: (submission: CommunitySubmission) =>
+      communityApi.transcodeSubmission(submission.id, {}),
+    onError: (error, submission) => {
+      setNotice({
+        description: adminErrorDescription(error, t, submissionErrorCopy),
+        intent: "danger",
+        title: t("admin.community.submissions.messages.publishFailedTitle", {
+          title: submission.title,
+        }),
+      });
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.community.root });
+    },
+    onSuccess: (job) => {
+      setNotice({
+        description: t("admin.community.submissions.messages.publishSuccessDescription", {
+          id: job.id,
+          status: videoJobStatusLabel(job.status, t),
+        }),
+        title: t("admin.community.submissions.messages.publishSuccessTitle"),
       });
     },
   });
@@ -191,19 +222,25 @@ export default function AdminCommunitySubmissionsRoute() {
         cell: ({ row }) => (
           <SubmissionReviewControls
             canReview={canReviewSubmissions}
+            canTranscode={canTranscodeSubmissions}
             isSaving={
               reviewSubmissionMutation.isPending &&
               sameCommunityID(reviewSubmissionMutation.variables?.submission.id, row.original.id)
             }
+            isTranscoding={
+              transcodeSubmissionMutation.isPending &&
+              sameCommunityID(transcodeSubmissionMutation.variables?.id, row.original.id)
+            }
             permissionTitle={t("admin.community.submissions.states.permissionDescription")}
             submission={row.original}
             onReview={(input) => reviewSubmissionMutation.mutate(input)}
+            onTranscode={(submission) => transcodeSubmissionMutation.mutate(submission)}
           />
         ),
         header: t("admin.community.submissions.columns.actions"),
       },
     ],
-    [canReviewSubmissions, i18n.language, reviewSubmissionMutation, t],
+    [canReviewSubmissions, canTranscodeSubmissions, i18n.language, reviewSubmissionMutation, t, transcodeSubmissionMutation],
   );
 
   const submitFilters = (event: FormEvent<HTMLFormElement>) => {
@@ -351,16 +388,22 @@ export default function AdminCommunitySubmissionsRoute() {
 
 type SubmissionReviewControlsProps = {
   canReview: boolean;
+  canTranscode: boolean;
   isSaving: boolean;
+  isTranscoding: boolean;
   onReview: (input: SubmissionReviewInput) => void;
+  onTranscode: (submission: CommunitySubmission) => void;
   permissionTitle: string;
   submission: CommunitySubmission;
 };
 
 function SubmissionReviewControls({
   canReview,
+  canTranscode,
   isSaving,
+  isTranscoding,
   onReview,
+  onTranscode,
   permissionTitle,
   submission,
 }: SubmissionReviewControlsProps) {
@@ -369,6 +412,8 @@ function SubmissionReviewControls({
   const published = submission.status === "published";
   const disabled = !canReview || isSaving || published;
   const rejectDisabled = disabled || reviewNote.trim().length === 0;
+  const canPublish =
+    canTranscode && submission.status === "approved" && Boolean(submission.mediaAssetId);
 
   return (
     <div className="console-community-review-actions">
@@ -417,6 +462,16 @@ function SubmissionReviewControls({
         >
           {t("admin.community.submissions.actions.reject")}
         </Button>
+        <Button
+          appearance="secondary"
+          disabled={!canPublish || isTranscoding}
+          icon={<FileVideo size={16} />}
+          loading={isTranscoding}
+          title={!canTranscode ? permissionTitle : undefined}
+          onClick={() => onTranscode(submission)}
+        >
+          {t("admin.community.submissions.actions.publish")}
+        </Button>
       </div>
     </div>
   );
@@ -451,6 +506,22 @@ function submissionStatusLabel(status: string, t: (key: string) => string) {
     return t("admin.community.submissionStatus.rejected");
   }
   return t("admin.community.submissionStatus.pending_review");
+}
+
+function videoJobStatusLabel(status: string, t: (key: string) => string) {
+  if (status === "failed") {
+    return t("admin.community.videoJobStatus.failed");
+  }
+  if (status === "running") {
+    return t("admin.community.videoJobStatus.running");
+  }
+  if (status === "succeeded") {
+    return t("admin.community.videoJobStatus.succeeded");
+  }
+  if (status === "canceled") {
+    return t("admin.community.videoJobStatus.canceled");
+  }
+  return t("admin.community.videoJobStatus.queued");
 }
 
 function formatBytes(value: number | string, locale: string) {
