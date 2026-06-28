@@ -924,15 +924,25 @@ func (p localVideoProvider) Transcode(ctx context.Context, job model.CommunityVi
 		}
 		segmentPattern := filepath.Join(renditionDir, "segment_%03d.ts")
 		playlistPath := filepath.Join(renditionDir, "index.m3u8")
-		filter := fmt.Sprintf("scale=w=%d:h=%d:force_original_aspect_ratio=decrease", rendition.Width, rendition.Height)
+		// scale to target dimensions while preserving aspect ratio, then pad to
+		// even width/height so libx264 never hits "width/height not divisible by 2".
+		filter := fmt.Sprintf(
+			"scale=w=%d:h=%d:force_original_aspect_ratio=decrease,pad=ceil(iw/2)*2:ceil(ih/2)*2",
+			rendition.Width, rendition.Height,
+		)
 		if err := runCommand(ctx, ffmpeg,
 			"-y",
 			"-i", inputPath,
+			// map video; use optional audio mapping so files without an audio
+			// stream still succeed instead of failing with "no streams".
+			"-map", "0:v:0",
+			"-map", "0:a?",
 			"-vf", filter,
 			"-c:v", "libx264",
 			"-preset", "veryfast",
 			"-b:v", strconv.Itoa(rendition.VideoKbps)+"k",
 			"-c:a", "aac",
+			"-ac", "2",
 			"-b:a", strconv.Itoa(firstPositive(rendition.AudioKbps, 128))+"k",
 			"-f", "hls",
 			"-hls_time", strconv.Itoa(p.cfg.HLS.SegmentSeconds),
@@ -942,6 +952,7 @@ func (p localVideoProvider) Transcode(ctx context.Context, job model.CommunityVi
 		); err != nil {
 			return videoTranscodeResult{}, fmt.Errorf("generate %s rendition: %w", label, err)
 		}
+
 		playlistKey := cleanStorageKey(outputKey, label, "index.m3u8")
 		renditions = append(renditions, model.CommunityVideoRendition{
 			ID:           "rendition-" + shortHash(job.ID+":"+label),
@@ -1092,7 +1103,14 @@ func runCommand(ctx context.Context, name string, args ...string) error {
 	if err := cmd.Run(); err != nil {
 		message := strings.TrimSpace(stderr.String())
 		if message != "" {
-			return fmt.Errorf("%w: %s", err, trimRunes(message, 800))
+			// FFmpeg prints version/build info first; real error is at the end.
+			// Keep the tail (up to 1600 runes) so the actual failure reason is visible.
+			runes := []rune(message)
+			const maxRunes = 1600
+			if len(runes) > maxRunes {
+				message = "..." + string(runes[len(runes)-maxRunes:])
+			}
+			return fmt.Errorf("%w: %s", err, message)
 		}
 		return err
 	}
