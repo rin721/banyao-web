@@ -403,6 +403,12 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.account.videos.history.record", deps.CommunityHandler.RecordAccountHistory),
 		routeSpecFor("community.account.videos.comments.update", deps.CommunityHandler.UpdateAccountVideoComment),
 		routeSpecFor("community.account.videos.comments.delete", deps.CommunityHandler.DeleteAccountVideoComment),
+		// account profile management
+		routeSpecFor("community.account.profile.get", deps.CommunityHandler.AccountProfile),
+		routeSpecFor("community.account.profile.update", deps.CommunityHandler.UpdateAccountProfile),
+		routeSpecFor("community.account.creator-profile.update", deps.CommunityHandler.UpdateAccountCreatorProfile),
+		routeSpecFor("community.account.change-password", deps.CommunityHandler.ChangeAccountPassword),
+		routeSpecFor("community.account.submissions.get", deps.CommunityHandler.AccountSubmission),
 	}
 	registerRouteSpecs(account, appconstants.APIPath("public", "community", "account"), accountSpecs)
 	registered = append(registered, routeContractsFromSpecs(accountSpecs)...)

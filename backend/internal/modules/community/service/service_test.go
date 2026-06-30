@@ -1463,6 +1463,16 @@ func (r *fakeRepository) FindCreatorByHandle(_ context.Context, handle string) (
 	return nil, ErrNotFound
 }
 
+func (r *fakeRepository) UpdateCreator(_ context.Context, creator model.Creator) error {
+	for i, c := range r.creators {
+		if c.Handle == creator.Handle {
+			r.creators[i] = creator
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
 func (r *fakeRepository) FindCreatorFollow(_ context.Context, creatorID string, clientID string) (*model.CreatorFollow, error) {
 	for _, follow := range r.follows[clientID] {
 		if follow.CreatorID == creatorID && follow.DeletedAt == nil {

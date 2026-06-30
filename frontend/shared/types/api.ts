@@ -506,3 +506,32 @@ export interface HomePayload {
   latest: PageResult<VideoSummary>
   dynamics: PageResult<CommunityDynamicItem>
 }
+
+/** 个人主页中心 — 账号资料 */
+export interface AccountProfileResponse {
+  id: string
+  handle: string
+  email: string
+  displayName: string
+  role: string
+  status: string
+  lastLoginAt?: string | null
+  createdAt: string
+  /** 仅创作者（role==="creator"）时出现 */
+  bio?: string | null
+  avatarUrl?: string | null
+}
+
+export interface UpdateAccountProfileRequest {
+  displayName: string
+}
+
+export interface UpdateAccountCreatorProfileRequest {
+  bio?: string | null
+  avatarUrl?: string | null
+}
+
+export interface ChangeAccountPasswordRequest {
+  currentPassword: string
+  newPassword: string
+}

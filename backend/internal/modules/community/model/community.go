@@ -1002,3 +1002,35 @@ type VideoCommentFilter struct {
 	Limit    int
 	Sort     string
 }
+
+// AccountProfileResponse 是已登录社区账号读取自身资料的响应体。
+type AccountProfileResponse struct {
+	ID          string     `json:"id"`
+	Handle      string     `json:"handle"`
+	Email       string     `json:"email"`
+	DisplayName string     `json:"displayName"`
+	Role        string     `json:"role"`
+	Status      string     `json:"status"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	// Creator fields — only populated when role == "creator"
+	Bio       *string `json:"bio,omitempty"`
+	AvatarURL *string `json:"avatarUrl,omitempty"`
+}
+
+// UpdateAccountProfileRequest 允许社区账号更新昵称。
+type UpdateAccountProfileRequest struct {
+	DisplayName string `json:"displayName"`
+}
+
+// UpdateAccountCreatorProfileRequest 允许创作者更新个人简介和头像 URL。
+type UpdateAccountCreatorProfileRequest struct {
+	Bio       *string `json:"bio,omitempty"`
+	AvatarURL *string `json:"avatarUrl,omitempty"`
+}
+
+// ChangeAccountPasswordRequest 用于社区账号修改登录密码。
+type ChangeAccountPasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}

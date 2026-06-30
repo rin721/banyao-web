@@ -38,7 +38,7 @@ export function useAoiNavigation() {
 
   const secondaryItems = computed<AoiNavigationItem[]>(() => [
     authSession.authenticated
-      ? { icon: "circle-user-round", label: t("nav.account"), to: "/login", active: isActive("/login") || isActive("/register") }
+      ? { icon: "circle-user-round", label: t("nav.account"), to: "/me", active: isActive("/me") }
       : { icon: "log-in", label: t("nav.login"), to: "/login", active: isActive("/login") || isActive("/register") },
     { icon: "settings", label: t("nav.settings"), to: "/settings", active: isActive("/settings") }
   ])

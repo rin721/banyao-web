@@ -109,7 +109,14 @@ type Service interface {
 	DeleteAccountVideoComment(context.Context, authtypes.Principal, string, string) (model.DeleteVideoCommentResult, error)
 	CreateVideoDanmaku(context.Context, string, model.CreateVideoDanmakuRequest) (model.VideoDanmakuItem, error)
 	CreateVideoReport(context.Context, string, model.CreateVideoReportRequest) (model.CommunityReportReceipt, error)
+	// Account profile management — authenticated-only.
+	GetCommunityAccountProfile(context.Context, authtypes.Principal) (model.AccountProfileResponse, error)
+	UpdateCommunityAccountProfile(context.Context, authtypes.Principal, model.UpdateAccountProfileRequest) (model.AccountProfileResponse, error)
+	UpdateCommunityAccountCreatorProfile(context.Context, authtypes.Principal, model.UpdateAccountCreatorProfileRequest) (model.AccountProfileResponse, error)
+	ChangeAccountPassword(context.Context, authtypes.Principal, model.ChangeAccountPasswordRequest) error
+	GetCommunityAccountSubmission(context.Context, authtypes.Principal, string) (model.CommunitySubmissionItem, error)
 }
+
 
 // Repository 是社区服务需要的最小持久化端口。
 type Repository interface {
@@ -128,6 +135,7 @@ type Repository interface {
 	FindCommunityReport(context.Context, string) (*model.CommunityReport, error)
 	UpdateCommunityReportReview(context.Context, model.CommunityReport) error
 	FindCreatorByHandle(context.Context, string) (*model.Creator, error)
+	UpdateCreator(context.Context, model.Creator) error
 	FindCreatorFollow(context.Context, string, string) (*model.CreatorFollow, error)
 	FindVideoComment(context.Context, string, string) (*model.VideoComment, error)
 	FindVideoByIDOrSlug(context.Context, string) (*model.Video, error)
@@ -3495,4 +3503,172 @@ func (s *service) newSubmissionID() string {
 		return raw
 	}
 	return "submission-" + raw
+}
+
+// ── Account Profile Management ─────────────────────────────────────────────
+
+// GetCommunityAccountProfile 返回当前登录账号的完整资料，若 role == "creator" 则附加 bio 和 avatarUrl。
+func (s *service) GetCommunityAccountProfile(ctx context.Context, principal authtypes.Principal) (model.AccountProfileResponse, error) {
+	if s.repo == nil {
+		return model.AccountProfileResponse{}, ErrStorageUnavailable
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.AccountProfileResponse{}, mapStorageError(err)
+	}
+	resp := accountProfileResponse(*account)
+	// If the account is a creator, enrich with creator bio/avatar.
+	if account.Role == model.CommunityAccountRoleCreator {
+		creator, cerr := s.repo.FindCreatorByHandle(ctx, account.Handle)
+		if cerr == nil {
+			resp.Bio = creator.Bio
+			resp.AvatarURL = creator.UserSummary.AvatarURL
+		}
+	}
+	return resp, nil
+}
+
+// UpdateCommunityAccountProfile 更新当前账号的昵称。
+func (s *service) UpdateCommunityAccountProfile(ctx context.Context, principal authtypes.Principal, req model.UpdateAccountProfileRequest) (model.AccountProfileResponse, error) {
+	if s.repo == nil {
+		return model.AccountProfileResponse{}, ErrStorageUnavailable
+	}
+	displayName := strings.TrimSpace(req.DisplayName)
+	if displayName == "" {
+		return model.AccountProfileResponse{}, ErrInvalidInput
+	}
+	if len([]rune(displayName)) > 120 {
+		return model.AccountProfileResponse{}, ErrInvalidInput
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.AccountProfileResponse{}, mapStorageError(err)
+	}
+	account.DisplayName = displayName
+	account.UpdatedAt = s.now()
+	if err := s.repo.UpdateCommunityAccount(ctx, *account); err != nil {
+		return model.AccountProfileResponse{}, mapStorageError(err)
+	}
+	resp := accountProfileResponse(*account)
+	if account.Role == model.CommunityAccountRoleCreator {
+		creator, cerr := s.repo.FindCreatorByHandle(ctx, account.Handle)
+		if cerr == nil {
+			resp.Bio = creator.Bio
+			resp.AvatarURL = creator.UserSummary.AvatarURL
+		}
+	}
+	return resp, nil
+}
+
+// UpdateCommunityAccountCreatorProfile 更新创作者的 bio 和 avatarUrl；非创作者账号返回 ErrForbidden。
+func (s *service) UpdateCommunityAccountCreatorProfile(ctx context.Context, principal authtypes.Principal, req model.UpdateAccountCreatorProfileRequest) (model.AccountProfileResponse, error) {
+	if s.repo == nil {
+		return model.AccountProfileResponse{}, ErrStorageUnavailable
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.AccountProfileResponse{}, mapStorageError(err)
+	}
+	if account.Role != model.CommunityAccountRoleCreator {
+		return model.AccountProfileResponse{}, ErrForbidden
+	}
+	creator, err := s.repo.FindCreatorByHandle(ctx, account.Handle)
+	if err != nil {
+		return model.AccountProfileResponse{}, mapStorageError(err)
+	}
+	if req.Bio != nil {
+		bio := trimRunes(*req.Bio, 640)
+		creator.Bio = &bio
+	}
+	if req.AvatarURL != nil {
+		avatar := trimRunes(*req.AvatarURL, 512)
+		creator.UserSummary.AvatarURL = &avatar
+	}
+	creator.UpdatedAt = s.now()
+	if err := s.repo.UpdateCreator(ctx, *creator); err != nil {
+		return model.AccountProfileResponse{}, mapStorageError(err)
+	}
+	resp := accountProfileResponse(*account)
+	resp.Bio = creator.Bio
+	resp.AvatarURL = creator.UserSummary.AvatarURL
+	return resp, nil
+}
+
+// ChangeAccountPassword 验证当前密码后更新为新密码。
+func (s *service) ChangeAccountPassword(ctx context.Context, principal authtypes.Principal, req model.ChangeAccountPasswordRequest) error {
+	if s.repo == nil || s.cfg.Passwords == nil {
+		return ErrStorageUnavailable
+	}
+	currentPassword := strings.TrimSpace(req.CurrentPassword)
+	newPassword := strings.TrimSpace(req.NewPassword)
+	if currentPassword == "" || newPassword == "" {
+		return ErrInvalidInput
+	}
+	if len(newPassword) < 8 {
+		return ErrInvalidInput
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return mapStorageError(err)
+	}
+	if err := s.cfg.Passwords.VerifyPassword(account.PasswordHash, currentPassword); err != nil {
+		return ErrUnauthorized
+	}
+	hash, err := s.cfg.Passwords.HashPassword(newPassword)
+	if err != nil {
+		return ErrInvalidInput
+	}
+	account.PasswordHash = hash
+	account.UpdatedAt = s.now()
+	return mapStorageError(s.repo.UpdateCommunityAccount(ctx, *account))
+}
+
+// GetCommunityAccountSubmission 获取当前账号的单条投稿详情。
+func (s *service) GetCommunityAccountSubmission(ctx context.Context, principal authtypes.Principal, submissionID string) (model.CommunitySubmissionItem, error) {
+	if s.repo == nil {
+		return model.CommunitySubmissionItem{}, ErrStorageUnavailable
+	}
+	clientID, err := s.accountClientID(ctx, principal)
+	if err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	sub, err := s.repo.FindCommunitySubmission(ctx, strings.TrimSpace(submissionID))
+	if err != nil {
+		return model.CommunitySubmissionItem{}, mapStorageError(err)
+	}
+	if sub.ClientID != clientID {
+		return model.CommunitySubmissionItem{}, ErrForbidden
+	}
+	items, err := s.decorateSubmissions(ctx, []model.CommunitySubmission{*sub})
+	if err != nil {
+		return model.CommunitySubmissionItem{}, err
+	}
+	if len(items) == 0 {
+		return model.CommunitySubmissionItem{}, ErrNotFound
+	}
+	return items[0], nil
+}
+
+
+// accountClientID derives the community client ID string from the authenticated principal.
+func (s *service) accountClientID(ctx context.Context, principal authtypes.Principal) (string, error) {
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return "", mapStorageError(err)
+	}
+	return "account-" + account.Handle, nil
+}
+
+// accountProfileResponse maps a CommunityAccount to the AccountProfileResponse DTO.
+func accountProfileResponse(account model.CommunityAccount) model.AccountProfileResponse {
+	return model.AccountProfileResponse{
+		ID:          strconv.FormatInt(account.ID, 10),
+		Handle:      account.Handle,
+		Email:       account.Email,
+		DisplayName: account.DisplayName,
+		Role:        account.Role,
+		Status:      account.Status,
+		LastLoginAt: account.LastLoginAt,
+		CreatedAt:   account.CreatedAt,
+	}
 }

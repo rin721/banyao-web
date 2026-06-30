@@ -1055,3 +1055,71 @@ func writeOK(c ports.HTTPContext, data any, err error, writeError func(ports.HTT
 	}
 	result.OK(c, data)
 }
+
+// ── Account Profile Handlers ───────────────────────────────────────────────
+
+// AccountProfile handles GET /public/community/account/profile
+func (h *Handler) AccountProfile(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	profile, err := h.service.GetCommunityAccountProfile(c.RequestContext(), principal)
+	writeOK(c, profile, err, h.writeError)
+}
+
+// UpdateAccountProfile handles PATCH /public/community/account/profile
+func (h *Handler) UpdateAccountProfile(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.UpdateAccountProfileRequest
+	if !bind(c, &req) {
+		return
+	}
+	profile, err := h.service.UpdateCommunityAccountProfile(c.RequestContext(), principal, req)
+	writeOK(c, profile, err, h.writeError)
+}
+
+// UpdateAccountCreatorProfile handles PATCH /public/community/account/creator-profile
+func (h *Handler) UpdateAccountCreatorProfile(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.UpdateAccountCreatorProfileRequest
+	if !bind(c, &req) {
+		return
+	}
+	profile, err := h.service.UpdateCommunityAccountCreatorProfile(c.RequestContext(), principal, req)
+	writeOK(c, profile, err, h.writeError)
+}
+
+// ChangeAccountPassword handles POST /public/community/account/change-password
+func (h *Handler) ChangeAccountPassword(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	var req model.ChangeAccountPasswordRequest
+	if !bind(c, &req) {
+		return
+	}
+	err := h.service.ChangeAccountPassword(c.RequestContext(), principal, req)
+	if err != nil {
+		h.writeError(c, err)
+		return
+	}
+	result.OK(c, map[string]bool{"changed": true})
+}
+
+// AccountSubmission handles GET /public/community/account/submissions/:submissionId
+func (h *Handler) AccountSubmission(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	item, err := h.service.GetCommunityAccountSubmission(c.RequestContext(), principal, c.Param("submissionId"))
+	writeOK(c, item, err, h.writeError)
+}

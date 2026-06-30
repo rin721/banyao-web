@@ -6525,6 +6525,176 @@
       "tags":
         - "Announcements"
       "x-scope": "platform"
+  "/api/v1/public/community/account/change-password":
+    "post":
+      "operationId": "community.account.change-password"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "currentPassword":
+                  "type": "string"
+                "newPassword":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "additionalProperties": true
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "修改当前社区账号登录密码"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+  "/api/v1/public/community/account/creator-profile":
+    "patch":
+      "operationId": "community.account.creator-profile.update"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "avatarUrl":
+                  "type": "string"
+                "bio":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "avatarUrl":
+                        "type": "string"
+                      "bio":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "displayName":
+                        "type": "string"
+                      "email":
+                        "type": "string"
+                      "handle":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "lastLoginAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "role":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "更新当前创作者简介和头像"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
   "/api/v1/public/community/account/dynamics":
     "post":
       "operationId": "community.account.dynamics.create"
@@ -7985,6 +8155,184 @@
       "tags":
         - "Community"
       "x-scope": "tenant"
+  "/api/v1/public/community/account/profile":
+    "get":
+      "operationId": "community.account.profile.get"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "avatarUrl":
+                        "type": "string"
+                      "bio":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "displayName":
+                        "type": "string"
+                      "email":
+                        "type": "string"
+                      "handle":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "lastLoginAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "role":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询当前社区账号资料"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+    "patch":
+      "operationId": "community.account.profile.update"
+      "requestBody":
+        "content":
+          "application/json":
+            "schema":
+              "properties":
+                "displayName":
+                  "type": "string"
+              "type": "object"
+        "required": true
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "avatarUrl":
+                        "type": "string"
+                      "bio":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "displayName":
+                        "type": "string"
+                      "email":
+                        "type": "string"
+                      "handle":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "lastLoginAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "role":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "更新当前社区账号昵称"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
   "/api/v1/public/community/account/submissions":
     "get":
       "operationId": "community.account.submissions.list"
@@ -8453,6 +8801,176 @@
                 "$ref": "#/components/schemas/ErrorResult"
           "description": "Internal server error"
       "summary": "上传社区投稿源视频文件"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
+  "/api/v1/public/community/account/submissions/{submissionId}":
+    "get":
+      "operationId": "community.account.submissions.get"
+      "parameters":
+        -
+          "in": "path"
+          "name": "submissionId"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "allowComments":
+                        "type": "boolean"
+                      "authorName":
+                        "type": "string"
+                      "category":
+                        "properties":
+                          "accentColor":
+                            "type": "string"
+                          "description":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                          "name":
+                            "type": "string"
+                          "order":
+                            "format": "int32"
+                            "type": "integer"
+                          "parentSlug":
+                            "type": "string"
+                          "slug":
+                            "type": "string"
+                        "type": "object"
+                      "categorySlug":
+                        "type": "string"
+                      "clientId":
+                        "type": "string"
+                      "createdAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "description":
+                        "type": "string"
+                      "id":
+                        "type": "string"
+                      "latestVideoJob":
+                        "properties":
+                          "createdAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "errorMessage":
+                            "type": "string"
+                          "failureCode":
+                            "type": "string"
+                          "finishedAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                          "outputPublicUrl":
+                            "type": "string"
+                          "progress":
+                            "format": "int32"
+                            "type": "integer"
+                          "startedAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "status":
+                            "type": "string"
+                          "updatedAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "videoId":
+                            "type": "string"
+                        "type": "object"
+                      "mediaAssetId":
+                        "format": "int64"
+                        "type": "integer"
+                      "publishedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "publishedVideoId":
+                        "type": "string"
+                      "reviewNote":
+                        "type": "string"
+                      "reviewedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "reviewerId":
+                        "type": "string"
+                      "sensitive":
+                        "type": "boolean"
+                      "sourceName":
+                        "type": "string"
+                      "sourceSize":
+                        "format": "int64"
+                        "type": "integer"
+                      "sourceType":
+                        "type": "string"
+                      "status":
+                        "type": "string"
+                      "tags":
+                        "items":
+                          "type": "string"
+                        "type": "array"
+                      "title":
+                        "type": "string"
+                      "updatedAt":
+                        "format": "date-time"
+                        "type": "string"
+                      "visibility":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "查询当前社区账号单条投稿"
       "tags":
         - "Community"
       "x-scope": "tenant"

@@ -220,6 +220,22 @@ func (r *repository) FindCreatorByHandle(ctx context.Context, handle string) (*m
 	return &creator, nil
 }
 
+func (r *repository) UpdateCreator(ctx context.Context, creator model.Creator) error {
+	result, err := r.db.Update(ctx, &model.Creator{}, map[string]any{
+		"display_name": creator.UserSummary.DisplayName,
+		"avatar_url":   creator.UserSummary.AvatarURL,
+		"bio":          creator.Bio,
+		"updated_at":   creator.UpdatedAt,
+	}, database.Where("handle = ?", creator.UserSummary.Handle), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
 func (r *repository) FindCreatorFollow(ctx context.Context, creatorID string, clientID string) (*model.CreatorFollow, error) {
 	var follow model.CreatorFollow
 	err := r.db.First(ctx, &follow, database.Where("creator_id = ? AND client_id = ?", creatorID, clientID), alive())

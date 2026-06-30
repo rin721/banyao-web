@@ -1,8 +1,10 @@
 import type {
+  AccountProfileResponse,
   AoiApiErrorPayload,
   ApiResultEnvelope,
   ApiStatus,
   CategoryTreeNode,
+  ChangeAccountPasswordRequest,
   CommunityDynamicItem,
   CommunityDynamicPayload,
   CommunityNotificationPayload,
@@ -30,6 +32,8 @@ import type {
   HomePayload,
   PageResult,
   SearchPayload,
+  UpdateAccountCreatorProfileRequest,
+  UpdateAccountProfileRequest,
   UpdateCommunityDynamicRequest,
   UpdateVideoCommentRequest,
   VideoComment,
@@ -437,6 +441,37 @@ export function useAoiApi() {
     })
   }
 
+  // ── Account Profile Management ──────────────────────────────────────────
+
+  async function getAccountProfile(): Promise<AccountProfileResponse> {
+    return await request<AccountProfileResponse>("/account/profile")
+  }
+
+  async function updateAccountProfile(body: UpdateAccountProfileRequest): Promise<AccountProfileResponse> {
+    return await request<AccountProfileResponse>("/account/profile", {
+      body,
+      method: "PATCH"
+    })
+  }
+
+  async function updateAccountCreatorProfile(body: UpdateAccountCreatorProfileRequest): Promise<AccountProfileResponse> {
+    return await request<AccountProfileResponse>("/account/creator-profile", {
+      body,
+      method: "PATCH"
+    })
+  }
+
+  async function changeAccountPassword(body: ChangeAccountPasswordRequest): Promise<{ changed: boolean }> {
+    return await request<{ changed: boolean }>("/account/change-password", {
+      body,
+      method: "POST"
+    })
+  }
+
+  async function getAccountSubmission(submissionId: string): Promise<CommunitySubmissionItem> {
+    return await request<CommunitySubmissionItem>(`/account/submissions/${encodeURIComponent(submissionId)}`)
+  }
+
   async function getCategory(slug: string): Promise<CategoryTreeNode | null> {
     const categories = await listCategories()
 
@@ -497,7 +532,13 @@ export function useAoiApi() {
     unfollowAccountCreator,
     unfollowCreator,
     unsetAccountVideoInteraction,
-    unsetVideoInteraction
+    unsetVideoInteraction,
+    // account profile
+    getAccountProfile,
+    updateAccountProfile,
+    updateAccountCreatorProfile,
+    changeAccountPassword,
+    getAccountSubmission
   }
 }
 
