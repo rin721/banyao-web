@@ -7,6 +7,9 @@
 在项目根目录下执行以下命令构建全栈镜像：
 
 ```bash
+git clone https://github.com/rin721/community-go.git /tmp/aoi
+
+cd /tmp/aoi
 docker build -t aoi:latest .
 ```
 
