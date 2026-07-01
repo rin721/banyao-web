@@ -702,7 +702,7 @@ defineExpose({
   >
     <template #overlay="{ state, selectedSource, controls }">
       <div v-if="(state.isLoading || state.engineAttaching) && !state.hasError" class="aoi-danmaku-video-player__overlay" @click.stop>
-        <AoiProgress indeterminate />
+        <AoiIcon name="loader-circle" class="aoi-spin" :size="32" decorative />
         <span>{{ t("player.loading") }}</span>
       </div>
 

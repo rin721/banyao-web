@@ -926,7 +926,7 @@ defineExpose({
                   @error="onImageError"
                 >
                 <div v-if="imageLoading" class="aoi-lightbox__state">
-                  <AoiProgress type="circular" indeterminate />
+                  <AoiIcon name="loader-circle" class="aoi-spin" :size="30" decorative />
                   <span>{{ resolvedLabels.loading }}</span>
                 </div>
               </template>
@@ -967,7 +967,7 @@ defineExpose({
                     </span>
                   </button>
                   <div v-if="videoLoading && !videoFailed" class="aoi-lightbox__state">
-                    <AoiProgress type="circular" indeterminate />
+                    <AoiIcon name="loader-circle" class="aoi-spin" :size="30" decorative />
                     <span>{{ resolvedLabels.loading }}</span>
                   </div>
                   <div v-else-if="videoFailed" class="aoi-lightbox__state">

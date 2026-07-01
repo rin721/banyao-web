@@ -26,10 +26,25 @@ onMounted(() => {
 
 <template>
   <div class="me-following-subpage">
-    <div v-if="followingPending" class="me-loading-wrapper">
-      <AoiProgress indeterminate />
-      <span class="me-loading-text">正在加载关注列表...</span>
-    </div>
+    <AoiReveal v-if="followingPending" variant="pop" duration="400">
+      <div class="me-skeleton-following">
+        <AoiSkeletonGroup layout="grid" columns="repeat(auto-fill, minmax(280px, 1fr))" gap="var(--aoi-grid-gap)">
+          <AoiSurface
+            v-for="i in 6"
+            :key="i"
+            surface="panel"
+            padding="md"
+            style="display: flex; align-items: center; gap: 16px;"
+          >
+            <AoiSkeleton shape="circle" width="48px" height="48px" />
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+              <AoiSkeleton width="120px" height="18px" radius="4px" />
+              <AoiSkeleton width="80px" height="12px" radius="4px" />
+            </div>
+          </AoiSurface>
+        </AoiSkeletonGroup>
+      </div>
+    </AoiReveal>
     <div v-else-if="followingError" class="me-error-wrapper">
       <AoiStatusMessage intent="danger" icon="alert-circle">
         {{ followingError }}
@@ -39,14 +54,14 @@ onMounted(() => {
       </AoiButton>
     </div>
     <template v-else>
-      <div v-if="followingList && followingList.length > 0" class="me-creators-grid">
+      <AoiReveal v-if="followingList && followingList.length > 0" variant="pop" duration="400" tag="div" class="me-creators-grid">
         <CreatorCard
           v-for="creator in followingList"
           :key="creator.id"
           :creator="creator"
           density="compact"
         />
-      </div>
+      </AoiReveal>
       <AoiSurface v-else surface="panel" padding="lg">
         <PageState
           icon="users"

@@ -291,11 +291,6 @@ a {
   --md-primary-tab-hover-label-text-color: var(--aoi-accent-60);
 }
 
-.aoi-progress {
-  --md-linear-progress-active-indicator-color: var(--aoi-accent-50);
-  --md-linear-progress-track-color: var(--aoi-accent-10);
-  --md-circular-progress-active-indicator-color: var(--aoi-accent-50);
-}
 
 #nprogress {
   pointer-events: none;
@@ -689,3 +684,17 @@ a {
     transform: translate3d(0, 0, 0);
   }
 }
+
+.aoi-spin {
+  animation: aoi-spin 900ms linear infinite;
+}
+
+@keyframes aoi-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+

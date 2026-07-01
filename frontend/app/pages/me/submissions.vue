@@ -76,10 +76,35 @@ onMounted(() => {
 <template>
   <div class="me-submissions-subpage">
     <!-- Loading -->
-    <div v-if="submissionsPending" class="me-loading-wrapper">
-      <AoiProgress indeterminate />
-      <span class="me-loading-text">正在加载投稿列表...</span>
-    </div>
+    <AoiReveal v-if="submissionsPending" variant="pop" duration="400">
+      <div class="me-submissions-grid">
+        <AoiSurface
+          v-for="i in 3"
+          :key="i"
+          surface="card"
+          padding="md"
+          class="me-sub-card"
+          style="display: flex; flex-direction: column; gap: 12px;"
+        >
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between;">
+              <AoiSkeleton width="180px" height="20px" radius="4px" />
+              <AoiSkeleton width="80px" height="14px" radius="4px" />
+            </div>
+            <AoiSkeleton width="80%" height="14px" radius="4px" />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <AoiSkeleton width="140px" height="14px" radius="4px" />
+            <AoiSkeleton width="220px" height="14px" radius="4px" />
+          </div>
+          <AoiSkeleton width="100%" height="36px" radius="6px" />
+          <div style="display: flex; gap: 8px;">
+            <AoiSkeleton width="90px" height="32px" radius="6px" />
+            <AoiSkeleton width="90px" height="32px" radius="6px" />
+          </div>
+        </AoiSurface>
+      </div>
+    </AoiReveal>
 
     <!-- Error -->
     <div v-else-if="submissionsError" class="me-error-wrapper">
@@ -93,7 +118,7 @@ onMounted(() => {
 
     <!-- Content -->
     <template v-else>
-      <div v-if="submissionsList && submissionsList.length > 0" class="me-submissions-grid">
+      <AoiReveal v-slot="revealProps" v-if="submissionsList && submissionsList.length > 0" variant="pop" duration="400" tag="div" class="me-submissions-grid">
         <AoiSurface
           v-for="sub in submissionsList"
           :key="sub.id"
@@ -158,7 +183,7 @@ onMounted(() => {
             </AoiButton>
           </div>
         </AoiSurface>
-      </div>
+      </AoiReveal>
 
       <!-- Empty State -->
       <AoiSurface v-else surface="panel" padding="lg">

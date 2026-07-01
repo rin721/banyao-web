@@ -96,10 +96,44 @@ watch([() => route.path, () => authSession.hydrated], () => {
 
 <template>
   <div class="aoi-page me-page-container">
-    <div v-if="!authSession.hydrated || profilePending" class="me-loading-wrapper">
-      <AoiProgress indeterminate />
-      <span class="me-loading-text">{{ t("me.loading") }}</span>
-    </div>
+    <AoiReveal
+      v-if="!authSession.hydrated || profilePending"
+      variant="pop"
+      duration="400"
+    >
+      <div class="me-skeleton-root">
+        <!-- Skeleton Hero Header -->
+        <div class="me-hero-header me-skeleton-hero">
+          <div class="me-hero-banner" style="position: relative; overflow: hidden; background: var(--aoi-border);">
+            <AoiSkeleton width="100%" height="100%" />
+          </div>
+          <div class="me-hero-body" style="align-items: center; justify-content: flex-start; gap: 20px; padding: 0 var(--aoi-panel-padding) var(--aoi-panel-padding);">
+            <div class="me-hero-avatar-wrapper" style="overflow: hidden; margin-top: -48px;">
+              <AoiSkeleton width="100%" height="100%" radius="50%" />
+            </div>
+            <div class="me-hero-details" style="display: flex; flex-direction: column; gap: 8px; justify-content: center; height: 48px; flex: 1;">
+              <AoiSkeleton width="180px" height="24px" radius="6px" />
+              <AoiSkeleton width="120px" height="16px" radius="4px" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Skeleton Main Layout -->
+        <div class="me-main-layout">
+          <aside class="me-desktop-sidebar">
+            <AoiSkeletonGroup layout="stack" gap="8px" class="me-nav-menu" style="padding: 8px;">
+              <AoiSkeleton v-for="i in 5" :key="i" height="42px" radius="8px" />
+            </AoiSkeletonGroup>
+          </aside>
+          <main class="me-subpage-container">
+            <AoiSkeletonGroup layout="stack" gap="16px">
+              <AoiSkeleton height="150px" radius="12px" />
+              <AoiSkeleton height="260px" radius="12px" />
+            </AoiSkeletonGroup>
+          </main>
+        </div>
+      </div>
+    </AoiReveal>
 
     <div v-else-if="profileError && !profile" class="me-error-wrapper">
       <AoiStatusMessage intent="danger" icon="alert-circle">
@@ -110,7 +144,13 @@ watch([() => route.path, () => authSession.hydrated], () => {
       </AoiButton>
     </div>
 
-    <div v-else-if="profile" class="me-content-root">
+    <AoiReveal
+      v-else-if="profile"
+      variant="pop"
+      duration="400"
+      tag="div"
+      class="me-content-root"
+    >
       <!-- 1. Premium Profile Hero Header -->
       <div class="me-hero-header">
         <div
@@ -193,7 +233,7 @@ watch([() => route.path, () => authSession.hydrated], () => {
           <NuxtPage />
         </main>
       </div>
-    </div>
+    </AoiReveal>
   </div>
 </template>
 

@@ -396,7 +396,7 @@ watch(() => props.profile.handle, () => {
         <!-- Hover overlay -->
         <div class="avatar-manager__overlay">
           <AoiIcon v-if="!uploading" name="camera" :size="24" decorative />
-          <AoiProgress v-else indeterminate />
+          <AoiIcon v-else name="loader-circle" :size="24" class="aoi-spin" decorative />
           <span class="avatar-manager__overlay-text">
             {{ uploading ? '正在上传...' : '上传新头像' }}
           </span>

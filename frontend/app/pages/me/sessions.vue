@@ -55,10 +55,31 @@ onMounted(() => {
 
 <template>
   <div class="me-sessions-subpage">
-    <div v-if="sessionsPending" class="me-loading-wrapper">
-      <AoiProgress indeterminate />
-      <span class="me-loading-text">正在加载活跃会话...</span>
-    </div>
+    <AoiReveal v-if="sessionsPending" variant="pop" duration="400">
+      <div class="me-sessions-list">
+        <AoiSurface
+          v-for="i in 3"
+          :key="i"
+          surface="card"
+          padding="md"
+          class="me-session-card"
+          style="display: flex; flex-direction: column; gap: 12px;"
+        >
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--aoi-border); padding-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <AoiSkeleton shape="circle" width="18px" height="18px" />
+              <AoiSkeleton width="100px" height="18px" radius="4px" />
+            </div>
+            <AoiSkeleton width="80px" height="32px" radius="6px" />
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <AoiSkeleton width="200px" height="14px" radius="4px" />
+            <AoiSkeleton width="250px" height="14px" radius="4px" />
+            <AoiSkeleton width="180px" height="14px" radius="4px" />
+          </div>
+        </AoiSurface>
+      </div>
+    </AoiReveal>
     <div v-else-if="sessionsError" class="me-error-wrapper">
       <AoiStatusMessage intent="danger" icon="alert-circle">
         {{ sessionsError }}
@@ -68,7 +89,7 @@ onMounted(() => {
       </AoiButton>
     </div>
     <template v-else>
-      <div v-if="sessionsList && sessionsList.length > 0" class="me-sessions-list">
+      <AoiReveal v-if="sessionsList && sessionsList.length > 0" variant="pop" duration="400" tag="div" class="me-sessions-list">
         <AoiSurface
           v-slot="sessionProps"
           v-for="s in sessionsList"
@@ -110,7 +131,7 @@ onMounted(() => {
             </div>
           </div>
         </AoiSurface>
-      </div>
+      </AoiReveal>
       <div v-else class="me-empty-sessions">
         没有找到活跃会话记录。
       </div>
