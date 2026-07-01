@@ -6,18 +6,21 @@ FROM golang:1.25.7-bookworm
 # 设置非交互式前端，避免安装过程因弹窗挂起
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 安装 ffmpeg、curl 及核心系统证书组件
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 切换 Debian apt 镜像源为中科大源 (USTC) 以加速国内服务器构建
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     git \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 Node.js (使用稳定的 20.x LTS) 与全局 Pnpm
+# 安装 Node.js (使用稳定的 20.x LTS) 并配置淘宝镜像源 (npmmirror) 全局安装 Pnpm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
-    && npm install -g pnpm
+    && npm config set registry https://registry.npmmirror.com \
+    && npm install -g pnpm \
+    && pnpm config set registry https://registry.npmmirror.com
 
 # ==========================================
 # 2. 注入环境变量说明 (编译与启动期)
@@ -36,6 +39,9 @@ ENV NUXT_PUBLIC_API_MOCK=false \
 # 3. 源码构建阶段 (编译至暂存区 /workspace)
 # ==========================================
 WORKDIR /workspace
+
+# 配置 Go 模块代理为国内七牛云镜像源 (goproxy.cn) 加速依赖下载
+ENV GOPROXY=https://goproxy.cn,direct
 
 # 将宿主机 /root/.aoi 下的所有源码复制到暂存区
 COPY . .
