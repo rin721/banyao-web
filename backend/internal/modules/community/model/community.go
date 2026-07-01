@@ -79,6 +79,7 @@ type UserSummary struct {
 type Creator struct {
 	UserSummary
 	Bio           *string    `gorm:"column:bio;size:640" json:"bio"`
+	BannerURL     *string    `gorm:"column:banner_url;size:512" json:"bannerUrl"`
 	FollowerCount int64      `gorm:"column:follower_count;not null;default:0" json:"followerCount"`
 	JoinedAt      time.Time  `gorm:"column:joined_at;not null" json:"joinedAt"`
 	CreatedAt     time.Time  `gorm:"column:created_at;not null" json:"-"`
@@ -665,6 +666,12 @@ type AccountAvatarResult struct {
 	Profile   AccountProfileResponse `json:"profile"`
 }
 
+// AccountBannerResult 是背景图上传成功后返回的 URL 和更新的账号资料。
+type AccountBannerResult struct {
+	BannerURL string               `json:"bannerUrl"`
+	Profile   AccountProfileResponse `json:"profile"`
+}
+
 
 type UpdateCommunityAccountRequest struct {
 	Role   string `json:"role,omitempty"`
@@ -938,6 +945,7 @@ type VideoDetail struct {
 type CreatorProfile struct {
 	UserSummary
 	Bio           *string                  `json:"bio"`
+	BannerURL     *string                  `json:"bannerUrl"`
 	FollowerCount int64                    `json:"followerCount"`
 	FollowedAt    *time.Time               `json:"followedAt,omitempty"`
 	VideoCount    int                      `json:"videoCount"`
@@ -1045,6 +1053,7 @@ type AccountProfileResponse struct {
 	// Creator fields — only populated when role == "creator"
 	Bio       *string `json:"bio,omitempty"`
 	AvatarURL *string `json:"avatarUrl,omitempty"`
+	BannerURL *string `json:"bannerUrl,omitempty"`
 }
 
 // UpdateAccountProfileRequest 允许社区账号更新昵称。

@@ -255,6 +255,7 @@ func (r *repository) UpdateCreator(ctx context.Context, creator model.Creator) e
 	result, err := r.db.Update(ctx, &model.Creator{}, map[string]any{
 		"display_name": creator.UserSummary.DisplayName,
 		"avatar_url":   creator.UserSummary.AvatarURL,
+		"banner_url":   creator.BannerURL,
 		"bio":          creator.Bio,
 		"updated_at":   creator.UpdatedAt,
 	}, database.Where("handle = ?", creator.UserSummary.Handle), alive())

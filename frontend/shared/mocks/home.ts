@@ -379,6 +379,7 @@ export function getMockCreatorProfile(handle: string): CreatorProfile | null {
   const categories = uniqueCategories(latest.flatMap((video) => video.categories))
   const meta = creatorMeta[user.handle] || {
     bio: null,
+    bannerUrl: null,
     followerCount: Math.max(120, latest.length * 320),
     joinedAt: "2026-05-01T00:00:00.000Z"
   }
@@ -386,6 +387,7 @@ export function getMockCreatorProfile(handle: string): CreatorProfile | null {
   return {
     ...user,
     bio: meta.bio,
+    bannerUrl: (meta as any).bannerUrl || null,
     categories,
     followerCount: meta.followerCount,
     joinedAt: meta.joinedAt,

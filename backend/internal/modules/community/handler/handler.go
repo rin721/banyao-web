@@ -289,6 +289,40 @@ func (h *Handler) AccountAvatarDelete(c ports.HTTPContext) {
 	writeOK(c, item, err, h.writeError)
 }
 
+func (h *Handler) AccountBannerUpload(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	req := c.Request()
+	if err := req.ParseMultipartForm(8 << 20); err != nil {
+		result.BadRequest(c, result.MessageKeyInvalidRequest)
+		return
+	}
+	file, header, err := req.FormFile("file")
+	if err != nil {
+		result.BadRequest(c, result.MessageKeyInvalidRequest)
+		return
+	}
+	defer file.Close()
+	item, err := h.service.UploadAccountBanner(c.RequestContext(), principal, service.UploadSourceInput{
+		Filename:    header.Filename,
+		ContentType: header.Header.Get("Content-Type"),
+		Size:        header.Size,
+		Reader:      file,
+	})
+	writeOK(c, item, err, h.writeError)
+}
+
+func (h *Handler) AccountBannerDelete(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	item, err := h.service.DeleteAccountBanner(c.RequestContext(), principal)
+	writeOK(c, item, err, h.writeError)
+}
+
 
 
 func (h *Handler) Home(c ports.HTTPContext) {

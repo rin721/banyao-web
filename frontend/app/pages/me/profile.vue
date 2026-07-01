@@ -81,6 +81,7 @@ function onProfileUpdate(updated: AccountProfileResponse) {
   if (profile.value) {
     profile.value.avatarUrl = updated.avatarUrl
     profile.value.bio = updated.bio
+    profile.value.bannerUrl = updated.bannerUrl
   }
   authSession.profileAvatarUrl = updated.avatarUrl || ""
 }
@@ -154,6 +155,17 @@ function onProfileUpdate(updated: AccountProfileResponse) {
       <!-- Avatar Manager -->
       <div class="me-avatar-section">
         <AoiAvatarManager
+          :profile="profile"
+          @update="onProfileUpdate"
+        />
+      </div>
+
+      <div class="me-divider"></div>
+
+      <!-- Banner Manager -->
+      <div class="me-banner-section">
+        <span class="me-field-name" style="margin-bottom: 8px; display: block;">个人主页背景图</span>
+        <AoiBannerManager
           :profile="profile"
           @update="onProfileUpdate"
         />

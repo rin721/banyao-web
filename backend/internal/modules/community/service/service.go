@@ -46,6 +46,8 @@ type Service interface {
 	RevokeAccountSession(context.Context, authtypes.Principal, int64) error
 	UploadAccountAvatar(context.Context, authtypes.Principal, UploadSourceInput) (model.AccountAvatarResult, error)
 	DeleteAccountAvatar(context.Context, authtypes.Principal) (model.AccountAvatarResult, error)
+	UploadAccountBanner(context.Context, authtypes.Principal, UploadSourceInput) (model.AccountBannerResult, error)
+	DeleteAccountBanner(context.Context, authtypes.Principal) (model.AccountBannerResult, error)
 	ListCommunityAccounts(context.Context, model.CommunityAccountFilter) (model.CommunityAccountPayload, error)
 	UpdateCommunityAccount(context.Context, string, model.UpdateCommunityAccountRequest) (model.CommunityAccountItem, error)
 	ListCommunityReports(context.Context, model.CommunityReportFilter) (model.CommunityReportPayload, error)
@@ -1142,6 +1144,7 @@ func (s *service) GetCreatorProfile(ctx context.Context, handle string) (model.C
 	return model.CreatorProfile{
 		UserSummary:   creator.UserSummary,
 		Bio:           creator.Bio,
+		BannerURL:     creator.BannerURL,
 		Categories:    uniqueCategoriesFromVideos(latest),
 		FollowerCount: creator.FollowerCount,
 		JoinedAt:      creator.JoinedAt,
@@ -3701,11 +3704,12 @@ func (s *service) GetCommunityAccountProfile(ctx context.Context, principal auth
 		return model.AccountProfileResponse{}, mapStorageError(err)
 	}
 	resp := accountProfileResponse(*account)
-	// Try to enrich with creator bio/avatar if creator record exists.
+	// Try to enrich with creator bio/avatar/banner if creator record exists.
 	creator, cerr := s.repo.FindCreatorByHandle(ctx, account.Handle)
 	if cerr == nil && creator != nil {
 		resp.Bio = creator.Bio
 		resp.AvatarURL = creator.UserSummary.AvatarURL
+		resp.BannerURL = creator.BannerURL
 	}
 	return resp, nil
 }
@@ -3734,9 +3738,10 @@ func (s *service) UpdateCommunityAccountProfile(ctx context.Context, principal a
 	resp := accountProfileResponse(*account)
 	if account.Role == model.CommunityAccountRoleCreator {
 		creator, cerr := s.repo.FindCreatorByHandle(ctx, account.Handle)
-		if cerr == nil {
+		if cerr == nil && creator != nil {
 			resp.Bio = creator.Bio
 			resp.AvatarURL = creator.UserSummary.AvatarURL
+			resp.BannerURL = creator.BannerURL
 		}
 	}
 	return resp, nil
@@ -3770,7 +3775,75 @@ func (s *service) UpdateCommunityAccountCreatorProfile(ctx context.Context, prin
 	resp := accountProfileResponse(*account)
 	resp.Bio = creator.Bio
 	resp.AvatarURL = creator.UserSummary.AvatarURL
+	resp.BannerURL = creator.BannerURL
 	return resp, nil
+}
+
+func (s *service) UploadAccountBanner(ctx context.Context, principal authtypes.Principal, input UploadSourceInput) (model.AccountBannerResult, error) {
+	if s.video == nil || s.repo == nil {
+		return model.AccountBannerResult{}, ErrStorageUnavailable
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.AccountBannerResult{}, mapStorageError(err)
+	}
+	creator, err := s.getOrCreateCreator(ctx, account)
+	if err != nil {
+		return model.AccountBannerResult{}, err
+	}
+	now := s.now()
+	// Cooldown for banner uploads (10 seconds)
+	if creator.BannerURL != nil && creator.UpdatedAt.Add(10 * time.Second).After(now) {
+		return model.AccountBannerResult{}, ErrCooldownActive
+	}
+
+	uploadResult, err := s.video.UploadSource(ctx, principal, input)
+	if err != nil {
+		return model.AccountBannerResult{}, err
+	}
+	bannerURL := uploadResult.URL
+
+	creator.BannerURL = &bannerURL
+	creator.UpdatedAt = now
+	if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
+		return model.AccountBannerResult{}, mapStorageError(uErr)
+	}
+	profile, err := s.GetCommunityAccountProfile(ctx, principal)
+	if err != nil {
+		return model.AccountBannerResult{}, err
+	}
+	return model.AccountBannerResult{
+		BannerURL: bannerURL,
+		Profile:   profile,
+	}, nil
+}
+
+func (s *service) DeleteAccountBanner(ctx context.Context, principal authtypes.Principal) (model.AccountBannerResult, error) {
+	if s.repo == nil {
+		return model.AccountBannerResult{}, ErrStorageUnavailable
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.AccountBannerResult{}, mapStorageError(err)
+	}
+	creator, err := s.getOrCreateCreator(ctx, account)
+	if err != nil {
+		return model.AccountBannerResult{}, err
+	}
+	now := s.now()
+	creator.BannerURL = nil
+	creator.UpdatedAt = now
+	if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
+		return model.AccountBannerResult{}, mapStorageError(uErr)
+	}
+	profile, err := s.GetCommunityAccountProfile(ctx, principal)
+	if err != nil {
+		return model.AccountBannerResult{}, err
+	}
+	return model.AccountBannerResult{
+		BannerURL: "",
+		Profile:   profile,
+	}, nil
 }
 
 // ChangeAccountPassword 验证当前密码后更新为新密码。

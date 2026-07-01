@@ -552,6 +552,54 @@ export function useAoiApi() {
     })
   }
 
+  async function uploadAccountBanner(file: File): Promise<AccountBannerResult> {
+    if (config.public.apiMock) {
+      const mockUrl = `/api/mock/account/banner/${encodeURIComponent(file.name)}`
+      return {
+        bannerUrl: mockUrl,
+        profile: {
+          id: "mock-user-id",
+          handle: "mockuser",
+          email: "mockuser@example.com",
+          displayName: "Mock User",
+          role: "creator",
+          status: "active",
+          createdAt: new Date().toISOString(),
+          bannerUrl: mockUrl
+        }
+      }
+    }
+    const ext = file.name.split(".").pop() || "png"
+    const safeFile = new File([file], `banner.${ext}`, { type: file.type })
+    const formData = new FormData()
+    formData.append("file", safeFile)
+    return await request<AccountBannerResult>("/account/banner/upload", {
+      body: formData,
+      method: "POST"
+    })
+  }
+
+  async function deleteAccountBanner(): Promise<AccountBannerResult> {
+    if (config.public.apiMock) {
+      return {
+        bannerUrl: "",
+        profile: {
+          id: "mock-user-id",
+          handle: "mockuser",
+          email: "mockuser@example.com",
+          displayName: "Mock User",
+          role: "creator",
+          status: "active",
+          createdAt: new Date().toISOString(),
+          bannerUrl: ""
+        }
+      }
+    }
+    return await request<AccountBannerResult>("/account/banner", {
+      method: "DELETE"
+    })
+  }
+
   async function deleteAccountSubmission(submissionId: string): Promise<DeleteCommunitySubmissionResult> {
     if (config.public.apiMock) {
       return {
@@ -637,6 +685,8 @@ export function useAoiApi() {
     revokeAccountSession,
     uploadAccountAvatar,
     deleteAccountAvatar,
+    uploadAccountBanner,
+    deleteAccountBanner,
     deleteAccountSubmission
   }
 }

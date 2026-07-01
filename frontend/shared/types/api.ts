@@ -401,6 +401,7 @@ export interface PageResult<T> {
 
 export interface CreatorProfile extends UserSummary {
   bio: string | null
+  bannerUrl?: string | null
   followerCount: number
   followedAt?: string | null
   videoCount: number
@@ -520,6 +521,7 @@ export interface AccountProfileResponse {
   /** 仅创作者（role==="creator"）时出现 */
   bio?: string | null
   avatarUrl?: string | null
+  bannerUrl?: string | null
 }
 
 export interface UpdateAccountProfileRequest {
@@ -553,6 +555,11 @@ export interface AccountSessionPayload {
 
 export interface AccountAvatarResult {
   avatarUrl: string
+  profile: AccountProfileResponse
+}
+
+export interface AccountBannerResult {
+  bannerUrl: string
   profile: AccountProfileResponse
 }
 

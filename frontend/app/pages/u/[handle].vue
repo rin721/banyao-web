@@ -109,6 +109,10 @@ useHead(() => ({
     />
 
     <article v-else-if="creator" class="creator-profile">
+      <div
+        class="creator-hero-banner"
+        :style="creator.bannerUrl ? { backgroundImage: `url(${creator.bannerUrl})` } : {}"
+      ></div>
       <section v-aoi-reveal="'rise'" class="creator-profile__hero">
         <div class="creator-profile__identity">
           <div class="creator-profile__avatar-container">
@@ -420,6 +424,23 @@ useHead(() => ({
 
   to {
     background-position: -80% 0;
+  }
+}
+
+.creator-hero-banner {
+  height: 140px;
+  background: linear-gradient(135deg, var(--aoi-sakura-50) 0%, var(--aoi-secondary-50) 100%);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.9;
+  border-radius: var(--aoi-radius-card);
+  border: 1px solid var(--aoi-surface-border);
+  box-shadow: var(--aoi-shadow-sm);
+}
+
+@media (max-width: 760px) {
+  .creator-hero-banner {
+    height: 100px;
   }
 }
 </style>

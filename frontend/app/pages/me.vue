@@ -113,7 +113,10 @@ watch([() => route.path, () => authSession.hydrated], () => {
     <div v-else-if="profile" class="me-content-root">
       <!-- 1. Premium Profile Hero Header -->
       <div class="me-hero-header">
-        <div class="me-hero-banner"></div>
+        <div
+          class="me-hero-banner"
+          :style="profile.bannerUrl ? { backgroundImage: `url(${profile.bannerUrl})` } : {}"
+        ></div>
         <div class="me-hero-body">
           <div class="me-hero-avatar-wrapper">
             <img
@@ -236,6 +239,8 @@ watch([() => route.path, () => authSession.hydrated], () => {
 .me-hero-banner {
   height: 140px;
   background: linear-gradient(135deg, var(--aoi-sakura-50) 0%, var(--aoi-secondary-50) 100%);
+  background-size: cover;
+  background-position: center;
   opacity: 0.9;
   position: relative;
 }

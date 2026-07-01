@@ -412,6 +412,8 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.account.sessions.revoke", deps.CommunityHandler.RevokeAccountSession),
 		routeSpecFor("community.account.avatar.upload", deps.CommunityHandler.AccountAvatarUpload),
 		routeSpecFor("community.account.avatar.delete", deps.CommunityHandler.AccountAvatarDelete),
+		routeSpecFor("community.account.banner.upload", deps.CommunityHandler.AccountBannerUpload),
+		routeSpecFor("community.account.banner.delete", deps.CommunityHandler.AccountBannerDelete),
 		routeSpecFor("community.account.submissions.get", deps.CommunityHandler.AccountSubmission),
 		routeSpecFor("community.account.submissions.delete", deps.CommunityHandler.AccountSubmissionDelete),
 	}
