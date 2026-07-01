@@ -7,10 +7,14 @@
 在项目根目录下执行以下命令构建全栈镜像：
 
 ```bash
-git clone https://github.com/rin721/community-go.git /tmp/aoi
+# 1. 克隆项目到 /tmp/aoi 目录
+git clone https://github-com-gh.helloworlds.eu.org/rin721/community-go.git /tmp/aoi
 
-cd /tmp/aoi
-docker build -t aoi:latest .
+# 2. 进入目录并执行 Docker 构建
+cd /tmp/aoi && docker build -t aoi:latest .
+
+# 3. 构建成功后，删除临时目录
+rm -rf /tmp/aoi
 ```
 
 ---
