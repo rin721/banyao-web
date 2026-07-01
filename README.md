@@ -53,3 +53,26 @@ docker run -d \
 
 > [!NOTE]
 > * `-v /root/.aoi:/app`：将宿主机的目录挂载到容器中，使得 Git pull 同步的代码和编译出的新二进制能够持久化，并且支持热重载和状态文件落盘。
+
+---
+
+## 三、 自动部署常见问题
+
+### 1. Git 同步失败 (exit status 128)
+
+* **根本原因**：运行工作路径（Working Directory）不匹配。
+  后端服务在寻找 `.git` 目录时，是用配置的 `workDir` + `/.git` 去判断的。如果配置的 `workDir` 是 `.` 或空，程序会以后端服务进程当前的启动工作目录为准：
+  * **如果后端服务是在 `backend` 目录下启动的**（例如当前工作目录是 `/app/backend`）：
+    程序会去检测是否存在 `/app/backend/.git`。但实际上你的 `.git` 存放在根目录 `/app/.git`。
+    结果：程序判定该目录没有 `.git`，决定执行 `git clone` 到当前目录 `/app/backend`，由于 `/app/backend` 已经有文件，导致 Git 报错退出。
+  * **如果后端是在 `/app` 启动的**：
+    请检查你在 `config.yaml`（或环境变量）中配置的 `workDir` 到底指向了哪里。如果配置成了相对路径或者指向了错误的子目录，也会导致判定失败。
+
+* **🛠️ 解决方案**：
+  请检查并修改自动部署的配置文件（通常在 `config.yaml` 的 `deploy` 部分，或对应的环境变量 `APP_DEPLOY_WORK_DIR`）：
+  将 `workDir` (工作目录) 修改为容器内项目的根目录绝对路径：
+  ```yaml
+  deploy:
+    work_dir: "/app"  # 或者是你容器内拥有 .git 文件夹的项目根目录绝对路径
+  ```
+  配置为绝对路径 `/app` 后，程序就会正确检测到 `/app/.git`存在，后续的 Webhook 就会正确走 `git fetch` 和 `git reset --hard` 流程了。
