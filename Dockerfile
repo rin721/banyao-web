@@ -20,8 +20,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && npm install -g pnpm
 
 # ==========================================
-# 2. 注入前端环境变量 (Build 时与 Runtime 均生效)
+# 2. 注入环境变量说明 (编译与启动期)
 # ==========================================
+# 提示：以下为编译期硬编码前端环境变量。
+# 部署相关的环境变量（如 DEPLOY_ENABLED, DEPLOY_ENV, DEPLOY_REPO_URL, DEPLOY_BRANCH）
+# 均无需在此硬编码，应在容器启动（docker run -e）时动态注入，Go 进程会自动加载并覆盖配置。
+#
 # Nuxt 约定：NUXT_PUBLIC_* 变量在编译时需要硬编码进客户端 Bundle
 ENV NUXT_PUBLIC_API_MOCK=false \
     NUXT_BACKEND_ORIGIN=https://aoi-console.kobayashi.eu.org \

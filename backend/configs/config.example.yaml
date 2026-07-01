@@ -290,9 +290,9 @@ env_override:
   disabled_paths: []
 
 deploy:
-  enabled: false
+  enabled: ${DEPLOY_ENABLED:false}
   # env 决定是否执行真实部署：development 时 Webhook 只记录日志不部署；生产机器改为 production。
-  env: development
+  env: ${DEPLOY_ENV:development}
   webhook:
     # provider: github / gitlab / generic
     provider: github
@@ -303,7 +303,7 @@ deploy:
     # require_secret: false 仅用于本地调试，生产务必保持 true
     require_secret: true
   # repo_url: 首次部署时 git clone 的仓库地址
-  repo_url: ""
+  repo_url: ${DEPLOY_REPO_URL:}
   # branch: 监听的 Git 分支，其他分支的 Push 将被忽略
   branch: main
   # work_dir: git 操作的工作目录
