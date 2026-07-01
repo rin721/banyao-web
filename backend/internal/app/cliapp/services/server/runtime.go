@@ -5,13 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/open-console/console-platform/internal/app"
 	cliappadapters "github.com/open-console/console-platform/internal/app/cliapp/adapters"
 	"github.com/open-console/console-platform/internal/app/cliapp/services/managed"
+	"github.com/open-console/console-platform/internal/config"
 	"github.com/open-console/console-platform/internal/modules/deploy/gate"
 	"github.com/open-console/console-platform/types/constants"
 )
@@ -27,6 +31,12 @@ func Run(configPath string) error {
 			markManagedServerStopped(err.Error()),
 		)
 	}
+
+	// ── 新增：首次启动自自动 Git 同步与编译比对 ──────────────────────
+	if syncErr := preflightGitSyncAndRebuild(application.Core.Config); syncErr != nil {
+		application.Core.Logger.Warn("preflight git sync and rebuild encountered error, proceeding with current binary", "error", syncErr)
+	}
+	// ── 新增结束 ───────────────────────────────────────────────────────
 
 	// ── 新增：StartupGate（用于热启动同步） ────────────────────────────
 	ipcAddr := os.Getenv(cliappadapters.DeployIPCAddrEnvKey)
@@ -132,3 +142,105 @@ func markManagedServerStopped(lastError string) error {
 	}
 	return nil
 }
+
+func preflightGitSyncAndRebuild(cfg *config.Config) error {
+	if cfg == nil || !cfg.Deploy.Enabled || strings.EqualFold(cfg.Deploy.Env, "development") {
+		return nil
+	}
+
+	workDir := cfg.Deploy.WorkDir
+	if workDir == "" {
+		workDir = "."
+	}
+
+	// 1. 获取本地 commit
+	localCmd := exec.Command("git", "-C", workDir, "rev-parse", "HEAD")
+	localOut, err := localCmd.Output()
+	if err != nil {
+		return fmt.Errorf("get local commit hash: %w", err)
+	}
+	localHash := strings.TrimSpace(string(localOut))
+
+	// 2. 获取远程对应分支的最新 commit
+	branch := cfg.Deploy.Branch
+	if branch == "" {
+		branch = "main"
+	}
+	remoteURL := cfg.Deploy.RepoURL
+	if remoteURL == "" {
+		remoteURL = "origin"
+	}
+
+	remoteCmd := exec.Command("git", "-C", workDir, "ls-remote", remoteURL, branch)
+	remoteOut, err := remoteCmd.Output()
+	if err != nil {
+		return fmt.Errorf("get remote commit hash: %w", err)
+	}
+
+	parts := strings.Fields(string(remoteOut))
+	if len(parts) == 0 {
+		return fmt.Errorf("invalid ls-remote output")
+	}
+	remoteHash := parts[0]
+
+	if localHash == remoteHash {
+		return nil // 版本一致，无需更新
+	}
+
+	fmt.Printf("[Startup Sync] Local version (%s) is behind remote (%s). Updating...\n", localHash[:8], remoteHash[:8])
+
+	// 3. 同步最新代码
+	fetchCmd := exec.Command("git", "-C", workDir, "fetch", "origin", branch)
+	if err := fetchCmd.Run(); err != nil {
+		return fmt.Errorf("git fetch: %w", err)
+	}
+
+	resetCmd := exec.Command("git", "-C", workDir, "reset", "--hard", "origin/"+branch)
+	if err := resetCmd.Run(); err != nil {
+		return fmt.Errorf("git reset: %w", err)
+	}
+
+	// 4. 执行编译构建
+	buildCmdStr := cfg.Deploy.BuildCmd
+	if buildCmdStr == "" {
+		buildCmdStr = "go build -mod=readonly -o ./tmp/console-server ./cmd/console"
+	}
+
+	var buildCmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		buildCmd = exec.Command("cmd", "/C", buildCmdStr)
+	} else {
+		buildCmd = exec.Command("sh", "-c", buildCmdStr)
+	}
+	buildCmd.Dir = workDir
+	if err := buildCmd.Run(); err != nil {
+		return fmt.Errorf("rebuild failed: %w", err)
+	}
+
+	// 5. 启动新二进制并退出当前进程
+	binaryPath := cfg.Deploy.BinaryPath
+	if binaryPath == "" {
+		binaryPath = "./tmp/console-server"
+	}
+
+	fmt.Printf("[Startup Sync] Rebuild successful. Launching new binary %q...\n", binaryPath)
+
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command(binaryPath, os.Args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return fmt.Errorf("failed to start new binary on Windows: %w", err)
+		}
+		os.Exit(0)
+	} else {
+		envv := os.Environ()
+		err := syscall.Exec(binaryPath, os.Args, envv)
+		if err != nil {
+			return fmt.Errorf("failed to exec new binary: %w", err)
+		}
+	}
+
+	return nil
+}
+
