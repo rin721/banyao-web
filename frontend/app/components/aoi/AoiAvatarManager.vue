@@ -64,55 +64,58 @@ function triggerFileSelect() {
   fileInputRef.value?.click()
 }
 
-function processImageToWebp(file: File): Promise<File> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement("canvas")
-        const ctx = canvas.getContext("2d")
-        if (!ctx) {
-          reject(new Error("无法创建图片上下文"))
-          return
-        }
+const showCropper = ref(false)
+const selectedImageUrl = ref("")
+const selectedImageName = ref("")
 
-        // Standard avatar dimensions: 256x256
-        const targetSize = 256
-        canvas.width = targetSize
-        canvas.height = targetSize
+function onCropCancel() {
+  showCropper.value = false
+  if (selectedImageUrl.value) {
+    URL.revokeObjectURL(selectedImageUrl.value)
+    selectedImageUrl.value = ""
+  }
+}
 
-        // Center crop calculation
-        const minDim = Math.min(img.width, img.height)
-        const sx = (img.width - minDim) / 2
-        const sy = (img.height - minDim) / 2
+async function onCropResult(resultPayload: any) {
+  showCropper.value = false
+  uploading.value = true
+  errorMessage.value = null
+  successMessage.value = null
 
-        // Draw centered square crop to target size
-        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize)
+  if (selectedImageUrl.value) {
+    URL.revokeObjectURL(selectedImageUrl.value)
+    selectedImageUrl.value = ""
+  }
 
-        // Convert to WebP blob (quality 0.85)
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const processedFile = new File([blob], "avatar.webp", {
-                type: "image/webp",
-                lastModified: Date.now()
-              })
-              resolve(processedFile)
-            } else {
-              reject(new Error("图片处理失败"))
-            }
-          },
-          "image/webp",
-          0.85
-        )
-      }
-      img.onerror = () => reject(new Error("图片加载失败"))
-      img.src = e.target?.result as string
+  try {
+    const webpFile = new File([resultPayload.blob], "avatar.webp", {
+      type: "image/webp",
+      lastModified: Date.now()
+    })
+
+    const res = await api.uploadAccountAvatar(webpFile)
+    if (props.profile.avatarUrl) {
+      addToHistory(props.profile.avatarUrl)
     }
-    reader.onerror = () => reject(new Error("读取图片失败"))
-    reader.readAsDataURL(file)
-  })
+
+    const updatedProfile = { ...props.profile, avatarUrl: res.avatarUrl }
+    emit("update", updatedProfile)
+
+    if (authSession.session && authSession.session.account) {
+      (authSession.session.account as any).avatarUrl = res.avatarUrl
+    }
+
+    addToHistory(res.avatarUrl)
+    successMessage.value = "头像裁剪并压缩上传成功"
+  } catch (err: any) {
+    if (err.statusCode === 429 || err.message?.includes("cooldown")) {
+      errorMessage.value = "操作过于频繁，头像修改冷却中(30秒)，请稍后再试"
+    } else {
+      errorMessage.value = err.message || "头像上传失败，请重试"
+    }
+  } finally {
+    uploading.value = false
+  }
 }
 
 async function handleFileChange(event: Event) {
@@ -132,44 +135,16 @@ async function handleFileChange(event: Event) {
     return
   }
 
-  uploading.value = true
   errorMessage.value = null
   successMessage.value = null
 
-  try {
-    // Process, crop, and compress image client-side to saving bandwidth/storage cost
-    const webpFile = await processImageToWebp(file)
+  // Open inline cropper
+  selectedImageUrl.value = URL.createObjectURL(file)
+  selectedImageName.value = file.name
+  showCropper.value = true
 
-    const res = await api.uploadAccountAvatar(webpFile)
-    // Add current avatar to history first if it exists
-    if (props.profile.avatarUrl) {
-      addToHistory(props.profile.avatarUrl)
-    }
-
-    // Update profile
-    const updatedProfile = { ...props.profile, avatarUrl: res.avatarUrl }
-    emit("update", updatedProfile)
-
-    // Update auth store
-    if (authSession.session && authSession.session.account) {
-      (authSession.session.account as any).avatarUrl = res.avatarUrl
-    }
-
-    // Add new avatar to history
-    addToHistory(res.avatarUrl)
-    successMessage.value = "头像已自动裁剪并压缩上传成功"
-  } catch (err: any) {
-    // Check if error is rate limit (429)
-    if (err.statusCode === 429 || err.message?.includes("cooldown")) {
-      errorMessage.value = "操作过于频繁，头像修改冷却中(30秒)，请稍后再试"
-    } else {
-      errorMessage.value = err.message || "头像上传失败，请重试"
-    }
-  } finally {
-    uploading.value = false
-    // Clear input
-    target.value = ""
-  }
+  // Clear input
+  target.value = ""
 }
 
 async function deleteAvatar() {
@@ -248,7 +223,20 @@ watch(() => props.profile.handle, () => {
       @change="handleFileChange"
     />
 
-    <div class="avatar-manager__layout">
+    <!-- Inline Cropper Workbench -->
+    <div v-if="showCropper" class="avatar-manager__cropper-wrapper">
+      <AoiImageCropperWorkbench
+        :source-url="selectedImageUrl"
+        :source-name="selectedImageName"
+        aspect-ratio="1:1"
+        :aspect-ratios="[{ value: '1:1', label: '1:1 正方形' }]"
+        confirm-behavior="export-close"
+        @result="onCropResult"
+        @close="onCropCancel"
+      />
+    </div>
+
+    <div v-else class="avatar-manager__layout">
       <!-- Big interactive avatar container -->
       <div
         class="avatar-manager__preview"
@@ -467,6 +455,16 @@ watch(() => props.profile.handle, () => {
   font-size: 0.8rem;
   color: var(--aoi-text-muted);
   margin: 0;
+}
+
+.avatar-manager__cropper-wrapper {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border: 1px solid var(--aoi-border);
+  border-radius: var(--aoi-radius-md);
+  padding: 16px;
+  background: var(--aoi-surface);
 }
 
 .avatar-manager__status {
