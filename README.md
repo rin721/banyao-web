@@ -33,8 +33,7 @@ docker build -t aoi:latest .
 ```bash
 docker run -d \
   --name aoi \
-  -p 8080:8080 \
-  -p 3000:3000 \
+  -p 9999:9999 \
   -e DEPLOY_ENABLED=true \
   -e DEPLOY_ENV=production \
   -e DEPLOY_REPO_URL="https://github.com/username/project.git" \
