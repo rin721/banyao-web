@@ -5,7 +5,8 @@ const csrfProtectedMethods = new Set<RequestMethod>(["DELETE", "PATCH", "POST"])
 
 export function createAoiCredentialHeaders(
   method: RequestMethod | undefined,
-  config: RuntimeConfig
+  config: RuntimeConfig,
+  fallbackToken?: string
 ): Record<string, string> | undefined {
   if (!import.meta.client || !isCSRFProtectedMethod(method)) {
     return undefined
@@ -17,7 +18,7 @@ export function createAoiCredentialHeaders(
     return undefined
   }
 
-  const csrfToken = readCookieValue(cookieName)
+  const csrfToken = readCookieValue(cookieName) || fallbackToken
   return csrfToken ? { [headerName]: csrfToken } : undefined
 }
 

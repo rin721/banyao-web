@@ -29,11 +29,12 @@ export function useAoiAuthApi() {
 
   async function request<T>(endpoint: string, options: AuthRequestOptions = {}): Promise<T> {
     try {
+      const fallbackToken = useAuthSessionStore().session?.csrfToken || undefined
       const response = await $fetch<unknown>(endpoint, {
         baseURL: baseURL.value,
         body: options.body as BodyInit | Record<string, unknown> | null | undefined,
         credentials: "include",
-        headers: createAoiCredentialHeaders(options.method, config),
+        headers: createAoiCredentialHeaders(options.method, config, fallbackToken),
         method: options.method
       })
 

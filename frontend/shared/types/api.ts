@@ -40,6 +40,7 @@ export interface CommunityAuthSession {
   userId: string
   sessionId: string
   account: CommunityAuthAccount
+  csrfToken?: string
   accessExpiresAt: string
   refreshExpiresAt: string
 }
