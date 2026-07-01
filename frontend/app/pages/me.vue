@@ -95,25 +95,7 @@ watch([() => route.path, () => authSession.hydrated], () => {
 </script>
 
 <template>
-  <div class="aoi-page me-page">
-    <PageHeader
-      icon="circle-user-round"
-      :title="t('me.headTitle')"
-      :description="profile ? `@${profile.handle} • ${roleLabel(profile.role)}` : null"
-    >
-      <template #actions>
-        <AoiButton
-          variant="outlined"
-          tone="neutral"
-          icon="log-out"
-          :disabled="loggingOut"
-          @click="logout"
-        >
-          {{ loggingOut ? t("me.loggingOut") : t("me.logout") }}
-        </AoiButton>
-      </template>
-    </PageHeader>
-
+  <div class="aoi-page me-page-container">
     <div v-if="!authSession.hydrated || profilePending" class="me-loading-wrapper">
       <AoiProgress indeterminate />
       <span class="me-loading-text">{{ t("me.loading") }}</span>
@@ -128,46 +110,94 @@ watch([() => route.path, () => authSession.hydrated], () => {
       </AoiButton>
     </div>
 
-    <div v-else-if="profile" class="me-layout">
-      <!-- Left sidebar -->
-      <aside class="me-sidebar">
-        <AoiSurface surface="panel" padding="md" class="me-profile-card">
-          <div class="me-profile-avatar-container">
+    <div v-else-if="profile" class="me-content-root">
+      <!-- 1. Premium Profile Hero Header -->
+      <div class="me-hero-header">
+        <div class="me-hero-banner"></div>
+        <div class="me-hero-body">
+          <div class="me-hero-avatar-wrapper">
             <img
               v-if="profile.avatarUrl"
               :src="profile.avatarUrl"
               :alt="profile.displayName"
-              class="me-profile-avatar"
+              class="me-hero-avatar"
             />
-            <div v-else class="me-profile-avatar-fallback">
+            <div v-else class="me-hero-avatar-fallback">
               {{ profile.displayName.charAt(0).toUpperCase() }}
             </div>
           </div>
-          <div class="me-profile-meta">
-            <h3>{{ profile.displayName }}</h3>
-            <p>@{{ profile.handle }}</p>
-            <span class="me-role-pill">{{ roleLabel(profile.role) }}</span>
+          
+          <div class="me-hero-details">
+            <div class="me-hero-name-row">
+              <h2 class="me-hero-display-name">{{ profile.displayName }}</h2>
+              <span class="me-hero-role-pill">{{ roleLabel(profile.role) }}</span>
+            </div>
+            <p class="me-hero-handle">@{{ profile.handle }}</p>
           </div>
-        </AoiSurface>
 
-        <AoiSegmentedControl
-          v-model="activeTab"
-          :items="tabItems"
-          selection-role="tab"
-        />
-      </aside>
+          <div class="me-hero-actions">
+            <AoiButton
+              variant="outlined"
+              tone="neutral"
+              icon="log-out"
+              size="sm"
+              :disabled="loggingOut"
+              @click="logout"
+            >
+              {{ loggingOut ? t("me.loggingOut") : t("me.logout") }}
+            </AoiButton>
+          </div>
+        </div>
+      </div>
 
-      <!-- Main Panel content -->
-      <main class="me-main-content">
-        <NuxtPage />
-      </main>
+      <!-- 2. Main Navigation & Content Layout -->
+      <div class="me-main-layout">
+        <!-- Desktop Sidebar (Sleek List Navigation) -->
+        <aside class="me-desktop-sidebar">
+          <div class="me-nav-menu">
+            <button
+              v-for="item in tabItems"
+              :key="item.value"
+              class="me-nav-item"
+              :class="{ 'me-nav-item--active': item.value === activeTab }"
+              @click="activeTab = item.value"
+            >
+              <div class="me-nav-item-left">
+                <AoiIcon :name="item.icon || 'circle-user-round'" :size="18" />
+                <span>{{ item.label }}</span>
+              </div>
+              <AoiIcon class="me-nav-chevron" name="chevron-right" :size="14" />
+            </button>
+          </div>
+        </aside>
+
+        <!-- Mobile Horizontal Tab Bar -->
+        <nav class="me-mobile-nav-scroll">
+          <button
+            v-for="item in tabItems"
+            :key="item.value"
+            class="me-mobile-nav-item"
+            :class="{ 'me-mobile-nav-item--active': item.value === activeTab }"
+            @click="activeTab = item.value"
+          >
+            <AoiIcon :name="item.icon || 'circle-user-round'" :size="16" />
+            <span>{{ item.label }}</span>
+          </button>
+        </nav>
+
+        <!-- Subpage Content Panel -->
+        <main class="me-subpage-container">
+          <NuxtPage />
+        </main>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.me-page {
+.me-page-container {
   max-width: var(--aoi-content-max-width);
+  margin: 0 auto;
 }
 
 .me-loading-wrapper {
@@ -192,88 +222,266 @@ watch([() => route.path, () => authSession.hydrated], () => {
   padding: 40px 0;
 }
 
-.me-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: var(--aoi-grid-gap);
-  align-items: start;
-}
-
-.me-sidebar :deep(.aoi-segmented) {
-  grid-template-columns: 1fr;
-}
-
-.me-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--aoi-grid-gap-compact);
-}
-
-.me-profile-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.me-profile-avatar-container {
-  width: 88px;
-  height: 88px;
-  border-radius: var(--aoi-radius-round);
+/* Premium Profile Hero Header */
+.me-hero-header {
+  position: relative;
+  background: var(--aoi-surface-solid);
+  border-radius: var(--aoi-radius-card);
+  border: 1px solid var(--aoi-border);
+  box-shadow: var(--aoi-shadow-sm);
   overflow: hidden;
-  margin-bottom: var(--aoi-grid-gap-compact);
-  background: var(--aoi-accent-10);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
-  border: 2px solid var(--aoi-surface-solid);
+  margin-bottom: var(--aoi-grid-gap);
 }
 
-.me-profile-avatar {
+.me-hero-banner {
+  height: 140px;
+  background: linear-gradient(135deg, var(--aoi-sakura-50) 0%, var(--aoi-secondary-50) 100%);
+  opacity: 0.9;
+  position: relative;
+}
+
+.me-hero-body {
+  display: flex;
+  align-items: flex-end;
+  padding: 0 var(--aoi-panel-padding) var(--aoi-panel-padding);
+  gap: 20px;
+  position: relative;
+}
+
+.me-hero-avatar-wrapper {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--aoi-radius-round);
+  border: 4px solid var(--aoi-surface-solid);
+  box-shadow: var(--aoi-shadow-md);
+  background: var(--aoi-accent-10);
+  overflow: hidden;
+  margin-top: -48px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.me-hero-avatar {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.me-profile-avatar-fallback {
+.me-hero-avatar-fallback {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.2rem;
+  font-weight: 750;
   color: var(--aoi-accent-60);
 }
 
-.me-profile-meta h3 {
-  margin: 0 0 4px;
-  font-size: 1.1rem;
-  font-weight: 750;
-  color: var(--aoi-text);
+.me-hero-details {
+  flex: 1;
+  padding-bottom: 6px;
 }
 
-.me-profile-meta p {
-  margin: 0 0 var(--aoi-grid-gap-compact);
-  font-size: 0.85rem;
+.me-hero-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.me-hero-display-name {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--aoi-text);
+  line-height: 1.2;
+}
+
+.me-hero-role-pill {
+  font-size: 0.7rem;
+  font-weight: 750;
+  padding: 2px 10px;
+  background: var(--aoi-accent-10);
+  color: var(--aoi-accent-60);
+  border-radius: var(--aoi-radius-round);
+  border: 1px solid color-mix(in srgb, var(--aoi-accent-60) 15%, transparent);
+}
+
+.me-hero-handle {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
   color: var(--aoi-text-muted);
 }
 
-.me-role-pill {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: var(--aoi-radius-round);
-  background: var(--aoi-accent-10);
-  color: var(--aoi-accent-60);
-  font-size: 0.72rem;
-  font-weight: 750;
+.me-hero-actions {
+  padding-bottom: 6px;
 }
 
-.me-main-content {
+/* Main Navigation & Content Layout */
+.me-main-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--aoi-grid-gap);
+  align-items: start;
+}
+
+.me-desktop-sidebar {
+  display: block;
+}
+
+.me-nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--aoi-surface-solid);
+  border: 1px solid var(--aoi-border);
+  border-radius: var(--aoi-radius-card);
+  padding: 8px;
+  box-shadow: var(--aoi-shadow-sm);
+}
+
+.me-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--aoi-radius-choice);
+  background: transparent;
+  color: var(--aoi-text-muted);
+  border: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all var(--aoi-action-motion-base) var(--aoi-ease-out);
+}
+
+.me-nav-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.me-nav-chevron {
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all var(--aoi-action-motion-fast) var(--aoi-ease-out);
+  color: var(--aoi-text-muted);
+}
+
+.me-nav-item:hover {
+  background: var(--aoi-state-hover);
+  color: var(--aoi-text);
+}
+
+.me-nav-item:hover .me-nav-chevron {
+  opacity: 0.5;
+  transform: translateX(0);
+}
+
+.me-nav-item--active {
+  background: var(--aoi-accent-10) !important;
+  color: var(--aoi-accent-60) !important;
+}
+
+.me-nav-item--active .me-nav-chevron {
+  opacity: 1 !important;
+  transform: translateX(0) !important;
+  color: var(--aoi-accent-60) !important;
+}
+
+/* Mobile Scrollable Navigation */
+.me-mobile-nav-scroll {
+  display: none;
+}
+
+.me-subpage-container {
   min-width: 0;
 }
 
+/* Mobile Media Queries */
 @media (max-width: 960px) {
-  .me-layout {
+  .me-main-layout {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .me-desktop-sidebar {
+    display: none;
+  }
+
+  .me-mobile-nav-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none; /* Firefox */
+    padding: 2px 4px 8px;
+    margin: 0 -4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .me-mobile-nav-scroll::-webkit-scrollbar {
+    display: none; /* Safari/Chrome */
+  }
+
+  .me-mobile-nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--aoi-radius-round);
+    background: var(--aoi-surface-solid);
+    color: var(--aoi-text-muted);
+    font-size: 0.88rem;
+    font-weight: 750;
+    border: 1px solid var(--aoi-border);
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: var(--aoi-shadow-sm);
+    transition: all var(--aoi-action-motion-base) var(--aoi-ease-out);
+  }
+
+  .me-mobile-nav-item--active {
+    background: var(--aoi-accent-10) !important;
+    border-color: var(--aoi-accent-30) !important;
+    color: var(--aoi-accent-60) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .me-hero-banner {
+    height: 100px;
+  }
+
+  .me-hero-body {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 16px 20px;
+    gap: 12px;
+  }
+
+  .me-hero-avatar-wrapper {
+    margin-top: -48px;
+  }
+
+  .me-hero-details {
+    padding-bottom: 0;
+  }
+
+  .me-hero-name-row {
+    justify-content: center;
+  }
+
+  .me-hero-actions {
+    padding-bottom: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 }
 </style>
