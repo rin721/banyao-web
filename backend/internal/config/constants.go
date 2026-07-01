@@ -88,4 +88,5 @@ const (
 	AppSystemName    = "system"
 	AppMigrationName = "migration"
 	AppWebUIName     = "webui"
+	AppDeployName    = "deploy"
 )

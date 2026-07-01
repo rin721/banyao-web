@@ -46,6 +46,19 @@ type RouterDeps struct {
 	IAMAuthz                     middleware.Authorizer
 	CommunityAuth                middleware.Authenticator
 	WebUI                        WebUIDeps
+	// DeployHandler 是 Git Webhook 自动部署处理器，nil 时不注册 webhook 路由。
+	DeployHandler      DeployWebhookHandler
+	// DeployWebhookPath 是 Webhook 接收端的监听路径，来自 config.Deploy.Webhook.Path。
+	DeployWebhookPath  string
+}
+
+// DeployWebhookHandler 是 Git Webhook 自动部署处理器的接口。
+// handler 为 nil 时路由不注册，对现有路由无任何影响。
+type DeployWebhookHandler interface {
+	// Push 接收 Git Push 事件，校验签名后触发（或跳过）部署流水线。
+	Push(ports.HTTPContext)
+	// Status 返回最近一次部署记录的状态快照。
+	Status(ports.HTTPContext)
 }
 
 type SetupHandler interface {
@@ -120,6 +133,9 @@ func NewRouter(deps RouterDeps) ports.HTTPRouter {
 	if deps.SystemHandler != nil {
 		registeredContracts = append(registeredContracts, registerSystemRoutes(v1, deps)...)
 		deps.SystemHandler.RegisterAPIs(catalogAPIContracts(registeredContracts))
+	}
+	if deps.DeployHandler != nil {
+		registerDeployWebhookRoutes(r, deps)
 	}
 	registerWebUI(deps)
 
@@ -870,3 +886,33 @@ func ReadyCheck(db ports.Database) func(context.Context) error {
 		return db.Ping(ctx)
 	}
 }
+
+// registerDeployWebhookRoutes 在根路由（非 /api/v1）注册 Webhook 接收端。
+//
+// Webhook 端点不进入 API catalog、不进入 OpenAPI，安全由 HMAC 签名保证。
+// webhookPath 来自配置（deploy.webhook.path），默认 /webhook/push。
+// status 端点路径由 pushPath 的末尾 "/push" 替换为 "/status" 推导得出。
+func registerDeployWebhookRoutes(r ports.HTTPRouter, deps RouterDeps) {
+	pushPath := deps.DeployWebhookPath
+	if pushPath == "" {
+		pushPath = "/webhook/push"
+	}
+
+	// 推导 status 路径：/webhook/push → /webhook/status
+	statusPath := "/webhook/status"
+	const pushSuffix = "/push"
+	if len(pushPath) > len(pushSuffix) && pushPath[len(pushPath)-len(pushSuffix):] == pushSuffix {
+		statusPath = pushPath[:len(pushPath)-len(pushSuffix)] + "/status"
+	}
+
+	r.POST(pushPath, deps.DeployHandler.Push)
+	r.GET(statusPath, deps.DeployHandler.Status)
+
+	if deps.Logger != nil {
+		deps.Logger.Info("deploy webhook registered",
+			"push_path", pushPath,
+			"status_path", statusPath,
+		)
+	}
+}
+

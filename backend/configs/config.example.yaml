@@ -288,3 +288,36 @@ migration:
 
 env_override:
   disabled_paths: []
+
+deploy:
+  enabled: false
+  # env 决定是否执行真实部署：development 时 Webhook 只记录日志不部署；生产机器改为 production。
+  env: development
+  webhook:
+    # provider: github / gitlab / generic
+    provider: github
+    # secret 通过环境变量注入，禁止硬编码
+    secret: ${DEPLOY_WEBHOOK_SECRET:}
+    # path 是接收 Webhook 的 HTTP 路径
+    path: /webhook/push
+    # require_secret: false 仅用于本地调试，生产务必保持 true
+    require_secret: true
+  # repo_url: 首次部署时 git clone 的仓库地址
+  repo_url: ""
+  # branch: 监听的 Git 分支，其他分支的 Push 将被忽略
+  branch: main
+  # work_dir: git 操作的工作目录
+  work_dir: ./
+  # build_cmd: 编译命令
+  build_cmd: "go build -mod=readonly -o ./tmp/console-server ./cmd/console"
+  # binary_path: 编译产物路径
+  binary_path: ./tmp/console-server
+  # stop_cmd: 停止旧进程命令；留空则跳过（适合由 systemd/supervisor 接管）
+  stop_cmd: ""
+  # start_cmd: 启动新进程命令；留空则跳过
+  start_cmd: ""
+  # timeout_seconds: 单步命令超时时间（秒）
+  timeout_seconds: 300
+  # log_max_lines: 内存中保留的最近部署日志行数
+  log_max_lines: 500
+

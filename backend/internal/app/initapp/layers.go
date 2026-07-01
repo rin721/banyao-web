@@ -13,6 +13,7 @@ import (
 	announcementservice "github.com/open-console/console-platform/internal/modules/announcements/service"
 	communityhandler "github.com/open-console/console-platform/internal/modules/community/handler"
 	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
+	deployhandler "github.com/open-console/console-platform/internal/modules/deploy/handler"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iamrepository "github.com/open-console/console-platform/internal/modules/iam/repository"
 	iamservice "github.com/open-console/console-platform/internal/modules/iam/service"
@@ -59,6 +60,7 @@ type Modules struct {
 	Community     CommunityModule
 	IAM           IAMModule
 	System        SystemModule
+	Deploy        DeployModule
 }
 
 // IAMModule 保存 IAM 模块对其他层暴露的仓储、服务和 HTTP 处理器。
@@ -90,6 +92,12 @@ type SystemModule struct {
 	Service   systemservice.Service
 	Handler   *systemhandler.Handler
 	Lifecycle BackgroundService
+}
+
+// DeployModule 保存 Git Webhook 自动部署模块的 HTTP 处理器。
+// 模块禁用时 Handler 为 nil，装配层和传输层均应以 nil 安全方式处理。
+type DeployModule struct {
+	Handler *deployhandler.Handler
 }
 
 // Transport 保存对外服务入口。

@@ -515,3 +515,52 @@ func versionListParams() []RouteParam {
 func parameterListParams() []RouteParam {
 	return []RouteParam{queryParam("keyword", "string"), queryParam("name", "string"), queryParam("key", "string"), queryDateTime("startCreatedAt"), queryDateTime("endCreatedAt"), queryInt("page"), queryInt("pageSize")}
 }
+
+// ─── Deploy Webhook contracts ──────────────────────────────────────────────────
+// Webhook 接收端不进入 API catalog、不进入 OpenAPI 文档，不做身份认证（由 HMAC 签名保证安全）。
+
+// webhookPushContract 构建 Webhook Push 事件接收接口的 contract。
+// path 由调用方从配置注入，不硬编码。
+func webhookPushContract(path string) RouteContract {
+	return RouteContract{
+		ID:             "deploy.webhook.push",
+		Method:         http.MethodPost,
+		Path:           path,
+		Tag:            "Deploy",
+		Summary:        "接收 Git Webhook Push 事件并触发自动部署",
+		Access:         systemmodel.APIAccessPublic,
+		RequestContent: ContentJSON,
+		Status:         http.StatusAccepted,
+		IncludeCatalog: false,
+		IncludeOpenAPI: false,
+	}
+}
+
+// webhookStatusContract 构建 Webhook 部署状态查询接口的 contract。
+func webhookStatusContract(basePath string) RouteContract {
+	statusPath := basePath[:len(basePath)-len("/push")] + "/status"
+	if !containsPathSegment(basePath, "push") {
+		statusPath = basePath + "/status"
+	}
+	return RouteContract{
+		ID:              "deploy.webhook.status",
+		Method:          http.MethodGet,
+		Path:            statusPath,
+		Tag:             "Deploy",
+		Summary:         "查询最近一次自动部署的状态与日志",
+		Access:          systemmodel.APIAccessPublic,
+		ResponseContent: ContentJSON,
+		Status:          http.StatusOK,
+		IncludeCatalog:  false,
+		IncludeOpenAPI:  false,
+	}
+}
+
+// containsPathSegment 判断路径末尾是否为指定片段。
+func containsPathSegment(path, segment string) bool {
+	if len(path) < len(segment) {
+		return false
+	}
+	return path[len(path)-len(segment):] == segment
+}
+

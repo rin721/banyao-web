@@ -49,6 +49,7 @@ func NewTransport(core Core, infra Infrastructure, modules Modules, setupHandler
 		setupStatusProvider,
 		modules.IAM.Service,
 		modules.Community.Service,
+		modules.Deploy.Handler,
 	)
 	if err != nil {
 		return Transport{}, err
@@ -149,6 +150,7 @@ func NewHTTPServer(
 	setupStatusProvider httptransport.SetupStatusProvider,
 	iamService iamservice.Service,
 	communityService communityservice.Service,
+	deployHandler httptransport.DeployWebhookHandler,
 ) (*web.Engine, httpserver.HTTPServer, error) {
 	middlewareCfg := middleware.DefaultMiddlewareConfig()
 	middlewareCfg.CORS = corsConfig
@@ -174,6 +176,8 @@ func NewHTTPServer(
 		IAMAuth:                      iamService,
 		IAMAuthz:                     iamService,
 		CommunityAuth:                communityService,
+		DeployHandler:                deployHandler,
+		DeployWebhookPath:            cfg.Deploy.WebhookPathValue(),
 		WebUI: httptransport.WebUIDeps{
 			Enabled:   webUICfg.EnabledValue(),
 			MountPath: webUICfg.MountPath,

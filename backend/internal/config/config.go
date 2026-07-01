@@ -25,6 +25,7 @@ type Config struct {
 	Migration   MigrationConfig   `mapstructure:"migration"`
 	WebUI       WebUIConfig       `mapstructure:"webui"`
 	EnvOverride EnvOverrideConfig `mapstructure:"env_override" json:"env_override" yaml:"env_override" toml:"env_override"`
+	Deploy      DeployConfig      `mapstructure:"deploy" json:"deploy" yaml:"deploy" toml:"deploy"`
 }
 
 type Validator interface {
@@ -51,6 +52,7 @@ func (c *Config) Validate() error {
 		&c.Migration,
 		&c.WebUI,
 		&c.EnvOverride,
+		&c.Deploy,
 	}
 	for _, validator := range validators {
 		if validator == nil {

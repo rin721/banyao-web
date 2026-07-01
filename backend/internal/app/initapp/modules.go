@@ -21,6 +21,8 @@ import (
 	communitymodel "github.com/open-console/console-platform/internal/modules/community/model"
 	communityrepository "github.com/open-console/console-platform/internal/modules/community/repository"
 	communityservice "github.com/open-console/console-platform/internal/modules/community/service"
+	deployhandler "github.com/open-console/console-platform/internal/modules/deploy/handler"
+	deployservice "github.com/open-console/console-platform/internal/modules/deploy/service"
 	iamhandler "github.com/open-console/console-platform/internal/modules/iam/handler"
 	iaminfrastructure "github.com/open-console/console-platform/internal/modules/iam/infrastructure"
 	iammodel "github.com/open-console/console-platform/internal/modules/iam/model"
@@ -59,11 +61,13 @@ func NewModules(core Core, infra Infrastructure) (Modules, error) {
 	systemModule := NewSystemModule(core, infra, iamModule)
 	announcementsModule := NewAnnouncementsModule(core, infra)
 	communityModule := NewCommunityModule(core, infra, announcementsModule.Service, systemModule.Service)
+	deployModule := NewDeployModule(core)
 	return Modules{
 		Announcements: announcementsModule,
 		Community:     communityModule,
 		IAM:           iamModule,
 		System:        systemModule,
+		Deploy:        deployModule,
 	}, nil
 }
 
@@ -1321,3 +1325,57 @@ func configItemValueType(value any) string {
 		return systemmodel.ConfigValueTypeObject
 	}
 }
+
+// NewDeployModule 根据配置装配 Git Webhook 自动部署模块。
+//
+// 当 deploy.enabled 为 false 时返回空模块（Handler 为 nil），传输层会跳过路由注册。
+// 该函数不依赖数据库或缓存基础设施，只需 Core 层（配置 + 日志）。
+func NewDeployModule(core Core) DeployModule {
+	cfg := core.Config.Deploy
+	cfg.ApplyDefaults()
+
+	if !cfg.Enabled {
+		if core.Logger != nil {
+			core.Logger.Info("deploy module disabled")
+		}
+		return DeployModule{}
+	}
+
+	svcCfg := deployservice.Config{
+		Env:            cfg.Env,
+		Provider:       cfg.Webhook.Provider,
+		Secret:         cfg.Webhook.Secret,
+		RequireSecret:  cfg.RequireSecretValue(),
+		Branch:         cfg.Branch,
+		RepoURL:        cfg.RepoURL,
+		WorkDir:        cfg.WorkDir,
+		BuildCmd:       cfg.BuildCmd,
+		BinaryPath:     cfg.BinaryPath,
+		StopCmd:        cfg.StopCmd,
+		StartCmd:       cfg.StartCmd,
+		TimeoutSeconds: cfg.TimeoutSeconds,
+		LogMaxLines:    cfg.LogMaxLines,
+	}
+
+	svc, err := deployservice.New(svcCfg, core.Logger)
+	if err != nil {
+		if core.Logger != nil {
+			core.Logger.Error("deploy module init failed, module disabled", "error", err)
+		}
+		return DeployModule{}
+	}
+
+	if core.Logger != nil {
+		core.Logger.Info("deploy module enabled",
+			"env", cfg.Env,
+			"branch", cfg.Branch,
+			"provider", cfg.Webhook.Provider,
+			"webhook_path", cfg.WebhookPathValue(),
+		)
+	}
+
+	return DeployModule{
+		Handler: deployhandler.New(svc, core.Logger),
+	}
+}
+
