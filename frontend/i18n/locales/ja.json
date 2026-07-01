@@ -68,6 +68,8 @@
     "roleCreator": "クリエイター",
     "editProfile": "表示名を編集",
     "editCreatorProfile": "クリエイター情報を編集",
+    "editAvatarAndBio": "アイコン・自己紹介を編集",
+    "avatarAndBio": "アイコン・自己紹介",
     "changePassword": "パスワードを変更",
     "currentPassword": "現在のパスワード",
     "newPassword": "新しいパスワード",

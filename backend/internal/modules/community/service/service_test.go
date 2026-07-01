@@ -1504,6 +1504,11 @@ func (r *fakeRepository) FindCreatorByHandle(_ context.Context, handle string) (
 	return nil, ErrNotFound
 }
 
+func (r *fakeRepository) CreateCreator(_ context.Context, creator model.Creator) error {
+	r.creators = append(r.creators, creator)
+	return nil
+}
+
 func (r *fakeRepository) UpdateCreator(_ context.Context, creator model.Creator) error {
 	for i, c := range r.creators {
 		if c.Handle == creator.Handle {

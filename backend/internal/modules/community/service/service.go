@@ -142,6 +142,7 @@ type Repository interface {
 	FindCommunityReport(context.Context, string) (*model.CommunityReport, error)
 	UpdateCommunityReportReview(context.Context, model.CommunityReport) error
 	FindCreatorByHandle(context.Context, string) (*model.Creator, error)
+	CreateCreator(context.Context, model.Creator) error
 	UpdateCreator(context.Context, model.Creator) error
 	FindCreatorFollow(context.Context, string, string) (*model.CreatorFollow, error)
 	FindVideoComment(context.Context, string, string) (*model.VideoComment, error)
@@ -488,14 +489,15 @@ func (s *service) UploadAccountAvatar(ctx context.Context, principal authtypes.P
 	if err != nil {
 		return model.AccountAvatarResult{}, mapStorageError(err)
 	}
-	creator, creatorErr := s.repo.FindCreatorByHandle(ctx, account.Handle)
-	if creatorErr == nil && creator != nil {
-		now := s.now()
-		creator.UserSummary.AvatarURL = &avatarURL
-		creator.UpdatedAt = now
-		if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
-			return model.AccountAvatarResult{}, mapStorageError(uErr)
-		}
+	creator, err := s.getOrCreateCreator(ctx, account)
+	if err != nil {
+		return model.AccountAvatarResult{}, err
+	}
+	now := s.now()
+	creator.UserSummary.AvatarURL = &avatarURL
+	creator.UpdatedAt = now
+	if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
+		return model.AccountAvatarResult{}, mapStorageError(uErr)
 	}
 	profile, err := s.GetCommunityAccountProfile(ctx, principal)
 	if err != nil {
@@ -515,14 +517,15 @@ func (s *service) DeleteAccountAvatar(ctx context.Context, principal authtypes.P
 	if err != nil {
 		return model.AccountAvatarResult{}, mapStorageError(err)
 	}
-	creator, creatorErr := s.repo.FindCreatorByHandle(ctx, account.Handle)
-	if creatorErr == nil && creator != nil {
-		now := s.now()
-		creator.UserSummary.AvatarURL = nil
-		creator.UpdatedAt = now
-		if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
-			return model.AccountAvatarResult{}, mapStorageError(uErr)
-		}
+	creator, err := s.getOrCreateCreator(ctx, account)
+	if err != nil {
+		return model.AccountAvatarResult{}, err
+	}
+	now := s.now()
+	creator.UserSummary.AvatarURL = nil
+	creator.UpdatedAt = now
+	if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
+		return model.AccountAvatarResult{}, mapStorageError(uErr)
 	}
 	profile, err := s.GetCommunityAccountProfile(ctx, principal)
 	if err != nil {
@@ -3654,13 +3657,11 @@ func (s *service) GetCommunityAccountProfile(ctx context.Context, principal auth
 		return model.AccountProfileResponse{}, mapStorageError(err)
 	}
 	resp := accountProfileResponse(*account)
-	// If the account is a creator, enrich with creator bio/avatar.
-	if account.Role == model.CommunityAccountRoleCreator {
-		creator, cerr := s.repo.FindCreatorByHandle(ctx, account.Handle)
-		if cerr == nil {
-			resp.Bio = creator.Bio
-			resp.AvatarURL = creator.UserSummary.AvatarURL
-		}
+	// Try to enrich with creator bio/avatar if creator record exists.
+	creator, cerr := s.repo.FindCreatorByHandle(ctx, account.Handle)
+	if cerr == nil && creator != nil {
+		resp.Bio = creator.Bio
+		resp.AvatarURL = creator.UserSummary.AvatarURL
 	}
 	return resp, nil
 }
@@ -3706,12 +3707,9 @@ func (s *service) UpdateCommunityAccountCreatorProfile(ctx context.Context, prin
 	if err != nil {
 		return model.AccountProfileResponse{}, mapStorageError(err)
 	}
-	if account.Role != model.CommunityAccountRoleCreator {
-		return model.AccountProfileResponse{}, ErrForbidden
-	}
-	creator, err := s.repo.FindCreatorByHandle(ctx, account.Handle)
+	creator, err := s.getOrCreateCreator(ctx, account)
 	if err != nil {
-		return model.AccountProfileResponse{}, mapStorageError(err)
+		return model.AccountProfileResponse{}, err
 	}
 	if req.Bio != nil {
 		bio := trimRunes(*req.Bio, 640)
@@ -3835,4 +3833,36 @@ func accountProfileResponse(account model.CommunityAccount) model.AccountProfile
 		LastLoginAt: account.LastLoginAt,
 		CreatedAt:   account.CreatedAt,
 	}
+}
+
+func (s *service) getOrCreateCreator(ctx context.Context, account *model.CommunityAccount) (*model.Creator, error) {
+	creator, err := s.repo.FindCreatorByHandle(ctx, account.Handle)
+	if err == nil && creator != nil {
+		return creator, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, mapStorageError(err)
+	}
+
+	now := s.now()
+	hash := shortHash(account.Handle + ":" + strconv.FormatInt(account.ID, 10))
+	creatorID := trimRunes("creator-"+hash, 96)
+
+	newCreator := model.Creator{
+		UserSummary: model.UserSummary{
+			ID:          creatorID,
+			Handle:      account.Handle,
+			DisplayName: account.DisplayName,
+			AvatarURL:   nil,
+		},
+		FollowerCount: 0,
+		JoinedAt:      now,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	if err := s.repo.CreateCreator(ctx, newCreator); err != nil {
+		return nil, mapStorageError(err)
+	}
+	return &newCreator, nil
 }

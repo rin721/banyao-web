@@ -68,6 +68,8 @@
     "roleCreator": "Creator",
     "editProfile": "Edit Display Name",
     "editCreatorProfile": "Edit Creator Profile",
+    "editAvatarAndBio": "Edit Avatar & Bio",
+    "avatarAndBio": "Avatar & Bio",
     "changePassword": "Change Password",
     "currentPassword": "Current Password",
     "newPassword": "New Password",

@@ -178,10 +178,10 @@ async function deleteAvatar() {
     </AoiSurface>
 
     <!-- Edit Creator Profile -->
-    <AoiSurface v-if="isCreator" surface="panel" padding="lg">
+    <AoiSurface surface="panel" padding="lg">
       <h2 class="me-pane-title">
         <AoiIcon name="sparkles" :size="18" decorative />
-        {{ t("me.editCreatorProfile") }}
+        {{ t("me.avatarAndBio") }}
       </h2>
       <div v-if="!editingCreatorProfile" class="me-trigger-row">
         <div class="me-trigger-desc">
@@ -192,7 +192,7 @@ async function deleteAvatar() {
         </div>
         <div class="me-profile-action-group">
           <AoiButton variant="outlined" tone="accent" @click="startEditCreatorProfile">
-            {{ t("me.editCreatorProfile") }}
+            {{ t("me.editAvatarAndBio") }}
           </AoiButton>
           <AoiButton
             v-if="profile.avatarUrl"

@@ -247,6 +247,10 @@ func (r *repository) FindCreatorByHandle(ctx context.Context, handle string) (*m
 	return &creator, nil
 }
 
+func (r *repository) CreateCreator(ctx context.Context, creator model.Creator) error {
+	return r.db.Create(ctx, &creator)
+}
+
 func (r *repository) UpdateCreator(ctx context.Context, creator model.Creator) error {
 	result, err := r.db.Update(ctx, &model.Creator{}, map[string]any{
 		"display_name": creator.UserSummary.DisplayName,

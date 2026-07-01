@@ -68,6 +68,8 @@
     "roleCreator": "创作者",
     "editProfile": "修改昵称",
     "editCreatorProfile": "修改创作者资料",
+    "editAvatarAndBio": "修改头像与简介",
+    "avatarAndBio": "头像与简介",
     "changePassword": "修改密码",
     "currentPassword": "当前密码",
     "newPassword": "新密码",
