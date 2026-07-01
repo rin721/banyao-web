@@ -496,6 +496,11 @@ type UpdateCommunityDynamicRequest struct {
 	ClientID string `json:"clientId,omitempty"`
 }
 
+type DeleteCommunitySubmissionResult struct {
+	SubmissionID string `json:"submissionId"`
+	Deleted      bool   `json:"deleted"`
+}
+
 type DeleteCommunityDynamicResult struct {
 	DynamicID string `json:"dynamicId"`
 	ClientID  string `json:"clientId"`

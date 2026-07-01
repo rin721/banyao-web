@@ -410,7 +410,9 @@ func registerCommunityRoutes(v1 ports.HTTPRouter, deps RouterDeps) []RouteContra
 		routeSpecFor("community.account.change-password", deps.CommunityHandler.ChangeAccountPassword),
 		routeSpecFor("community.account.sessions", deps.CommunityHandler.AccountSessions),
 		routeSpecFor("community.account.avatar.upload", deps.CommunityHandler.AccountAvatarUpload),
+		routeSpecFor("community.account.avatar.delete", deps.CommunityHandler.AccountAvatarDelete),
 		routeSpecFor("community.account.submissions.get", deps.CommunityHandler.AccountSubmission),
+		routeSpecFor("community.account.submissions.delete", deps.CommunityHandler.AccountSubmissionDelete),
 	}
 	registerRouteSpecs(account, appconstants.APIPath("public", "community", "account"), accountSpecs)
 	registered = append(registered, routeContractsFromSpecs(accountSpecs)...)

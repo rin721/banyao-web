@@ -6525,6 +6525,96 @@
       "tags":
         - "Announcements"
       "x-scope": "platform"
+  "/api/v1/public/community/account/avatar":
+    "delete":
+      "operationId": "community.account.avatar.delete"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "avatarUrl":
+                        "type": "string"
+                      "profile":
+                        "properties":
+                          "avatarUrl":
+                            "type": "string"
+                          "bio":
+                            "type": "string"
+                          "createdAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "displayName":
+                            "type": "string"
+                          "email":
+                            "type": "string"
+                          "handle":
+                            "type": "string"
+                          "id":
+                            "type": "string"
+                          "lastLoginAt":
+                            "format": "date-time"
+                            "type": "string"
+                          "role":
+                            "type": "string"
+                          "status":
+                            "type": "string"
+                        "type": "object"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "删除当前社区账号头像"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
   "/api/v1/public/community/account/avatar/upload":
     "post":
       "operationId": "community.account.avatar.upload"
@@ -8994,6 +9084,79 @@
         - "Community"
       "x-scope": "tenant"
   "/api/v1/public/community/account/submissions/{submissionId}":
+    "delete":
+      "operationId": "community.account.submissions.delete"
+      "parameters":
+        -
+          "in": "path"
+          "name": "submissionId"
+          "required": true
+          "schema":
+            "type": "string"
+      "responses":
+        "200":
+          "content":
+            "application/json":
+              "schema":
+                "properties":
+                  "code":
+                    "format": "int32"
+                    "type": "integer"
+                  "data":
+                    "properties":
+                      "deleted":
+                        "type": "boolean"
+                      "submissionId":
+                        "type": "string"
+                    "type": "object"
+                  "message":
+                    "type": "string"
+                  "messageArgs":
+                    "additionalProperties": true
+                    "type": "object"
+                  "messageKey":
+                    "type": "string"
+                  "serverTime":
+                    "format": "int64"
+                    "type": "integer"
+                  "traceId":
+                    "type": "string"
+                "type": "object"
+          "description": "OK"
+        "400":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Bad request"
+        "401":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Unauthorized"
+        "403":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Forbidden"
+        "404":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Not found"
+        "500":
+          "content":
+            "application/json":
+              "schema":
+                "$ref": "#/components/schemas/ErrorResult"
+          "description": "Internal server error"
+      "summary": "删除当前社区账号投稿记录"
+      "tags":
+        - "Community"
+      "x-scope": "tenant"
     "get":
       "operationId": "community.account.submissions.get"
       "parameters":

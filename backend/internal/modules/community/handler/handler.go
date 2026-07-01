@@ -266,6 +266,16 @@ func (h *Handler) AccountAvatarUpload(c ports.HTTPContext) {
 	writeOK(c, item, err, h.writeError)
 }
 
+func (h *Handler) AccountAvatarDelete(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	item, err := h.service.DeleteAccountAvatar(c.RequestContext(), principal)
+	writeOK(c, item, err, h.writeError)
+}
+
+
 
 func (h *Handler) Home(c ports.HTTPContext) {
 	payload, err := h.service.GetHomePayload(c.RequestContext())
@@ -1183,4 +1193,14 @@ func (h *Handler) AccountSubmission(c ports.HTTPContext) {
 	}
 	item, err := h.service.GetCommunityAccountSubmission(c.RequestContext(), principal, c.Param("submissionId"))
 	writeOK(c, item, err, h.writeError)
+}
+
+// AccountSubmissionDelete handles DELETE /public/community/account/submissions/:submissionId
+func (h *Handler) AccountSubmissionDelete(c ports.HTTPContext) {
+	principal, ok := requirePrincipal(c)
+	if !ok {
+		return
+	}
+	res, err := h.service.DeleteCommunityAccountSubmission(c.RequestContext(), principal, c.Param("submissionId"))
+	writeOK(c, res, err, h.writeError)
 }

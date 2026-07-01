@@ -139,15 +139,11 @@ watch(() => library.hydrated, (hydrated) => {
     void syncLibrary()
   }
 }, { immediate: true })
-
-useHead(() => ({
-  title: t("collections.headTitle")
-}))
 </script>
 
 <template>
-  <div class="aoi-page collections-page">
-    <section v-aoi-reveal="'rise'" class="collections-hero" :aria-label="t('collections.title')">
+  <div class="me-collections-subpage">
+    <section class="collections-hero">
       <PageHeader
         icon="star"
         :eyebrow="t('collections.eyebrow')"
@@ -183,28 +179,6 @@ useHead(() => ({
           {{ sourceLabel }}
         </p>
       </div>
-
-      <div class="collections-hero__mobile-actions">
-        <AoiButton
-          tone="accent"
-          variant="tonal"
-          icon="refresh-cw"
-          :loading="syncPending"
-          @click="syncLibrary"
-        >
-          {{ t("collections.actions.refresh") }}
-        </AoiButton>
-        <AoiButton
-          tone="neutral"
-          variant="outlined"
-          icon="trash-2"
-          :disabled="!canClearActive"
-          :loading="syncPending"
-          @click="clearActiveList"
-        >
-          {{ clearLabel }}
-        </AoiButton>
-      </div>
     </section>
 
     <AoiStatGrid
@@ -212,7 +186,6 @@ useHead(() => ({
       class="collections-page__stats"
       :items="collectionStats"
       :columns="4"
-      reveal="fade"
     />
 
     <section
@@ -221,26 +194,21 @@ useHead(() => ({
       :aria-label="t('collections.loadingTitle')"
       aria-live="polite"
     >
-      <span class="collections-loading__sr">
-        {{ t("collections.loadingTitle") }}. {{ t("collections.loadingDescription") }}
-      </span>
-      <div class="collections-loading__header" aria-hidden="true">
+      <div class="collections-loading__header">
         <span class="collections-loading__line collections-loading__line--title" />
         <span class="collections-loading__line" />
       </div>
-      <div class="collections-loading__cards" aria-hidden="true">
+      <div class="collections-loading__cards">
         <span v-for="item in 6" :key="item" class="collections-loading__card" />
       </div>
     </section>
 
     <template v-else>
-      <AoiReveal variant="fade">
-        <AoiTabs
-          v-model="activeTab"
-          :items="tabItems"
-          :aria-label="t('collections.tabsAria')"
-        />
-      </AoiReveal>
+      <AoiTabs
+        v-model="activeTab"
+        :items="tabItems"
+        :aria-label="t('collections.tabsAria')"
+      />
 
       <AoiStatusMessage
         v-if="library.syncError"
@@ -251,26 +219,13 @@ useHead(() => ({
       </AoiStatusMessage>
 
       <AoiSection
+        v-slot="sectionProps"
         v-if="hasActiveVideos"
         :title="activeTitle"
         :description="activeDescription"
         :count="activeVideos.length"
         title-id="collections-active-title"
-        :reveal="false"
       >
-        <template #actions>
-          <AoiButton
-            tone="accent"
-            variant="outlined"
-            size="sm"
-            icon="trash-2"
-            :disabled="!canClearActive"
-            :loading="syncPending"
-            @click="clearActiveList"
-          >
-            {{ clearLabel }}
-          </AoiButton>
-        </template>
         <VideoGrid :videos="activeVideos" />
       </AoiSection>
 
@@ -298,7 +253,7 @@ useHead(() => ({
 </template>
 
 <style scoped>
-.collections-page {
+.me-collections-subpage {
   display: grid;
   gap: 18px;
 }
@@ -308,24 +263,13 @@ useHead(() => ({
   display: grid;
   min-width: 0;
   gap: 14px;
-  overflow: hidden;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  padding: 0;
 }
 
 .collections-hero :deep(.page-header) {
   margin: 0;
 }
 
-.collections-hero :deep(.page-header__description) {
-  max-width: 780px;
-  text-wrap: pretty;
-}
-
-.collections-hero__meta,
-.collections-hero__mobile-actions {
+.collections-hero__meta {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
@@ -346,44 +290,21 @@ useHead(() => ({
   font-weight: 760;
   line-height: 1.5;
   margin: 0;
-  overflow-wrap: anywhere;
   padding: 6px 10px;
-}
-
-.collections-hero__mobile-actions {
-  display: none;
 }
 
 .collections-page__stats {
   min-width: 0;
 }
 
-.collections-page :deep(.aoi-tabs) {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
 .collections-loading {
   position: relative;
   display: grid;
   gap: 16px;
-  overflow: hidden;
   border: 1px solid var(--aoi-border);
   border-radius: var(--aoi-radius-sm);
   background: var(--aoi-surface);
-  box-shadow: var(--aoi-shadow-sm);
   padding: 18px;
-}
-
-.collections-loading__sr {
-  position: absolute;
-  overflow: hidden;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  border: 0;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }
 
 .collections-loading__header {
@@ -421,41 +342,18 @@ useHead(() => ({
   border-radius: var(--aoi-radius-sm);
 }
 
-@media (max-width: 760px) {
-  .collections-loading__cards {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 639px) {
-  .collections-page {
-    padding-bottom: calc(var(--aoi-mobile-content-bottom-space) + 24px);
-  }
-
-  .collections-hero__meta,
-  .collections-hero__mobile-actions {
-    display: grid;
-  }
-
-  .collections-hero__mobile-actions :deep(.aoi-button) {
-    width: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .collections-loading__line,
-  .collections-loading__card {
-    animation: none;
-  }
-}
-
 @keyframes collections-loading-shimmer {
   from {
     background-position: 120% 0;
   }
-
   to {
     background-position: -80% 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .collections-loading__cards {
+    grid-template-columns: 1fr;
   }
 }
 </style>

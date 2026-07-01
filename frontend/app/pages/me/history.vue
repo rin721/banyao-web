@@ -83,14 +83,10 @@ function formatProgress(entry: HistoryEntry) {
 
   return t("history.progress.continue", { time: `${minutes}:${seconds}` })
 }
-
-useHead(() => ({
-  title: `${t("history.title")} - Aoi`
-}))
 </script>
 
 <template>
-  <div class="aoi-page">
+  <div class="me-history-subpage">
     <PageHeader
       icon="history"
       :title="t('history.title')"
@@ -153,6 +149,10 @@ useHead(() => ({
 </template>
 
 <style scoped>
+.me-history-subpage {
+  display: grid;
+  gap: 16px;
+}
 .history-mobile-action {
   display: none;
 }

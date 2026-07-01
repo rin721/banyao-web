@@ -74,5 +74,6 @@ export type {
   VideoSummary,
   AccountSessionItem,
   AccountSessionPayload,
-  AccountAvatarResult
+  AccountAvatarResult,
+  DeleteCommunitySubmissionResult
 } from "~~/shared/types/api"

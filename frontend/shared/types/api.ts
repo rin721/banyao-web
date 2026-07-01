@@ -555,3 +555,8 @@ export interface AccountAvatarResult {
   avatarUrl: string
   profile: AccountProfileResponse
 }
+
+export interface DeleteCommunitySubmissionResult {
+  submissionId: string
+  deleted: boolean
+}

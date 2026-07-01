@@ -591,6 +591,20 @@ func (r *repository) DeleteCommunityDynamic(ctx context.Context, dynamicID strin
 	return nil
 }
 
+func (r *repository) DeleteCommunitySubmission(ctx context.Context, submissionID string, clientID string, now time.Time) error {
+	result, err := r.db.Update(ctx, &model.CommunitySubmission{}, map[string]any{
+		"updated_at": now,
+		"deleted_at": now,
+	}, database.Where("id = ? AND client_id = ?", submissionID, clientID), alive())
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected == 0 {
+		return communityservice.ErrNotFound
+	}
+	return nil
+}
+
 func (r *repository) CreateCommunitySubmission(ctx context.Context, submission model.CommunitySubmission) error {
 	return r.db.Create(ctx, &submission)
 }

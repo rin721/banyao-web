@@ -43,6 +43,7 @@ type Service interface {
 	LogoutCommunityAccount(context.Context, authtypes.Principal) error
 	ListAccountSessions(context.Context, authtypes.Principal) (model.AccountSessionPayload, error)
 	UploadAccountAvatar(context.Context, authtypes.Principal, UploadSourceInput) (model.AccountAvatarResult, error)
+	DeleteAccountAvatar(context.Context, authtypes.Principal) (model.AccountAvatarResult, error)
 	ListCommunityAccounts(context.Context, model.CommunityAccountFilter) (model.CommunityAccountPayload, error)
 	UpdateCommunityAccount(context.Context, string, model.UpdateCommunityAccountRequest) (model.CommunityAccountItem, error)
 	ListCommunityReports(context.Context, model.CommunityReportFilter) (model.CommunityReportPayload, error)
@@ -118,6 +119,7 @@ type Service interface {
 	UpdateCommunityAccountCreatorProfile(context.Context, authtypes.Principal, model.UpdateAccountCreatorProfileRequest) (model.AccountProfileResponse, error)
 	ChangeAccountPassword(context.Context, authtypes.Principal, model.ChangeAccountPasswordRequest) error
 	GetCommunityAccountSubmission(context.Context, authtypes.Principal, string) (model.CommunitySubmissionItem, error)
+	DeleteCommunityAccountSubmission(context.Context, authtypes.Principal, string) (model.DeleteCommunitySubmissionResult, error)
 }
 
 
@@ -156,6 +158,7 @@ type Repository interface {
 	FindCommunityDynamic(context.Context, string) (*model.CommunityDynamic, error)
 	UpdateCommunityDynamic(context.Context, model.CommunityDynamic) error
 	DeleteCommunityDynamic(context.Context, string, string, time.Time) error
+	DeleteCommunitySubmission(context.Context, string, string, time.Time) error
 	CreateCommunitySubmission(context.Context, model.CommunitySubmission) error
 	FindCommunitySubmission(context.Context, string) (*model.CommunitySubmission, error)
 	FindMediaAssetByID(context.Context, int64) (*model.CommunityMediaAsset, error)
@@ -503,6 +506,34 @@ func (s *service) UploadAccountAvatar(ctx context.Context, principal authtypes.P
 		Profile:   profile,
 	}, nil
 }
+
+func (s *service) DeleteAccountAvatar(ctx context.Context, principal authtypes.Principal) (model.AccountAvatarResult, error) {
+	if s.repo == nil {
+		return model.AccountAvatarResult{}, ErrStorageUnavailable
+	}
+	account, err := s.repo.FindCommunityAccountByID(ctx, principal.UserID)
+	if err != nil {
+		return model.AccountAvatarResult{}, mapStorageError(err)
+	}
+	creator, creatorErr := s.repo.FindCreatorByHandle(ctx, account.Handle)
+	if creatorErr == nil && creator != nil {
+		now := s.now()
+		creator.UserSummary.AvatarURL = nil
+		creator.UpdatedAt = now
+		if uErr := s.repo.UpdateCreator(ctx, *creator); uErr != nil {
+			return model.AccountAvatarResult{}, mapStorageError(uErr)
+		}
+	}
+	profile, err := s.GetCommunityAccountProfile(ctx, principal)
+	if err != nil {
+		return model.AccountAvatarResult{}, err
+	}
+	return model.AccountAvatarResult{
+		AvatarURL: "",
+		Profile:   profile,
+	}, nil
+}
+
 
 func (s *service) ListCommunityAccounts(ctx context.Context, filter model.CommunityAccountFilter) (model.CommunityAccountPayload, error) {
 	if s.repo == nil {
@@ -3754,6 +3785,33 @@ func (s *service) GetCommunityAccountSubmission(ctx context.Context, principal a
 	}
 	return items[0], nil
 }
+
+// DeleteCommunityAccountSubmission 删除（软删除）当前账号的某条投稿。
+func (s *service) DeleteCommunityAccountSubmission(ctx context.Context, principal authtypes.Principal, submissionID string) (model.DeleteCommunitySubmissionResult, error) {
+	if s.repo == nil {
+		return model.DeleteCommunitySubmissionResult{}, ErrStorageUnavailable
+	}
+	clientID, err := s.accountClientID(ctx, principal)
+	if err != nil {
+		return model.DeleteCommunitySubmissionResult{}, err
+	}
+	sub, err := s.repo.FindCommunitySubmission(ctx, strings.TrimSpace(submissionID))
+	if err != nil {
+		return model.DeleteCommunitySubmissionResult{}, mapStorageError(err)
+	}
+	if sub.ClientID != clientID {
+		return model.DeleteCommunitySubmissionResult{}, ErrForbidden
+	}
+	now := s.now()
+	if err := s.repo.DeleteCommunitySubmission(ctx, sub.ID, clientID, now); err != nil {
+		return model.DeleteCommunitySubmissionResult{}, mapStorageError(err)
+	}
+	return model.DeleteCommunitySubmissionResult{
+		SubmissionID: sub.ID,
+		Deleted:      true,
+	}, nil
+}
+
 
 
 // accountClientID derives the community client ID string from the authenticated principal.

@@ -1480,6 +1480,19 @@ func (r *fakeRepository) ListCommunitySessionsByAccountID(_ context.Context, acc
 	return items, nil
 }
 
+func (r *fakeRepository) DeleteCommunitySubmission(_ context.Context, submissionID string, clientID string, now time.Time) error {
+	for index := range r.submissions {
+		sub := &r.submissions[index]
+		if sub.ID == submissionID && sub.ClientID == clientID && sub.DeletedAt == nil {
+			sub.DeletedAt = &now
+			sub.UpdatedAt = now
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+
 
 func (r *fakeRepository) FindCreatorByHandle(_ context.Context, handle string) (*model.Creator, error) {
 	for _, creator := range r.creators {

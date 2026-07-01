@@ -1,5 +1,7 @@
 import type {
   AccountProfileResponse,
+  AccountAvatarResult,
+  DeleteCommunitySubmissionResult,
   AoiApiErrorPayload,
   ApiResultEnvelope,
   ApiStatus,
@@ -517,6 +519,40 @@ export function useAoiApi() {
     })
   }
 
+  async function deleteAccountAvatar(): Promise<AccountAvatarResult> {
+    if (config.public.apiMock) {
+      return {
+        avatarUrl: "",
+        profile: {
+          id: "mock-user-id",
+          handle: "mockuser",
+          email: "mockuser@example.com",
+          displayName: "Mock User",
+          role: "creator",
+          status: "active",
+          createdAt: new Date().toISOString(),
+          avatarUrl: ""
+        }
+      }
+    }
+    return await request<AccountAvatarResult>("/account/avatar", {
+      method: "DELETE"
+    })
+  }
+
+  async function deleteAccountSubmission(submissionId: string): Promise<DeleteCommunitySubmissionResult> {
+    if (config.public.apiMock) {
+      return {
+        submissionId,
+        deleted: true
+      }
+    }
+    return await request<DeleteCommunitySubmissionResult>(`/account/submissions/${encodeURIComponent(submissionId)}`, {
+      method: "DELETE"
+    })
+  }
+
+
 
   async function getCategory(slug: string): Promise<CategoryTreeNode | null> {
     const categories = await listCategories()
@@ -586,7 +622,9 @@ export function useAoiApi() {
     changeAccountPassword,
     getAccountSubmission,
     getAccountSessions,
-    uploadAccountAvatar
+    uploadAccountAvatar,
+    deleteAccountAvatar,
+    deleteAccountSubmission
   }
 }
 

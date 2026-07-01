@@ -22,8 +22,8 @@ export function useAoiNavigation() {
     { icon: "home", label: t("nav.home"), to: "/", active: isActive("/") },
     { icon: "search", label: t("nav.search"), to: "/search", active: isActive("/search") },
     { icon: "layout-grid", label: t("nav.categories"), to: "/category", active: isActive("/category") },
-    { icon: "history", label: t("nav.history"), to: "/history", active: isActive("/history") },
-    { icon: "star", label: t("nav.collections"), to: "/collections", active: isActive("/collections") },
+    { icon: "history", label: t("nav.history"), to: "/me/history", active: isActive("/me/history") },
+    { icon: "star", label: t("nav.collections"), to: "/me/collections", active: isActive("/me/collections") },
     { icon: "radio-tower", label: t("nav.following"), to: "/feed/following", active: isActive("/feed/following") },
     { icon: "bell", label: t("nav.notifications"), to: "/notifications", active: isActive("/notifications") },
     { icon: "upload", label: t("nav.upload"), to: "/upload", active: isActive("/upload") }
