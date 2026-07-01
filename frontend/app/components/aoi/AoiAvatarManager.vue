@@ -64,92 +64,37 @@ function triggerFileSelect() {
   fileInputRef.value?.click()
 }
 
-const showCropper = ref(false)
+const cropDialogOpen = ref(false)
+const cropMode = ref<"direct" | "manual">("direct")
 const selectedImageUrl = ref("")
 const selectedImageName = ref("")
-const cropperImgRef = ref<HTMLImageElement | null>(null)
-let cropperInstance: Cropper | null = null
-
-watch(showCropper, async (val) => {
-  if (val) {
-    await nextTick()
-    if (cropperImgRef.value) {
-      cropperInstance = new Cropper(cropperImgRef.value, {
-        aspectRatio: 1,
-        viewMode: 1,
-        dragMode: "move",
-        autoCropArea: 0.9,
-        restore: false,
-        guides: false,
-        center: false,
-        highlight: false,
-        cropBoxMovable: false,
-        cropBoxResizable: false,
-        toggleDragModeOnDblclick: false,
-        background: false
-      })
-    }
-  } else {
-    destroyCropper()
-  }
-})
-
-function destroyCropper() {
-  if (cropperInstance) {
-    cropperInstance.destroy()
-    cropperInstance = null
-  }
-}
-
-function zoomCropper(ratio: number) {
-  cropperInstance?.zoom(ratio)
-}
-
-function rotateCropper(degree: number) {
-  cropperInstance?.rotate(degree)
-}
 
 function onCropCancel() {
-  showCropper.value = false
+  cropDialogOpen.value = false
   if (selectedImageUrl.value) {
     URL.revokeObjectURL(selectedImageUrl.value)
     selectedImageUrl.value = ""
   }
 }
 
-async function saveCroppedAvatar() {
-  if (!cropperInstance) return
+async function onCropResult(resultPayload: any) {
+  cropDialogOpen.value = false
   uploading.value = true
   errorMessage.value = null
   successMessage.value = null
 
+  if (selectedImageUrl.value) {
+    URL.revokeObjectURL(selectedImageUrl.value)
+    selectedImageUrl.value = ""
+  }
+
   try {
-    const canvas = cropperInstance.getCroppedCanvas({
-      width: 256,
-      height: 256,
-      imageSmoothingEnabled: true,
-      imageSmoothingQuality: "high"
-    })
-
-    if (!canvas) {
-      throw new Error("无法获取剪裁区域")
-    }
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b), "image/webp", 0.85)
-    })
-
-    if (!blob) {
-      throw new Error("图片生成失败")
-    }
-
-    const webpFile = new File([blob], "avatar.webp", {
+    const webpFile = new File([resultPayload.blob], "avatar.webp", {
       type: "image/webp",
       lastModified: Date.now()
     })
 
     const res = await api.uploadAccountAvatar(webpFile)
-
     if (props.profile.avatarUrl) {
       addToHistory(props.profile.avatarUrl)
     }
@@ -162,8 +107,7 @@ async function saveCroppedAvatar() {
     }
 
     addToHistory(res.avatarUrl)
-    successMessage.value = "头像已自动裁剪并压缩上传成功"
-    showCropper.value = false
+    successMessage.value = "头像裁剪并压缩上传成功"
   } catch (err: any) {
     if (err.statusCode === 429 || err.message?.includes("cooldown")) {
       errorMessage.value = "操作过于频繁，头像修改冷却中(30秒)，请稍后再试"
@@ -172,8 +116,54 @@ async function saveCroppedAvatar() {
     }
   } finally {
     uploading.value = false
-    onCropCancel()
   }
+}
+
+function processImageToWebp(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          reject(new Error("无法创建图片上下文"))
+          return
+        }
+
+        const targetSize = 256
+        canvas.width = targetSize
+        canvas.height = targetSize
+
+        const minDim = Math.min(img.width, img.height)
+        const sx = (img.width - minDim) / 2
+        const sy = (img.height - minDim) / 2
+
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize)
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const processedFile = new File([blob], "avatar.webp", {
+                type: "image/webp",
+                lastModified: Date.now()
+              })
+              resolve(processedFile)
+            } else {
+              reject(new Error("图片处理失败"))
+            }
+          },
+          "image/webp",
+          0.85
+        )
+      }
+      img.onerror = () => reject(new Error("图片加载失败"))
+      img.src = e.target?.result as string
+    }
+    reader.onerror = () => reject(new Error("读取图片失败"))
+    reader.readAsDataURL(file)
+  })
 }
 
 async function handleFileChange(event: Event) {
@@ -196,13 +186,53 @@ async function handleFileChange(event: Event) {
   errorMessage.value = null
   successMessage.value = null
 
-  // Open inline cropper
-  selectedImageUrl.value = URL.createObjectURL(file)
-  selectedImageName.value = file.name
-  showCropper.value = true
+  if (cropMode.value === "direct") {
+    // Direct, silent upload with auto-crop and WebP compression
+    uploading.value = true
+    try {
+      const webpFile = await processImageToWebp(file)
+      const res = await api.uploadAccountAvatar(webpFile)
+      if (props.profile.avatarUrl) {
+        addToHistory(props.profile.avatarUrl)
+      }
+
+      const updatedProfile = { ...props.profile, avatarUrl: res.avatarUrl }
+      emit("update", updatedProfile)
+
+      if (authSession.session && authSession.session.account) {
+        (authSession.session.account as any).avatarUrl = res.avatarUrl
+      }
+
+      addToHistory(res.avatarUrl)
+      successMessage.value = "头像已自动裁剪并压缩上传成功"
+    } catch (err: any) {
+      if (err.statusCode === 429 || err.message?.includes("cooldown")) {
+        errorMessage.value = "操作过于频繁，头像修改冷却中(30秒)，请稍后再试"
+      } else {
+        errorMessage.value = err.message || "头像上传失败，请重试"
+      }
+    } finally {
+      uploading.value = false
+    }
+  } else {
+    // Open crop dialog modal
+    selectedImageUrl.value = URL.createObjectURL(file)
+    selectedImageName.value = file.name
+    cropDialogOpen.value = true
+  }
 
   // Clear input
   target.value = ""
+}
+
+function triggerDirectUpload() {
+  cropMode.value = "direct"
+  fileInputRef.value?.click()
+}
+
+function triggerManualCropUpload() {
+  cropMode.value = "manual"
+  fileInputRef.value?.click()
 }
 
 async function deleteAvatar() {
@@ -266,7 +296,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  destroyCropper()
   if (selectedImageUrl.value) {
     URL.revokeObjectURL(selectedImageUrl.value)
   }
@@ -289,15 +318,11 @@ watch(() => props.profile.handle, () => {
     />
 
     <div class="avatar-manager__layout">
-      <!-- Left side: Avatar Preview or Cropper Box -->
-      <div v-if="showCropper" class="avatar-manager__cropper-container">
-        <img ref="cropperImgRef" :src="selectedImageUrl" class="avatar-manager__cropper-img" />
-      </div>
+      <!-- Left side: Avatar Preview -->
       <div
-        v-else
         class="avatar-manager__preview"
         :class="{ 'avatar-manager__preview--uploading': uploading }"
-        @click="triggerFileSelect"
+        @click="triggerDirectUpload"
       >
         <img
           v-if="props.profile.avatarUrl"
@@ -319,55 +344,27 @@ watch(() => props.profile.handle, () => {
         </div>
       </div>
 
-      <!-- Right side: Crop controls or Action buttons -->
-      <div v-if="showCropper" class="avatar-manager__actions">
-        <h4 class="cropper-title">调整头像区域</h4>
-        <p class="cropper-subtitle">拖拽移动图片，使用下方按钮缩放/旋转</p>
-
-        <div class="cropper-controls">
-          <AoiButton variant="outlined" tone="neutral" icon="zoom-in" @click="zoomCropper(0.1)">
-            放大
-          </AoiButton>
-          <AoiButton variant="outlined" tone="neutral" icon="zoom-out" @click="zoomCropper(-0.1)">
-            缩小
-          </AoiButton>
-          <AoiButton variant="outlined" tone="neutral" icon="rotate-cw" @click="rotateCropper(90)">
-            旋转
-          </AoiButton>
-        </div>
-
-        <div class="avatar-manager__buttons-row">
-          <AoiButton
-            variant="filled"
-            tone="accent"
-            icon="check"
-            :loading="uploading"
-            @click="saveCroppedAvatar"
-          >
-            保存头像
-          </AoiButton>
-          <AoiButton
-            variant="outlined"
-            tone="neutral"
-            icon="x"
-            :disabled="uploading"
-            @click="onCropCancel"
-          >
-            取消
-          </AoiButton>
-        </div>
-      </div>
-
-      <div v-else class="avatar-manager__actions">
+      <!-- Right side: Action buttons -->
+      <div class="avatar-manager__actions">
         <div class="avatar-manager__buttons-row">
           <AoiButton
             variant="filled"
             tone="accent"
             icon="upload"
             :loading="uploading"
-            @click="triggerFileSelect"
+            @click="triggerDirectUpload"
           >
-            选择图片文件
+            直接上传图片
+          </AoiButton>
+
+          <AoiButton
+            variant="outlined"
+            tone="accent"
+            icon="crop"
+            :disabled="uploading"
+            @click="triggerManualCropUpload"
+          >
+            裁剪并上传
           </AoiButton>
 
           <AoiButton
@@ -394,7 +391,7 @@ watch(() => props.profile.handle, () => {
         </div>
 
         <p class="avatar-manager__tips">
-          支持 JPG, PNG, WEBP 格式，大小不超过 5MB。
+          支持 JPG, PNG, WEBP 格式，大小不超过 5MB。使用“直接上传”将自动居中裁剪，使用“裁剪并上传”可手动调整区域。
         </p>
 
         <!-- Messages -->
@@ -452,6 +449,26 @@ watch(() => props.profile.handle, () => {
           关闭
         </AoiButton>
       </template>
+    </AoiDialog>
+
+    <!-- Manual Crop Dialog -->
+    <AoiDialog v-model:open="cropDialogOpen">
+      <template #headline>
+        <span class="history-dialog__title">手动裁剪头像</span>
+      </template>
+
+      <div class="crop-dialog__wrapper">
+        <AoiImageCropperWorkbench
+          v-if="cropDialogOpen"
+          :source-url="selectedImageUrl"
+          :source-name="selectedImageName"
+          aspect-ratio="1:1"
+          :aspect-ratios="[{ value: '1:1', label: '1:1 正方形' }]"
+          confirm-behavior="export-close"
+          @result="onCropResult"
+          @close="onCropCancel"
+        />
+      </div>
     </AoiDialog>
   </div>
 </template>
@@ -551,54 +568,11 @@ watch(() => props.profile.handle, () => {
   margin: 0;
 }
 
-.avatar-manager__cropper-container {
-  width: 120px;
-  height: 120px;
-  border-radius: var(--aoi-radius-round);
-  overflow: hidden;
-  border: 3px solid var(--aoi-accent-40);
-  background: var(--aoi-surface-muted);
-  flex-shrink: 0;
-  box-shadow: var(--aoi-shadow-sm);
-}
-
-.avatar-manager__cropper-img {
-  max-width: 100%;
-  display: block;
-}
-
-.cropper-title {
-  font-size: 1.05rem;
-  font-weight: 750;
-  color: var(--aoi-text);
-  margin: 0 0 4px 0;
-}
-
-.cropper-subtitle {
-  font-size: 0.8rem;
-  color: var(--aoi-text-muted);
-  margin: 0 0 12px 0;
-}
-
-.cropper-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-:deep(.cropper-view-box) {
-  border-radius: 50%;
-  outline: 1px solid var(--aoi-accent-40);
-  outline-color: var(--aoi-accent-40);
-}
-
-:deep(.cropper-face) {
-  background-color: inherit;
-}
-
-:deep(.cropper-line),
-:deep(.cropper-point) {
-  display: none !important;
+.crop-dialog__wrapper {
+  width: 100%;
+  max-width: 680px;
+  min-height: 480px;
+  background: var(--aoi-surface);
 }
 
 .avatar-manager__status {
