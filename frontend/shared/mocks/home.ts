@@ -111,12 +111,12 @@ export const mockCategoryTree: CategoryTreeNode[] = [
 export const mockCategories: Category[] = flattenCategoryTree(mockCategoryTree).map(({ children: _children, depth: _depth, path: _path, ...category }) => category)
 
 export const mockUsers: Record<string, UserSummary> = {
-  backend: { id: "user-curator", handle: "aoi-curator", displayName: "Aoi Curator", avatarUrl: null },
-  design: { id: "user-design", handle: "color-note", displayName: "Color Note", avatarUrl: null },
-  frontend: { id: "user-layout", handle: "layout-notes", displayName: "Layout Notes", avatarUrl: null },
-  lab: { id: "user-lab", handle: "aoi-lab", displayName: "Aoi Lab", avatarUrl: null },
-  motion: { id: "user-motion", handle: "aoi-motion", displayName: "Aoi Motion", avatarUrl: null },
-  rin: { id: "user-rin", handle: "rin721", displayName: "Rin721", avatarUrl: null }
+  backend: { id: "user-curator", handle: "aoi-curator", displayName: "Aoi Curator", avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=aoi-curator" },
+  design: { id: "user-design", handle: "color-note", displayName: "Color Note", avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=color-note" },
+  frontend: { id: "user-layout", handle: "layout-notes", displayName: "Layout Notes", avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=layout-notes" },
+  lab: { id: "user-lab", handle: "aoi-lab", displayName: "Aoi Lab", avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=aoi-lab" },
+  motion: { id: "user-motion", handle: "aoi-motion", displayName: "Aoi Motion", avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=aoi-motion" },
+  rin: { id: "user-rin", handle: "rin721", displayName: "Rin721", avatarUrl: "https://api.dicebear.com/7.x/adventurer/svg?seed=rin721" }
 }
 
 export function getMockCategory(slug: string): Category | null {

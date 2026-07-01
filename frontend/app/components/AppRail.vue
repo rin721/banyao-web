@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { desktopPrimaryItems, secondaryItems } = useAoiNavigation()
+const authSession = useAuthSessionStore()
 const route = useRoute()
 const focusedLabelKey = ref<string | null>(null)
 const hoveredLabelKey = ref<string | null>(null)
@@ -86,7 +87,18 @@ function handleRailClick(event: MouseEvent) {
         @pointerleave="hideHoveredRailLabel"
         @pointerdown="hideHoveredRailLabel"
       >
+        <AoiLink
+          v-if="item.to === '/me' && authSession.profileAvatarUrl"
+          class="app-rail__button app-rail__avatar-link"
+          :class="{ 'app-rail__avatar-link--active': item.active }"
+          :to="item.to"
+          :aria-label="item.label"
+          @click="handleRailClick"
+        >
+          <img :src="authSession.profileAvatarUrl" :alt="item.label" class="app-rail__avatar-img" />
+        </AoiLink>
         <AoiIconButton
+          v-else
           class="app-rail__button"
           :active="item.active"
           :aria-current="item.active ? 'page' : undefined"
@@ -224,6 +236,32 @@ function handleRailClick(event: MouseEvent) {
 .app-rail__item--label-visible .app-rail__label {
   opacity: 1;
   transform: translate3d(0, -50%, 0) scale(1);
+}
+
+.app-rail__avatar-link {
+  display: flex;
+  width: var(--aoi-nav-action-size);
+  height: var(--aoi-nav-action-size);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--aoi-radius-nav-indicator);
+  border: 2px solid transparent;
+  transition: border-color var(--aoi-action-motion-fast) var(--aoi-ease-out);
+}
+
+.app-rail__avatar-link:hover {
+  background: var(--aoi-nav-hover-bg);
+}
+
+.app-rail__avatar-link--active {
+  border-color: var(--aoi-accent-40);
+}
+
+.app-rail__avatar-img {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--aoi-radius-round);
+  object-fit: cover;
 }
 
 @media (max-width: 639px) {

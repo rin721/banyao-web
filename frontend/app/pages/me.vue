@@ -28,6 +28,7 @@ async function loadProfile() {
   profileError.value = null
   try {
     profile.value = await api.getAccountProfile()
+    authSession.profileAvatarUrl = profile.value.avatarUrl || ""
   } catch {
     profileError.value = t("me.loadError")
   } finally {

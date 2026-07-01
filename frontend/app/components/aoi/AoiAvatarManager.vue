@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Cropper from "cropperjs"
+import "cropperjs/dist/cropper.css"
 import type { AccountProfileResponse } from "~/types/api"
 
 const props = defineProps<{
@@ -68,6 +70,47 @@ const cropDialogOpen = ref(false)
 const cropMode = ref<"direct" | "manual">("direct")
 const selectedImageUrl = ref("")
 const selectedImageName = ref("")
+const cropperImgRef = ref<HTMLImageElement | null>(null)
+let cropperInstance: Cropper | null = null
+
+watch(cropDialogOpen, async (val) => {
+  if (val) {
+    await nextTick()
+    if (cropperImgRef.value) {
+      cropperInstance = new Cropper(cropperImgRef.value, {
+        aspectRatio: 1,
+        viewMode: 1,
+        dragMode: "move",
+        autoCropArea: 0.9,
+        restore: false,
+        guides: false,
+        center: false,
+        highlight: false,
+        cropBoxMovable: false,
+        cropBoxResizable: false,
+        toggleDragModeOnDblclick: false,
+        background: false
+      })
+    }
+  } else {
+    destroyCropper()
+  }
+})
+
+function destroyCropper() {
+  if (cropperInstance) {
+    cropperInstance.destroy()
+    cropperInstance = null
+  }
+}
+
+function zoomCropper(ratio: number) {
+  cropperInstance?.zoom(ratio)
+}
+
+function rotateCropper(degree: number) {
+  cropperInstance?.rotate(degree)
+}
 
 function onCropCancel() {
   cropDialogOpen.value = false
@@ -77,19 +120,33 @@ function onCropCancel() {
   }
 }
 
-async function onCropResult(resultPayload: any) {
-  cropDialogOpen.value = false
+async function saveCroppedAvatar() {
+  if (!cropperInstance) return
   uploading.value = true
   errorMessage.value = null
   successMessage.value = null
 
-  if (selectedImageUrl.value) {
-    URL.revokeObjectURL(selectedImageUrl.value)
-    selectedImageUrl.value = ""
-  }
-
   try {
-    const webpFile = new File([resultPayload.blob], "avatar.webp", {
+    const canvas = cropperInstance.getCroppedCanvas({
+      width: 256,
+      height: 256,
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: "high"
+    })
+
+    if (!canvas) {
+      throw new Error("无法获取剪裁区域")
+    }
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), "image/webp", 0.85)
+    })
+
+    if (!blob) {
+      throw new Error("图片生成失败")
+    }
+
+    const webpFile = new File([blob], "avatar.webp", {
       type: "image/webp",
       lastModified: Date.now()
     })
@@ -108,6 +165,7 @@ async function onCropResult(resultPayload: any) {
 
     addToHistory(res.avatarUrl)
     successMessage.value = "头像裁剪并压缩上传成功"
+    cropDialogOpen.value = false
   } catch (err: any) {
     if (err.statusCode === 429 || err.message?.includes("cooldown")) {
       errorMessage.value = "操作过于频繁，头像修改冷却中(30秒)，请稍后再试"
@@ -116,6 +174,7 @@ async function onCropResult(resultPayload: any) {
     }
   } finally {
     uploading.value = false
+    onCropCancel()
   }
 }
 
@@ -452,23 +511,48 @@ watch(() => props.profile.handle, () => {
     </AoiDialog>
 
     <!-- Manual Crop Dialog -->
-    <AoiDialog v-model:open="cropDialogOpen">
+    <AoiDialog v-model:open="cropDialogOpen" @close="onCropCancel">
       <template #headline>
         <span class="history-dialog__title">手动裁剪头像</span>
       </template>
 
-      <div class="crop-dialog__wrapper">
-        <AoiImageCropperWorkbench
-          v-if="cropDialogOpen"
-          :source-url="selectedImageUrl"
-          :source-name="selectedImageName"
-          aspect-ratio="1:1"
-          :aspect-ratios="[{ value: '1:1', label: '1:1 正方形' }]"
-          confirm-behavior="export-close"
-          @result="onCropResult"
-          @close="onCropCancel"
-        />
+      <div class="avatar-crop-workbench">
+        <div class="avatar-crop-canvas-wrapper">
+          <img ref="cropperImgRef" :src="selectedImageUrl" class="avatar-crop-image" />
+        </div>
+
+        <div class="avatar-crop-controls">
+          <AoiButton variant="outlined" tone="neutral" icon="zoom-in" @click="zoomCropper(0.1)">
+            放大
+          </AoiButton>
+          <AoiButton variant="outlined" tone="neutral" icon="zoom-out" @click="zoomCropper(-0.1)">
+            缩小
+          </AoiButton>
+          <AoiButton variant="outlined" tone="neutral" icon="rotate-cw" @click="rotateCropper(90)">
+            旋转
+          </AoiButton>
+        </div>
       </div>
+
+      <template #actions>
+        <AoiButton
+          variant="filled"
+          tone="accent"
+          icon="check"
+          :loading="uploading"
+          @click="saveCroppedAvatar"
+        >
+          确定使用
+        </AoiButton>
+        <AoiButton
+          variant="plain"
+          tone="neutral"
+          :disabled="uploading"
+          @click="onCropCancel"
+        >
+          取消
+        </AoiButton>
+      </template>
     </AoiDialog>
   </div>
 </template>
@@ -568,11 +652,47 @@ watch(() => props.profile.handle, () => {
   margin: 0;
 }
 
-.crop-dialog__wrapper {
-  width: 100%;
-  max-width: 680px;
-  min-height: 480px;
-  background: var(--aoi-surface);
+.avatar-crop-workbench {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 8px;
+}
+
+.avatar-crop-canvas-wrapper {
+  width: 280px;
+  height: 280px;
+  border-radius: var(--aoi-radius-md);
+  overflow: hidden;
+  border: 1px solid var(--aoi-border);
+  background: var(--aoi-surface-muted);
+}
+
+.avatar-crop-image {
+  max-width: 100%;
+  display: block;
+}
+
+.avatar-crop-controls {
+  display: flex;
+  gap: 12px;
+}
+
+/* Custom cropperjs override for circular viewport preview */
+:deep(.cropper-view-box) {
+  border-radius: 50%;
+  outline: 1px solid var(--aoi-accent-40);
+  outline-color: var(--aoi-accent-40);
+}
+
+:deep(.cropper-face) {
+  background-color: inherit;
+}
+
+:deep(.cropper-line),
+:deep(.cropper-point) {
+  display: none !important;
 }
 
 .avatar-manager__status {

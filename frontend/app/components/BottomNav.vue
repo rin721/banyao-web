@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { mobilePrimaryItems } = useAoiNavigation()
+const authSession = useAuthSessionStore()
 </script>
 
 <template>
@@ -15,7 +16,13 @@ const { mobilePrimaryItems } = useAoiNavigation()
       ripple
     >
       <span class="bottom-nav__icon-wrap" aria-hidden="true">
-        <AoiIcon :name="item.icon" size="var(--aoi-bottom-nav-icon-size)" decorative />
+        <img
+          v-if="item.to === '/me' && authSession.profileAvatarUrl"
+          :src="authSession.profileAvatarUrl"
+          :alt="item.label"
+          class="bottom-nav__avatar-img"
+        />
+        <AoiIcon v-else :name="item.icon" size="var(--aoi-bottom-nav-icon-size)" decorative />
       </span>
       <span class="bottom-nav__label">{{ item.label }}</span>
     </AoiLink>
@@ -83,6 +90,13 @@ const { mobilePrimaryItems } = useAoiNavigation()
   display: inline-grid;
   min-height: var(--aoi-bottom-nav-icon-min-height);
   place-items: center;
+}
+
+.bottom-nav__avatar-img {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--aoi-radius-round);
+  object-fit: cover;
 }
 
 .bottom-nav__label {

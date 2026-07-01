@@ -2,6 +2,7 @@
 import type { AccountProfileResponse } from "~/types/api"
 
 const api = useAoiApi()
+const authSession = useAuthSessionStore()
 const { t } = useI18n()
 
 const { profile, loadProfile } = inject("meProfile") as {
@@ -81,6 +82,7 @@ function onProfileUpdate(updated: AccountProfileResponse) {
     profile.value.avatarUrl = updated.avatarUrl
     profile.value.bio = updated.bio
   }
+  authSession.profileAvatarUrl = updated.avatarUrl || ""
 }
 </script>
 

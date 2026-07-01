@@ -22,8 +22,6 @@ export function useAoiNavigation() {
     { icon: "home", label: t("nav.home"), to: "/", active: isActive("/") },
     { icon: "search", label: t("nav.search"), to: "/search", active: isActive("/search") },
     { icon: "layout-grid", label: t("nav.categories"), to: "/category", active: isActive("/category") },
-    { icon: "history", label: t("nav.history"), to: "/me/history", active: isActive("/me/history") },
-    { icon: "star", label: t("nav.collections"), to: "/me/collections", active: isActive("/me/collections") },
     { icon: "radio-tower", label: t("nav.following"), to: "/feed/following", active: isActive("/feed/following") },
     { icon: "bell", label: t("nav.notifications"), to: "/notifications", active: isActive("/notifications") },
     { icon: "upload", label: t("nav.upload"), to: "/upload", active: isActive("/upload") }
@@ -33,7 +31,9 @@ export function useAoiNavigation() {
     { icon: "home", label: t("nav.home"), to: "/", active: isActive("/") },
     { icon: "layout-grid", label: t("nav.categories"), to: "/category", active: isActive("/category") },
     { icon: "radio-tower", label: t("nav.following"), to: "/feed/following", active: isActive("/feed/following") },
-    { icon: "search", label: t("nav.search"), to: "/search", active: isActive("/search") }
+    authSession.authenticated
+      ? { icon: "circle-user-round", label: t("nav.account"), to: "/me", active: isActive("/me") }
+      : { icon: "log-in", label: t("nav.login"), to: "/login", active: isActive("/login") || isActive("/register") }
   ])
 
   const secondaryItems = computed<AoiNavigationItem[]>(() => [

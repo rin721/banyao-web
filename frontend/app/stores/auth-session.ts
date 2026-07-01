@@ -11,6 +11,7 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
   const hydrated = ref(false)
   const pending = ref(false)
   const session = ref<CommunityAuthSession | null>(null)
+  const profileAvatarUrl = ref<string | null>(null)
   let refreshPromise: Promise<CommunityAuthSession | null> | null = null
 
   const authenticated = computed(() => Boolean(session.value?.sessionId))
@@ -69,7 +70,15 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
     hydrated.value = true
     if (nextSession && nextSession.accessExpiresAt) {
       scheduleTokenRefresh(nextSession.accessExpiresAt)
+      if (import.meta.client && !profileAvatarUrl.value) {
+        useAoiApi().getAccountProfile()
+          .then(profile => {
+            profileAvatarUrl.value = profile.avatarUrl || ""
+          })
+          .catch(() => {})
+      }
     } else {
+      profileAvatarUrl.value = null
       if (refreshTimer) {
         clearTimeout(refreshTimer)
         refreshTimer = null
@@ -83,6 +92,7 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
 
   function clearSession() {
     session.value = null
+    profileAvatarUrl.value = null
     error.value = null
     hydrated.value = true
     if (refreshTimer) {
@@ -160,6 +170,7 @@ export const useAuthSessionStore = defineStore("auth-session", () => {
     logout,
     pending,
     refreshSession,
-    session
+    session,
+    profileAvatarUrl
   }
 })

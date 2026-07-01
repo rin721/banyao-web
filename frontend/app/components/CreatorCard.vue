@@ -40,7 +40,13 @@ async function toggleFollow() {
     interactive
   >
     <template #media>
-      <span class="creator-card__avatar" aria-hidden="true">
+      <img
+        v-if="creator.avatarUrl"
+        :src="creator.avatarUrl"
+        :alt="creator.displayName"
+        class="creator-card__avatar creator-card__avatar--img"
+      />
+      <span v-else class="creator-card__avatar" aria-hidden="true">
         {{ creator.displayName.slice(0, 1).toUpperCase() }}
       </span>
     </template>
@@ -85,6 +91,11 @@ async function toggleFollow() {
     linear-gradient(135deg, var(--aoi-accent-40), var(--aoi-sakura-40));
   color: white;
   font-weight: 850;
+}
+
+.creator-card__avatar--img {
+  object-fit: cover;
+  border-radius: var(--aoi-radius-round);
 }
 
 .creator-card :deep(.aoi-info-card__meta span) {

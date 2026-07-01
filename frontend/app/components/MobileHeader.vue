@@ -3,7 +3,12 @@ const { t } = useI18n()
 const route = useRoute()
 const { mobilePrimaryItems, secondaryItems } = useAoiNavigation()
 
-const searchItem = computed(() => mobilePrimaryItems.value.find((item) => item.to === "/search"))
+const searchItem = computed(() => ({
+  active: route.path.startsWith("/search"),
+  icon: "search",
+  label: t("nav.search"),
+  to: "/search"
+}))
 const notificationsItem = computed(() => ({
   active: route.path.startsWith("/notifications"),
   icon: "bell",

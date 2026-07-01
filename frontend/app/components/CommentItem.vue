@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { CommentView } from "~/types/comments"
 
+const authSession = useAuthSessionStore()
+
 const props = withDefaults(defineProps<{
   canManage?: boolean
   comment: CommentView
@@ -18,6 +20,21 @@ const emit = defineEmits<{
 }>()
 
 const isEdited = computed(() => props.comment.updatedAt !== props.comment.createdAt)
+const avatarUrl = computed(() => {
+  if (props.comment.ownedByCurrentClient && authSession.profileAvatarUrl) {
+    return authSession.profileAvatarUrl
+  }
+  const name = props.comment.authorName
+  const mockAvatars: Record<string, string> = {
+    "Rin721": "https://api.dicebear.com/7.x/adventurer/svg?seed=rin721",
+    "Aoi Curator": "https://api.dicebear.com/7.x/adventurer/svg?seed=aoi-curator",
+    "Color Note": "https://api.dicebear.com/7.x/adventurer/svg?seed=color-note",
+    "Layout Notes": "https://api.dicebear.com/7.x/adventurer/svg?seed=layout-notes",
+    "Aoi Lab": "https://api.dicebear.com/7.x/adventurer/svg?seed=aoi-lab",
+    "Aoi Motion": "https://api.dicebear.com/7.x/adventurer/svg?seed=aoi-motion"
+  }
+  return mockAvatars[name] || null
+})
 const { locale, t } = useI18n()
 const editing = ref(false)
 const draftBody = ref(props.comment.body)
@@ -77,8 +94,16 @@ function deleteComment() {
 
 <template>
   <AoiSurface as="article" class="comment-item" surface="card" padding="md">
-    <div class="comment-item__avatar" aria-hidden="true">
-      {{ comment.authorName.slice(0, 1).toUpperCase() }}
+    <div class="comment-item__avatar-wrapper">
+      <img
+        v-if="avatarUrl"
+        :src="avatarUrl"
+        :alt="comment.authorName"
+        class="comment-item__avatar comment-item__avatar--img"
+      />
+      <div v-else class="comment-item__avatar" aria-hidden="true">
+        {{ comment.authorName.slice(0, 1).toUpperCase() }}
+      </div>
     </div>
 
     <div class="comment-item__content">
@@ -158,6 +183,12 @@ function deleteComment() {
   gap: 12px;
 }
 
+.comment-item__avatar-wrapper {
+  display: block;
+  width: 38px;
+  height: 38px;
+}
+
 .comment-item__avatar {
   display: grid;
   width: 38px;
@@ -167,6 +198,11 @@ function deleteComment() {
   background: var(--aoi-accent-10);
   color: var(--aoi-accent-60);
   font-weight: 800;
+}
+
+.comment-item__avatar--img {
+  object-fit: cover;
+  border-radius: var(--aoi-radius-round);
 }
 
 .comment-item__content {

@@ -78,7 +78,13 @@ function formatRelativeDate(date: Date) {
   <div class="video-meta" :class="{ 'video-meta--compact': compact }">
     <div class="video-meta__line">
       <span class="video-meta__item video-meta__uploader">
-        <span class="video-meta__dot" />
+        <img
+          v-if="video.uploader.avatarUrl"
+          :src="video.uploader.avatarUrl"
+          :alt="video.uploader.displayName"
+          class="video-meta__avatar"
+        />
+        <span v-else class="video-meta__dot" />
         <AoiLink
           v-if="linkUploader"
           class="video-meta__name video-meta__name--link"
@@ -136,6 +142,14 @@ function formatRelativeDate(date: Date) {
 
 .video-meta__uploader {
   max-width: 100%;
+}
+
+.video-meta__avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
 }
 
 .video-meta__name {
