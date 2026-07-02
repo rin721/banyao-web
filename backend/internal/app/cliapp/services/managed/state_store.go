@@ -27,7 +27,8 @@ func (m *Manager) baseState(service string, configPath string, cfg *appconfig.Co
 		StderrLogPath: filepath.Join(serviceDir, "stderr.log"),
 	}
 	if cfg != nil {
-		state.ListenAddr = net.JoinHostPort(cfg.Server.Host, fmt.Sprint(cfg.Server.Port))
+		host := strings.Trim(cfg.Server.Host, "[]")
+		state.ListenAddr = net.JoinHostPort(host, fmt.Sprint(cfg.Server.Port))
 		state.AppLogPath = cfg.Logger.FilePath
 	}
 	return state
