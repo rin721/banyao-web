@@ -205,6 +205,7 @@ watch([() => route.path, () => authSession.hydrated], () => {
               :class="{ 'me-nav-item--active': item.value === activeTab }"
               @click="activeTab = item.value"
             >
+              <AoiRipple />
               <div class="me-nav-item-left">
                 <AoiIcon :name="item.icon || 'circle-user-round'" :size="18" />
                 <span>{{ item.label }}</span>
@@ -223,6 +224,7 @@ watch([() => route.path, () => authSession.hydrated], () => {
             :class="{ 'me-mobile-nav-item--active': item.value === activeTab }"
             @click="activeTab = item.value"
           >
+            <AoiRipple />
             <AoiIcon :name="item.icon || 'circle-user-round'" :size="16" />
             <span>{{ item.label }}</span>
           </button>
@@ -402,6 +404,8 @@ watch([() => route.path, () => authSession.hydrated], () => {
   width: 100%;
   text-align: left;
   transition: all var(--aoi-action-motion-base) var(--aoi-ease-out);
+  position: relative;
+  overflow: hidden;
 }
 
 .me-nav-item-left {
@@ -488,6 +492,8 @@ watch([() => route.path, () => authSession.hydrated], () => {
     cursor: pointer;
     box-shadow: var(--aoi-shadow-sm);
     transition: all var(--aoi-action-motion-base) var(--aoi-ease-out);
+    position: relative;
+    overflow: hidden;
   }
 
   .me-mobile-nav-item--active {
